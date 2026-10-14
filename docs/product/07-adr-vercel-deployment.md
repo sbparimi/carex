@@ -25,3 +25,7 @@ Status: accepted, built, **not yet deployed** (needs your GitHub repo, Vercel pr
 4. In Vercel > Settings > Environment Variables add `DATABASE_URL` (and optionally `RESEND_API_KEY`, `EMAIL_FROM`, `APP_BASE_URL`). Redeploy.
 5. From your computer, with `DATABASE_URL` in your shell: `npm run ops -- create-tenant <slug> "<Name>" "#0b5fff"` or, for a demo database, `npm run ops -- seed-demo --yes`.
 6. Open `https://<your-domain>/t/<slug>/login` and `https://<your-domain>/healthz`.
+
+## Environment notes
+- Neon project `carex` (id `summer-hat-23741614`) was created in `aws-us-east-1`; `vercel.json` pins the function to `iad1` (same area) to keep database round trips short. Change both together if you move regions.
+- `npm run ops` and `npm run admin:key` read `DATABASE_URL` from a local `.env` file (git-ignored) when present.

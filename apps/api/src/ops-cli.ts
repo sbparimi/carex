@@ -1,4 +1,4 @@
-// Operator commands for a deployed database. Run locally with DATABASE_URL in your .env / shell (never pass it on the command line):
+// Operator commands for a deployed database. Run locally; DATABASE_URL is read from your shell or from a local .env file (never pass it on the command line):
 //   npm run ops -- migrate
 //   npm run ops -- create-tenant <slug> "<Display name>" "#0b5fff" [support-email]
 //   npm run ops -- seed-demo --yes          (invented demo data; refuses a database that already has tenants)
