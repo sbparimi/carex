@@ -123,3 +123,14 @@ describe("worker contract", () => {
     for (const s of ["FR-008", "apps/api/**", "harness/state", "Do not delegate", "Do not edit or delete tests", "unit: npm test"]) expect(p).toContain(s);
   });
 });
+
+import { cliArgs } from "../src/dispatch.js";
+describe("cliArgs", () => {
+  it("full mode disallows delegation and fixes the output format", () => {
+    const a = cliArgs("hi", { extraArgs: ["--x"] });
+    expect(a).toEqual(["-p", "hi", "--output-format", "text", "--disallowedTools", "Agent", "--x"]);
+  });
+  it("plain mode passes only -p and the prompt", () => {
+    expect(cliArgs("hi", { plain: true, extraArgs: ["--x"] })).toEqual(["-p", "hi"]);
+  });
+});

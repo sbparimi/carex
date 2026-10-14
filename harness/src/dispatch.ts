@@ -60,14 +60,20 @@ export function worktreeWorker(opts: { repo: string; baseRef?: string; agent: Ag
 }
 
 /**
- * Adapter for the Claude Code CLI in headless mode. NOT yet exercised against the real CLI
- * (needs an authenticated install and spends usage); the tests use fake agents.
+ * Adapter for the Claude Code CLI in headless mode. Exercised live in phase 2 (see docs/harness/07-live-run.md).
+ * Unit tests use fake agents.
  * Workers cannot spawn workers: the Agent tool is disallowed.
  */
-export function claudeCliAgent(opts: { bin?: string; extraArgs?: string[] } = {}): AgentRunner {
+/** Pure: the argv for one headless run. `plain` is for environments whose CLI wrapper accepts only `-p "<prompt>"`. */
+export function cliArgs(prompt: string, opts: { plain?: boolean; extraArgs?: string[] } = {}): string[] {
+  if (opts.plain) return ["-p", prompt];
+  return ["-p", prompt, "--output-format", "text", "--disallowedTools", "Agent", ...(opts.extraArgs ?? [])];
+}
+
+export function claudeCliAgent(opts: { bin?: string; extraArgs?: string[]; plain?: boolean } = {}): AgentRunner {
   return (task, cwd, prompt) =>
     new Promise((resolve, reject) => {
-      const child = spawn(opts.bin ?? "claude", ["-p", prompt, "--output-format", "text", "--disallowedTools", "Agent", ...(opts.extraArgs ?? [])], { cwd });
+      const child = spawn(opts.bin ?? "claude", cliArgs(prompt, opts), { cwd });
       let out = "", err = "";
       const timer = setTimeout(() => { child.kill("SIGKILL"); reject(new Error(`timed out after ${task.budget.maxMinutes} minutes`)); }, task.budget.maxMinutes * 60_000);
       child.stdout.on("data", (d) => (out += d));

@@ -18,9 +18,9 @@ const bin = process.env.CLAUDE_BIN ?? "claude";
 const store = StateStore.open(stateFile);
 const check = (id: string, command: string) => ({ id, description: command, command, expectExit: 0 });
 
-if (!store.snapshot().tasks["P2-ratelimit"]) {
+if (!store.snapshot().tasks["T-p2-ratelimit"]) {
   store.addTask({
-    id: "P2-ratelimit", title: "Rate limiter module", role: "backend", requirementIds: ["BR-hardening"],
+    id: "T-p2-ratelimit", title: "Rate limiter module", role: "backend", requirementIds: ["BR-hardening"],
     objective: "Implement apps/api/src/ratelimit.ts exporting createRateLimiter({limit, windowMs, maxKeys?, now?}) returning {check(key), sweep(), size()}, so that every test in apps/api/test/ratelimit.test.ts passes. Read that test file first; it is the spec and you must not edit it. Fixed window per key, deny does not extend the window, retryAfterSec is whole seconds rounded up (min 1), fail closed for new keys when maxKeys live keys are tracked (evict expired keys first). No dependencies.",
     scope: { write: ["apps/api/src/ratelimit.ts"], read: ["apps/api/**", "packages/**", "tsconfig.json"] },
     requiredChecks: [check("tests", "npx vitest run apps/api/test/ratelimit.test.ts"), check("types", "npx tsc -p tsconfig.json --noEmit")],
@@ -29,7 +29,8 @@ if (!store.snapshot().tasks["P2-ratelimit"]) {
 }
 
 const settings = JSON.stringify({ hooks: { PreToolUse: [{ matcher: "*", hooks: [{ type: "command", command: `node ${join(repo, "harness/hooks/pretooluse.mjs")}` }] }] } });
-const inner = claudeCliAgent({ bin, extraArgs: ["--permission-mode", "acceptEdits", "--allowedTools", "Read,Write,Edit,Glob,Grep,Bash(npx vitest:*),Bash(npx tsc:*)", "--settings", settings] });
+const plain = process.env.CLAUDE_PLAIN === "1";   // some environments allow only `claude -p "<prompt>"`; scope and tamper checks still run from git
+const inner = claudeCliAgent({ bin, plain, extraArgs: ["--permission-mode", "acceptEdits", "--allowedTools", "Read,Write,Edit,Glob,Grep,Bash(npx vitest:*),Bash(npx tsc:*)", "--settings", settings] });
 const agent: AgentRunner = (task, cwd, prompt) => { process.env.HARNESS_TASK_ID = task.id; process.env.HARNESS_STATE = stateFile; return inner(task, cwd, prompt); };
 const roleFile = (role: string) => { const p = join(repo, "harness/roles", `${role}.md`); return existsSync(p) ? readFileSync(p, "utf8") : ""; };
 
