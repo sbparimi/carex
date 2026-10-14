@@ -1,8 +1,11 @@
-import { DatabaseSync } from "node:sqlite";
+import { createRequire } from "node:module";
+import type { DatabaseSync as DatabaseSyncType } from "node:sqlite";
 import { MIGRATIONS } from "./migrations.js";
 import type { CatalogData } from "./catalog.js";
 
-export type Db = DatabaseSync;
+// Loaded through require so bundlers and Vite do not try to resolve the prefix-only built-in `node:sqlite`.
+const { DatabaseSync } = createRequire(import.meta.url)("node:sqlite") as typeof import("node:sqlite");
+export type Db = DatabaseSyncType;
 
 /** Opens (and migrates) the CareX database. Use ":memory:" in tests. */
 export function openDb(path = ":memory:"): Db {

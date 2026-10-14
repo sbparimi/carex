@@ -46,6 +46,97 @@
         "E-0436cb43-31b6-4037-9b29-912befaf7574"
       ],
       "updatedAt": "2026-10-14T15:27:10.628Z"
+    },
+    "T-p2-zoned": {
+      "id": "T-p2-zoned",
+      "title": "Time-zone helpers",
+      "objective": "Implement apps/api/src/zoned.ts exporting zonedTimeToUtc(year, month, day, minuteOfDay, timeZone): Date | undefined and localParts(instant, timeZone): {year, month, day, weekday, minuteOfDay}, so every test in apps/api/test/zoned.test.ts passes. Use only Intl.DateTimeFormat (no dependencies). Nonexistent local times (spring-forward gap) return undefined; ambiguous local times (fall-back) use the first occurrence; an unknown time zone throws. The spec file is the contract: read it first and do not edit it.",
+      "role": "backend",
+      "requirementIds": [
+        "ADR-002"
+      ],
+      "dependsOn": [],
+      "scope": {
+        "write": [
+          "apps/api/src/zoned.ts"
+        ],
+        "read": [
+          "apps/api/**",
+          "packages/**",
+          "tsconfig.json",
+          "docs/product/**"
+        ]
+      },
+      "requiredChecks": [
+        {
+          "id": "tests",
+          "description": "npx vitest run apps/api/test/zoned.test.ts",
+          "command": "npx vitest run apps/api/test/zoned.test.ts",
+          "expectExit": 0
+        },
+        {
+          "id": "types",
+          "description": "node harness/tools/tsc-scope.mjs apps/api/src/zoned.ts",
+          "command": "node harness/tools/tsc-scope.mjs apps/api/src/zoned.ts",
+          "expectExit": 0
+        }
+      ],
+      "budget": {
+        "maxRetries": 1,
+        "maxMinutes": 12
+      },
+      "highRisk": false,
+      "status": "done",
+      "retries": 0,
+      "evidenceIds": [
+        "E-b4701f87-eb77-4bf0-b04f-f33c9e572628",
+        "E-2dbd8d43-5e04-42cd-b2e5-ff2af32a6901"
+      ],
+      "updatedAt": "2026-10-14T15:33:04.382Z"
+    },
+    "T-p2-catalog": {
+      "id": "T-p2-catalog",
+      "title": "SQLite catalog",
+      "objective": "Implement apps/api/src/sqlite-catalog.ts exporting class SqliteCatalog implementing CatalogPort (see apps/api/src/catalog.ts; the in-memory Catalog there is the behavioural reference) on top of the node:sqlite database from apps/api/src/db.ts and the schema in apps/api/src/migrations.ts. Constructor takes a Db. Every query must filter by tenant_id and use bound parameters (never string-concatenate input into SQL). Make every test in apps/api/test/sqlite-catalog.test.ts pass; read it first and do not edit it. Do not change db.ts, migrations.ts or catalog.ts.",
+      "role": "backend",
+      "requirementIds": [
+        "ADR-002"
+      ],
+      "dependsOn": [],
+      "scope": {
+        "write": [
+          "apps/api/src/sqlite-catalog.ts"
+        ],
+        "read": [
+          "apps/api/**",
+          "packages/**",
+          "tsconfig.json",
+          "docs/product/**"
+        ]
+      },
+      "requiredChecks": [
+        {
+          "id": "tests",
+          "description": "npx vitest run apps/api/test/sqlite-catalog.test.ts",
+          "command": "npx vitest run apps/api/test/sqlite-catalog.test.ts",
+          "expectExit": 0
+        },
+        {
+          "id": "types",
+          "description": "node harness/tools/tsc-scope.mjs apps/api/src/sqlite-catalog.ts",
+          "command": "node harness/tools/tsc-scope.mjs apps/api/src/sqlite-catalog.ts",
+          "expectExit": 0
+        }
+      ],
+      "budget": {
+        "maxRetries": 1,
+        "maxMinutes": 12
+      },
+      "highRisk": false,
+      "status": "blocked",
+      "retries": 0,
+      "evidenceIds": [],
+      "updatedAt": "2026-10-14T15:33:31.975Z"
     }
   },
   "evidence": {
@@ -71,6 +162,30 @@
       "finishedAt": "2026-10-14T15:27:10.626Z",
       "outputSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "outputExcerpt": "",
+      "recordedBy": "runner"
+    },
+    "E-b4701f87-eb77-4bf0-b04f-f33c9e572628": {
+      "id": "E-b4701f87-eb77-4bf0-b04f-f33c9e572628",
+      "taskId": "T-p2-zoned",
+      "checkId": "tests",
+      "command": "npx vitest run apps/api/test/zoned.test.ts",
+      "exitCode": 0,
+      "startedAt": "2026-10-14T15:32:59.115Z",
+      "finishedAt": "2026-10-14T15:33:00.352Z",
+      "outputSha256": "c18d0ec75567ab488e929c78af958ff7ef9eda319f5b8b0d0c02d31f5c8ca71e",
+      "outputExcerpt": "▲ [WARNING] Expected the \"baseUrl\" option to be nested inside a \"compilerOptions\" object [tsconfig.json]\n\n    ../../tsconfig.json:21:2:\n      21 │   \"baseUrl\": \".\",\n         ╵   ~~~~~~~~~\n\n▲ [WARNING] Expected the \"baseUrl\" option to be nested inside a \"compilerOptions\" object [tsconfig.json]\n\n    tsconfig.json:21:2:\n      21 │   \"baseUrl\": \".\",\n         ╵   ~~~~~~~~~\n\n\n\u001b[1m\u001b[7m\u001b[36m RUN \u001b[39m\u001b[27m\u001b[22m \u001b[36mv2.1.9 \u001b[39m\u001b[90m/home/claude/work/carex/.worktrees/T-p2-zoned\u001b[39m\n\n \u001b[32m✓\u001b[39m apps/api/test/zoned.test.ts \u001b[2m(\u001b[22m\u001b[2m8 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 41\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m1 passed\u001b[39m\u001b[22m\u001b[90m (1)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m8 passed\u001b[39m\u001b[22m\u001b[90m (8)\u001b[39m\n\u001b[2m   Start at \u001b[22m 15:32:59\n\u001b[2m   Duration \u001b[22m 443ms\u001b[2m (transform 88ms, setup 0ms, collect 83ms, tests 41ms, environment 0ms, prepare 64ms)\u001b[22m\n\n",
+      "recordedBy": "runner"
+    },
+    "E-2dbd8d43-5e04-42cd-b2e5-ff2af32a6901": {
+      "id": "E-2dbd8d43-5e04-42cd-b2e5-ff2af32a6901",
+      "taskId": "T-p2-zoned",
+      "checkId": "types",
+      "command": "node harness/tools/tsc-scope.mjs apps/api/src/zoned.ts",
+      "exitCode": 0,
+      "startedAt": "2026-10-14T15:33:00.352Z",
+      "finishedAt": "2026-10-14T15:33:04.379Z",
+      "outputSha256": "38bae390b0239e80a6e61cde6f53803de5f6f3b37fbe5e0786cec95257b38cd7",
+      "outputExcerpt": "no type errors in: apps/api/src/zoned.ts\n",
       "recordedBy": "runner"
     }
   },
@@ -108,6 +223,78 @@
         "maxKeys default of 10000 is my choice; the spec gave none.",
         "committed cd7c0ba685 on task branch"
       ]
+    },
+    "T-p2-zoned": {
+      "taskId": "T-p2-zoned",
+      "status": "completed",
+      "summary": "Added apps/api/src/zoned.ts. It exports zonedTimeToUtc and localParts, built on Intl.DateTimeFormat only. zonedTimeToUtc tries the UTC offsets in effect one day before and one day after the naive local time, keeps candidates whose local parts round-trip to the requested time, and picks the earliest. A spring-forward gap leaves no candidate, so it returns undefined. A fall-back overlap gives two candidates, so the first occurrence wins. An unknown time zone throws RangeError. localParts uses hourCycle h23, so midnight is minute 0. A nonexistent calendar date such as Feb 30 also returns undefined.",
+      "changedFiles": [
+        "apps/api/src/zoned.ts"
+      ],
+      "testsExecuted": [
+        {
+          "command": "npx vitest run apps/api/test/zoned.test.ts",
+          "result": "passed: 8/8 tests"
+        },
+        {
+          "command": "node harness/tools/tsc-scope.mjs apps/api/src/zoned.ts",
+          "result": "no type errors in: apps/api/src/zoned.ts"
+        }
+      ],
+      "criteriaSatisfied": [
+        "All tests in apps/api/test/zoned.test.ts pass",
+        "Intl.DateTimeFormat only, no dependencies",
+        "Spring-forward gap returns undefined",
+        "Fall-back overlap uses the first occurrence",
+        "Unknown time zone throws",
+        "Type check passes",
+        "Only apps/api/src/zoned.ts was written; the spec file is untouched"
+      ],
+      "criteriaUnsatisfied": [],
+      "risks": [
+        "The one-day-either-side offset sampling assumes at most one offset transition in that window. This holds for real-world zones.",
+        "Zones whose offsets have a non-whole-minute component (historical LMT) are not handled, because everything works at minute resolution.",
+        "The root tsconfig.json has a stray top-level baseUrl/paths, which produces an esbuild warning. It is pre-existing and outside this task's write scope.",
+        "committed 1dded9f49e on task branch"
+      ]
+    },
+    "T-p2-catalog": {
+      "taskId": "T-p2-catalog",
+      "status": "blocked",
+      "summary": "apps/api/src/sqlite-catalog.ts is written and typechecks. The required vitest check cannot run in this environment, because Vite fails to load node:sqlite. That is a tooling problem, and fixing it needs a change outside my write scope. The test file did not execute, so none of its tests are verified.",
+      "changedFiles": [
+        "apps/api/src/sqlite-catalog.ts"
+      ],
+      "testsExecuted": [
+        {
+          "command": "npx vitest run apps/api/test/sqlite-catalog.test.ts",
+          "result": "FAILED to load suite, 0 tests ran: 'Failed to load url sqlite (resolved id: sqlite)'. Vite 5 (vitest 2.1.9) strips the 'node:' prefix from node:sqlite, which is not in its builtin list, so db.ts cannot be imported. This occurs before sqlite-catalog.ts is evaluated."
+        },
+        {
+          "command": "node harness/tools/tsc-scope.mjs apps/api/src/sqlite-catalog.ts",
+          "result": "no type errors in: apps/api/src/sqlite-catalog.ts"
+        },
+        {
+          "command": "npx vitest run -c <scratchpad temp config> apps/api/test/sqlite-catalog.test.ts (resolveId plugin marking node:sqlite external, kept outside the repo)",
+          "result": "Same load failure on 'sqlite'. The prefix is stripped before the plugin sees the id, so this workaround did not work."
+        }
+      ],
+      "criteriaSatisfied": [
+        "SqliteCatalog implements CatalogPort, takes a Db in its constructor, and typechecks",
+        "Every query filters by tenant_id and uses bound parameters only. Joined tables are tenant-scoped too, and no input is concatenated into SQL",
+        "Behaviour mirrors the in-memory Catalog: active and bookable clinics only, clinic visit-type and provider-eligibility chains, active tenants only, no internal fields exposed. Sorting follows the test (clinic name, visit-type label), with providers sorted by display name",
+        "db.ts, migrations.ts, catalog.ts and the test file are untouched"
+      ],
+      "criteriaUnsatisfied": [
+        "'Make every test in sqlite-catalog.test.ts pass' is unverified: the suite cannot load under the repo's vitest config"
+      ],
+      "risks": [
+        "Logic has been checked only by reading the tests against the schema, not by running them",
+        "The existing vitest.config.ts probably needs a fix for node:sqlite, for example server.deps.external or an inline plugin, or a vitest/vite upgrade. This blocks every test that imports db.ts, not only this one",
+        "Test expectation 'sv-pc-n' before 'sv-physio-n' relies on label ordering ('Primary Care' < 'Physiotherapy'). It should hold but has not been run",
+        "committed 3c898dee80 on task branch"
+      ],
+      "nextTask": "Fix vitest.config.ts (outside my write scope, so it needs the owner or another specialist) so node:sqlite loads, then rerun the harness checks for T-p2-catalog."
     }
   },
   "approvals": {},
@@ -152,6 +339,69 @@
       "at": "2026-10-14T15:27:10.628Z",
       "event": "done",
       "taskId": "T-p2-ratelimit"
+    },
+    {
+      "at": "2026-10-14T15:32:28.359Z",
+      "event": "task_added",
+      "taskId": "T-p2-zoned"
+    },
+    {
+      "at": "2026-10-14T15:32:28.361Z",
+      "event": "task_added",
+      "taskId": "T-p2-catalog"
+    },
+    {
+      "at": "2026-10-14T15:32:28.363Z",
+      "event": "transition",
+      "taskId": "T-p2-catalog",
+      "detail": "ready"
+    },
+    {
+      "at": "2026-10-14T15:32:28.365Z",
+      "event": "transition",
+      "taskId": "T-p2-zoned",
+      "detail": "ready"
+    },
+    {
+      "at": "2026-10-14T15:32:28.378Z",
+      "event": "transition",
+      "taskId": "T-p2-catalog",
+      "detail": "in_progress"
+    },
+    {
+      "at": "2026-10-14T15:32:28.380Z",
+      "event": "transition",
+      "taskId": "T-p2-zoned",
+      "detail": "in_progress"
+    },
+    {
+      "at": "2026-10-14T15:32:59.102Z",
+      "event": "result_submitted",
+      "taskId": "T-p2-zoned",
+      "detail": "completed -> needs_review"
+    },
+    {
+      "at": "2026-10-14T15:33:04.379Z",
+      "event": "evidence_recorded",
+      "taskId": "T-p2-zoned",
+      "detail": "tests exit=0"
+    },
+    {
+      "at": "2026-10-14T15:33:04.381Z",
+      "event": "evidence_recorded",
+      "taskId": "T-p2-zoned",
+      "detail": "types exit=0"
+    },
+    {
+      "at": "2026-10-14T15:33:04.382Z",
+      "event": "done",
+      "taskId": "T-p2-zoned"
+    },
+    {
+      "at": "2026-10-14T15:33:31.975Z",
+      "event": "result_submitted",
+      "taskId": "T-p2-catalog",
+      "detail": "blocked -> blocked"
     }
   ]
 }

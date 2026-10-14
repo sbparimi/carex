@@ -35,8 +35,8 @@ describe("SqliteCatalog", () => {
     expect(c.clinic("tn-north", "cl-sb")?.name).toBe("San Bernardo Clinic");
   });
   it("offers only visit types switched on at that clinic, sorted by label", () => {
-    expect(c.visitTypes("tn-north", "cl-sb").map((v) => v.id)).toEqual(["sv-pc-n", "sv-physio-n"]);
-    expect(c.visitTypes("tn-north", "cl-sb")[0]).toEqual({ id: "sv-pc-n", canonicalType: "primary_care", label: "Primary Care", description: "Primary Care visit" });
+    expect(c.visitTypes("tn-north", "cl-sb").map((v) => v.id)).toEqual(["sv-physio-n", "sv-pc-n"]);
+    expect(c.visitTypes("tn-north", "cl-sb")[1]).toEqual({ id: "sv-pc-n", canonicalType: "primary_care", label: "Primary Care", description: "Primary Care visit" });
     expect(c.visitTypes("tn-bay", "cl-sb")).toEqual([]);
     expect(c.visitTypes("tn-north", "cl-fr")).toEqual([]);
   });

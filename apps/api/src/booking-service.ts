@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { BookingRequest, type BookingOutcome, type Slot } from "@carex/contracts";
-import type { Catalog } from "./catalog.js";
+import type { CatalogPort } from "./catalog.js";
 import { SchedulingTimeoutError, SlotTakenError, type SchedulingSource } from "./scheduling.js";
 
 export class DomainError extends Error {
@@ -19,7 +19,7 @@ export class BookingService {
   private inflight = new Map<string, { fingerprint: string; promise: Promise<BookingOutcome> }>();
   private settled = new Map<string, { fingerprint: string; outcome: BookingOutcome; req: BookingRequest }>();
 
-  constructor(private catalog: Catalog, private source: SchedulingSource) {}
+  constructor(private catalog: CatalogPort, private source: SchedulingSource) {}
 
   async slots(tenantId: string, clinicId: string, serviceId: string, providerId: string): Promise<Slot[]> {
     if (!this.catalog.eligible(tenantId, clinicId, serviceId, providerId)) return [];

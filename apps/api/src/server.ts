@@ -3,12 +3,12 @@ import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { Id, StateCode } from "@carex/contracts";
-import type { Catalog } from "./catalog.js";
+import type { CatalogPort } from "./catalog.js";
 import { BookingService, DomainError } from "./booking-service.js";
 import { emitTelemetry, redact, type TelemetrySink } from "./telemetry.js";
 
 export interface Deps {
-  catalog: Catalog; bookings: BookingService;
+  catalog: CatalogPort; bookings: BookingService;
   log?: (entry: unknown) => void; telemetry?: TelemetrySink;
   /** Directory holding index.html, app.js, app.css for the patient UI. */
   staticDir?: string;

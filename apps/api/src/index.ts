@@ -1,15 +1,17 @@
-import { Catalog } from "./catalog.js";
-import { syntheticCatalog } from "./seed.js";
-import { MockScheduling } from "./scheduling.js";
+import { openDb } from "./db.js";
+import { SqliteCatalog } from "./sqlite-catalog.js";
+import { SqliteScheduling } from "./sqlite-scheduling.js";
 import { BookingService } from "./booking-service.js";
-import { createServer } from "./server.js";
+import { createServer, type Deps } from "./server.js";
 
-export { createServer, Catalog, syntheticCatalog, MockScheduling, BookingService };
+export { createServer, SqliteCatalog, SqliteScheduling, BookingService, openDb };
 
-/** Dev entry: synthetic data and a mock scheduling source. Never point this at real patient data. */
-export function buildDevApp(clock?: () => Date) {
-  const catalog = new Catalog(syntheticCatalog());
-  const source = new MockScheduling(clock);
-  const bookings = new BookingService(catalog, source);
-  return { catalog, source, bookings, server: createServer({ catalog, bookings, log: (e) => console.log(JSON.stringify(e)) }) };
+/** Wires the real CareX engine to one database file (":memory:" for tests). Seeding is the caller's decision. */
+export function buildApp(opts: { dbPath: string; now?: () => Date } & Partial<Pick<Deps, "log" | "telemetry" | "staticDir">>) {
+  const db = openDb(opts.dbPath);
+  const catalog = new SqliteCatalog(db);
+  const scheduling = new SqliteScheduling(db, opts.now ? { now: opts.now } : {});
+  const bookings = new BookingService(catalog, scheduling);
+  const { dbPath: _p, now: _n, ...rest } = opts;
+  return { db, catalog, scheduling, bookings, server: createServer({ catalog, bookings, ...rest }) };
 }

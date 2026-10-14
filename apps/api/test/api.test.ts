@@ -1,20 +1,25 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import type { AddressInfo } from "node:net";
 import type { Server } from "node:http";
-import { Catalog } from "../src/catalog.js";
+import { openDb, seedDb, type Db } from "../src/db.js";
 import { syntheticCatalog } from "../src/seed.js";
-import { MockScheduling } from "../src/scheduling.js";
+import { SqliteCatalog } from "../src/sqlite-catalog.js";
+import { SqliteScheduling } from "../src/sqlite-scheduling.js";
+import { FaultInjectingScheduling } from "../src/fault-injection.js";
 import { BookingService } from "../src/booking-service.js";
 import { createServer } from "../src/server.js";
 
-let server: Server; let base: string; let source: MockScheduling; let bookings: BookingService;
+let server: Server; let base: string; let db: Db; let catalog: SqliteCatalog; let source: FaultInjectingScheduling; let bookings: BookingService;
+const NOW = () => new Date("2026-11-02T08:00:00Z");   // Monday 00:00 in Los Angeles
+const count = () => (db.prepare("SELECT COUNT(*) AS n FROM appointments").get() as { n: number }).n;
 let logs: unknown[]; let events: Record<string, string>[];
 const PATIENT = { firstName: "Pat", lastName: "Synthetic", email: "pat.synthetic@example.test" };
 
 beforeEach(async () => {
   logs = []; events = [];
-  const catalog = new Catalog(syntheticCatalog());
-  source = new MockScheduling(() => new Date("2026-11-02T08:00:00Z"));
+  db = openDb(); seedDb(db, syntheticCatalog());
+  catalog = new SqliteCatalog(db);
+  source = new FaultInjectingScheduling(new SqliteScheduling(db, { now: NOW }));
   bookings = new BookingService(catalog, source);
   server = createServer({ catalog, bookings, log: (e) => logs.push(e), telemetry: (e) => events.push(e) });
   await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
@@ -69,7 +74,7 @@ describe("tenant isolation and safe errors (BR-001, BR-012, FR-001)", () => {
     const [s] = await firstSlots();
     const cross = await post("/t/bayview-care/api/bookings", req(s!.id));
     expect(cross.status).toBe(404); expect(cross.body).toEqual({ error: { code: "not_found", message: "Not found" } });
-    expect(source.bookingCount).toBe(0);
+    expect(count()).toBe(0);
   });
   it("does not fall back when the tenant is unknown, suspended or malformed", async () => {
     const unknownRoute = await get(`/nope`);
@@ -95,9 +100,9 @@ describe("booking integrity (FR-008, BR-006..BR-009, PRD §12)", () => {
   it("confirms only after the source confirms, with a full summary", async () => {
     const [s] = await firstSlots();
     const r = await post(`${NW}/bookings`, req(s!.id));
-    expect(r.status).toBe(201); expect(r.body.status).toBe("confirmed"); expect(r.body.bookingId).toBe("bk-1");
+    expect(r.status).toBe(201); expect(r.body.status).toBe("confirmed"); expect(r.body.bookingId).toEqual(expect.any(String));
     expect(r.body.summary).toMatchObject({ clinic: { name: "San Bernardo Clinic", timeZone: "America/Los_Angeles" }, visitType: { label: "Primary Care" }, provider: { displayName: "Dr. Alex Example" } });
-    expect(source.bookingCount).toBe(1);
+    expect(count()).toBe(1);
     expect((await firstSlots()).map((x) => x.id)).not.toContain(s!.id);                              // the slot left availability
   });
   it("requires explicit confirmation and an idempotency key", async () => {
@@ -106,20 +111,19 @@ describe("booking integrity (FR-008, BR-006..BR-009, PRD §12)", () => {
     expect((await post(`${NW}/bookings`, { ...req(s!.id), confirmed: undefined }))).toMatchObject({ status: 400 });
     expect((await post(`${NW}/bookings`, req(s!.id), null)).status).toBe(400);
     expect((await post(`${NW}/bookings`, req(s!.id), "short")).status).toBe(400);
-    expect(source.bookingCount).toBe(0);
+    expect(count()).toBe(0);
   });
   it("a duplicate submit with the same key returns the same booking and creates no second one", async () => {
     const [s] = await firstSlots();
     const a = await post(`${NW}/bookings`, req(s!.id)); const b = await post(`${NW}/bookings`, req(s!.id));
-    expect(b.body.bookingId).toBe(a.body.bookingId); expect(source.bookingCount).toBe(1);
+    expect(b.body.bookingId).toBe(a.body.bookingId); expect(count()).toBe(1);
   });
   it("concurrent duplicate submits share one attempt", async () => {
-    source = new MockScheduling(() => new Date("2026-11-02T08:00:00Z"), 25);
-    bookings = new BookingService(new Catalog(syntheticCatalog()), source);
+    bookings = new BookingService(catalog, source);
     const [s] = await bookings.slots("tn-north", "cl-sb", "sv-pc-n", "pr-a");
     const results = await Promise.all([1, 2, 3, 4].map(() => bookings.create("tn-north", req(s!.id), "key-concurrent")));
     expect(new Set(results.map((r) => r.status === "confirmed" && r.bookingId)).size).toBe(1);
-    expect(source.bookingCount).toBe(1);
+    expect(count()).toBe(1);
   });
   it("the same key with a different request is refused", async () => {
     const [s1, s2] = await firstSlots();
@@ -131,42 +135,42 @@ describe("booking integrity (FR-008, BR-006..BR-009, PRD §12)", () => {
     const [s] = await firstSlots();
     const [a, b] = await Promise.all([post(`${NW}/bookings`, req(s!.id), "key-racer-aaa"), post(`${NW}/bookings`, req(s!.id), "key-racer-bbb")]);
     const statuses = [a.status, b.status].sort();
-    expect(statuses).toEqual([201, 409]); expect(source.bookingCount).toBe(1);
+    expect(statuses).toEqual([201, 409]); expect(count()).toBe(1);
     const loser = a.status === 409 ? a : b;
     expect(loser.body.status).toBe("slot_unavailable"); expect(loser.body.alternatives.map((x: any) => x.id)).not.toContain(s!.id);
   });
   it("rejects a slot that is not offered for the selection (stale or forged slot id)", async () => {
     const r = await post(`${NW}/bookings`, req("tn-north:pr-a:20300101T0000"));
-    expect(r.status).toBe(409); expect(r.body.status).toBe("slot_unavailable"); expect(source.bookingCount).toBe(0);
+    expect(r.status).toBe(409); expect(r.body.status).toBe("slot_unavailable"); expect(count()).toBe(0);
   });
   it("scheduling outage: failure is reported, nothing is claimed, and the same key can be retried", async () => {
     const [s] = await firstSlots(); source.injectFault("unavailable");
     const a = await post(`${NW}/bookings`, req(s!.id));
-    expect(a.status).toBe(503); expect(a.body).toMatchObject({ status: "failed", retryable: true }); expect(source.bookingCount).toBe(0);
+    expect(a.status).toBe(503); expect(a.body).toMatchObject({ status: "failed", retryable: true }); expect(count()).toBe(0);
     const b = await post(`${NW}/bookings`, req(s!.id));
-    expect(b.status).toBe(201); expect(source.bookingCount).toBe(1);
+    expect(b.status).toBe(201); expect(count()).toBe(1);
   });
   it("timeout AFTER commit: reported as pending, never confirmed; reconciliation finds the booking; retry does not double-book", async () => {
     const [s] = await firstSlots(); source.injectFault("timeout_after_commit");
     const a = await post(`${NW}/bookings`, req(s!.id));
-    expect(a.status).toBe(202); expect(a.body.status).toBe("pending"); expect(JSON.stringify(a.body)).not.toMatch(/bk-/);
+    expect(a.status).toBe(202); expect(a.body.status).toBe("pending"); expect(JSON.stringify(a.body)).not.toMatch(/bookingId/);
     const rec = await get(`${NW}/bookings/by-key/key-00000001`);
-    expect(rec.body).toMatchObject({ status: "confirmed", bookingId: "bk-1" });
+    expect(rec.body).toMatchObject({ status: "confirmed", bookingId: expect.any(String) });
     const retry = await post(`${NW}/bookings`, req(s!.id));
-    expect(retry.body.bookingId).toBe("bk-1"); expect(source.bookingCount).toBe(1);
+    expect(retry.body.bookingId).toBe(rec.body.bookingId); expect(count()).toBe(1);
   });
   it("timeout BEFORE commit: stays pending until a safe retry succeeds", async () => {
     const [s] = await firstSlots(); source.injectFault("timeout_before_commit");
     expect((await post(`${NW}/bookings`, req(s!.id))).body.status).toBe("pending");
     expect((await get(`${NW}/bookings/by-key/key-00000001`)).body.status).toBe("pending");
-    expect(source.bookingCount).toBe(0);
+    expect(count()).toBe(0);
     const retry = await post(`${NW}/bookings`, req(s!.id));
-    expect(retry.body.status).toBe("confirmed"); expect(source.bookingCount).toBe(1);
+    expect(retry.body.status).toBe("confirmed"); expect(count()).toBe(1);
   });
   it("rejects oversized and non-JSON bodies, and never leaks internals on unexpected errors", async () => {
     expect((await post(`${NW}/bookings`, "x".repeat(20_000))).status).toBe(413);
     expect((await post(`${NW}/bookings`, "{not json")).status).toBe(400);
-    const boom = createServer({ catalog: new Catalog(syntheticCatalog()), bookings: { create: async () => { throw new Error("db password=hunter2 at /srv/app.ts:42"); } } as unknown as BookingService });
+    const boom = createServer({ catalog: catalog, bookings: { create: async () => { throw new Error("db password=hunter2 at /srv/app.ts:42"); } } as unknown as BookingService });
     await new Promise<void>((r) => boom.listen(0, "127.0.0.1", r));
     const r = await fetch(`http://127.0.0.1:${(boom.address() as AddressInfo).port}${NW}/bookings`, { method: "POST", headers: { "idempotency-key": "key-00000001" }, body: JSON.stringify(req("x")) });
     const text = await r.text(); boom.close();

@@ -1,19 +1,27 @@
-// Test-only entry used by Playwright. Synthetic data, mock scheduling, fault injection and reset endpoints. Never deployed.
+// Test-only entry used by Playwright. Real CareX engine on an in-memory database with synthetic data, plus fault injection
+// and reset endpoints. Never deployed.
 import { fileURLToPath } from "node:url";
-import { Catalog } from "./catalog.js";
+import { openDb, seedDb } from "./db.js";
 import { syntheticCatalog } from "./seed.js";
-import { MockScheduling, type Fault } from "./scheduling.js";
+import { SqliteCatalog } from "./sqlite-catalog.js";
+import { SqliteScheduling } from "./sqlite-scheduling.js";
+import { FaultInjectingScheduling, type Fault } from "./fault-injection.js";
 import { BookingService } from "./booking-service.js";
 import { createServer, type Deps } from "./server.js";
 
-const catalog = new Catalog(syntheticCatalog());
-let source = new MockScheduling(() => new Date());
+function fresh() {
+  const db = openDb(); seedDb(db, syntheticCatalog());
+  const catalog = new SqliteCatalog(db);
+  const source = new FaultInjectingScheduling(new SqliteScheduling(db));
+  return { catalog, source, bookings: new BookingService(catalog, source) };
+}
+let state = fresh();
 const deps: Deps = {
-  catalog, bookings: new BookingService(catalog, source),
+  catalog: state.catalog, bookings: state.bookings,
   staticDir: process.env.STATIC_DIR ?? fileURLToPath(new URL("../../web/public", import.meta.url)),
   testHooks: {
-    injectFault: (f) => source.injectFault(f as Fault),
-    reset: () => { source = new MockScheduling(() => new Date()); deps.bookings = new BookingService(catalog, source); },
+    injectFault: (f) => state.source.injectFault(f as Fault),
+    reset: () => { state = fresh(); deps.catalog = state.catalog; deps.bookings = state.bookings; },
   },
 };
 const port = Number(process.env.PORT ?? 4173);
