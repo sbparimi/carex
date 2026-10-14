@@ -16,6 +16,7 @@
     "test:e2e": "npm run build:web && npm run build:e2e && playwright test",
     "build:api": "esbuild apps/api/src/main.ts --bundle --platform=node --format=esm --external:pg --external:@electric-sql/pglite --outfile=dist/main.mjs",
     "admin:key": "esbuild apps/api/src/admin-key-cli.ts --bundle --platform=node --format=esm --external:pg --external:@electric-sql/pglite --outfile=dist/admin-key.mjs --log-level=error && node dist/admin-key.mjs",
+    "prestart": "node -e \"try{require.resolve('@electric-sql/pglite');require.resolve('pg')}catch(e){console.error('Dependencies are missing or out of date. Run: npm install');process.exit(1)}\"",
     "start": "npm run -s build:web && npm run -s build:api && node dist/main.mjs"
   },
   "devDependencies": {
