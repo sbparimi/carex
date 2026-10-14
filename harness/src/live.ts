@@ -37,7 +37,7 @@ const CATALOG: Record<string, object> = {
     objective: "Implement apps/api/src/sqlite-scheduling.ts exporting class SqliteScheduling implementing SchedulingSource (apps/api/src/scheduling.ts) on node:sqlite (apps/api/src/db.ts, migrations.ts: read the schema comments). Constructor (db: Db, opts?: {now?: () => Date; horizonDays?: number (default 14); minLeadMinutes?: number (default 60)}). Slots come from availability_rules (local time in the clinic's time_zone; convert with zonedTimeToUtc/localParts from apps/api/src/zoned.ts) in steps of the visit type's duration_min, minus confirmed appointments and time_off that overlap, ordered by start; slot id format `<tenantId>:<providerId>:<yyyymmddThhmm>` in UTC. reserve() must run in inTransaction (db.ts), re-derive the offered slots, throw SlotTakenError if the slot is not offered or the unique index is violated, honour idempotency (same tenant+key+same request returns the existing booking; same key with a different request throws IdempotencyConflictError), and store a request_hash. All queries bound-parameter and tenant-scoped. Make every test in apps/api/test/sqlite-scheduling.test.ts pass; read it first and do not edit it.",
     scope: { write: ["apps/api/src/sqlite-scheduling.ts"], read: READ }, requiredChecks: [spec("apps/api/test/sqlite-scheduling.test.ts"), scoped("apps/api/src/sqlite-scheduling.ts")] },
 };
-const wanted = (process.argv[5] ?? "T-p2-ratelimit").split(",");
+const wanted = (process.argv[4] ?? "T-p2-ratelimit").split(",");
 for (const id of wanted) {
   if (!CATALOG[id]) throw new Error(`unknown task ${id}`);
   if (!store.snapshot().tasks[id]) store.addTask({ id, ...CATALOG[id] } as never);
