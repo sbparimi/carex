@@ -89,3 +89,47 @@ ul.appts { list-style: none; margin: 0 0 1rem; padding: 0; }
 li.appt { display: flex; justify-content: space-between; gap: 1rem; align-items: center; padding: .75rem 1rem; margin-bottom: .5rem; background: var(--card); border: 2px solid var(--line); border-radius: .625rem; }
 li.appt small { color: var(--muted); }
 @media (max-width: 30rem) { .two { grid-template-columns: 1fr; } li.appt { flex-direction: column; align-items: stretch; } main.authcard { padding: 1rem; margin-top: .5rem; border-radius: 0; border-inline: 0; } }
+
+/* ---- design standard (ADR-006): calm surface, one centered card, outlined inputs with floating labels, pill actions ---- */
+:root { --bg: #f4f6f8; --line: #6b7686; --radius: .75rem; }
+body { background: var(--bg); }
+.mark { display: inline-block; position: relative; width: 1.75rem; height: 1.75rem; border-radius: 50%; background: var(--brand); vertical-align: middle; flex: none; }
+.mark::before, .mark::after { content: ""; position: absolute; background: var(--brand-ink); border-radius: 2px; left: 50%; top: 50%; transform: translate(-50%, -50%); }
+.mark::before { width: 55%; height: 14%; } .mark::after { width: 14%; height: 55%; }
+header.site { border-bottom: 1px solid #dde2e8; }
+header.site .brand { display: flex; align-items: center; gap: .625rem; }
+button { border-radius: 999px; }
+a.button { border-radius: 999px; }
+select, input[type=text], input[type=email], input[type=tel], input[type=password], input[type=date] { border-radius: var(--radius); border-width: 1px; border-color: var(--line); }
+.choice .card, dl.summary, li.appt, .banner { border-radius: 1rem; }
+
+body.auth { background: radial-gradient(circle at 0% 55%, #e2e8f0 0, #e2e8f0 11rem, transparent 11.1rem), var(--bg); min-height: 100vh; }
+body.auth main.authcard { max-width: 28rem; margin: 4rem auto; padding: 2.5rem 2.5rem 2.75rem; border: 1px solid #e3e7ec; border-radius: 1.25rem; box-shadow: 0 12px 36px rgba(20, 24, 31, .09); }
+.authbrand { display: flex; align-items: center; justify-content: center; gap: .625rem; margin: 0 0 1.5rem; }
+.authbrand .mark { width: 2.25rem; height: 2.25rem; }
+.authbrand-name { font-weight: 700; font-size: 1.375rem; letter-spacing: -.01em; overflow-wrap: anywhere; }
+body.auth h1 { text-align: center; font-size: 1.75rem; font-weight: 400; margin-bottom: .75rem; }
+body.auth .lead { text-align: center; color: var(--ink); }
+body.auth .alt { text-align: left; }
+
+.ff { position: relative; }
+.ff input { width: 100%; height: 3.5rem; padding: 1.25rem 1rem .375rem; border: 1px solid var(--line); border-radius: var(--radius); background: #fff; font: inherit; color: var(--ink); }
+.ff.has-eye input { padding-right: 3.25rem; }
+.ff label { position: absolute; left: .75rem; top: 1.75rem; transform: translateY(-50%); padding: 0 .25rem; background: #fff; color: var(--muted); font-weight: 400; pointer-events: none; transition: top .12s, font-size .12s, color .12s; line-height: 1.2; }
+.ff label span { margin-left: .1rem; }
+.ff input:focus + label, .ff input:not(:placeholder-shown) + label, .ff input[type=date] + label { top: 0; font-size: .8125rem; }
+.ff input:focus { border-color: var(--brand); border-width: 2px; padding: calc(1.25rem - 1px) calc(1rem - 1px) calc(.375rem - 1px); outline: none; box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--brand); }
+.ff.has-eye input:focus { padding-right: calc(3.25rem - 1px); }
+.ff input:focus + label { color: var(--brand); }
+.ff input[aria-invalid="true"] { border-color: var(--bad); border-width: 2px; } .ff input[aria-invalid="true"] + label { color: var(--bad); }
+.ff input[type=date]:not(:focus):invalid { color: var(--ink); }
+.ff .eye { position: absolute; right: .25rem; top: 50%; transform: translateY(-50%); width: 3rem; min-height: 3rem; padding: 0; border: 0; background: none; color: var(--ink); display: grid; place-items: center; }
+.ff .eye .i-hide { display: none; } .ff .eye[aria-pressed="true"] .i-show { display: none; } .ff .eye[aria-pressed="true"] .i-hide { display: block; }
+.ff .eye:focus-visible { outline: 3px solid var(--ink); outline-offset: -2px; border-radius: 50%; }
+body.auth button.primary.wide { min-height: 3.5rem; border: 0; font-size: 1.0625rem; font-weight: 500; margin-top: .5rem; }
+body.auth .links a, body.auth .alt a { font-weight: 700; text-decoration: none; } body.auth .links a:hover, body.auth .alt a:hover { text-decoration: underline; }
+body.auth .progress { margin-bottom: 1.25rem; }
+body.auth .subfield select, body.auth .subfield input[type=text] { min-height: 3rem; }
+@media (max-width: 30rem) { body.auth main.authcard { margin: 0; border-radius: 0; border-inline: 0; box-shadow: none; padding: 1.5rem 1.25rem 2rem; min-height: 100vh; } }
+.two { display: block; }
+.ff label { white-space: nowrap; max-width: calc(100% - 1.5rem); overflow: hidden; text-overflow: ellipsis; }

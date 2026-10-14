@@ -1,12 +1,13 @@
 // Account pages: log in, sign up (two steps), forgot password, reset password (ADR-005).
 // No inline scripts or styles (strict CSP). The server validates everything again; checks here are for speed and clarity.
 import { safeBrand } from "./theme.js";
-import { bannerHtml, esc, fetchMe, headerHtml, safeNext, tenantSlug, type Banner } from "./common.js";
+import { bannerHtml, esc, fetchMe, safeNext, tenantSlug, type Banner } from "./common.js";
 import type { BrandConfig } from "@carex/contracts";
 
 type Page = "login" | "signup" | "forgot" | "reset";
 const page = document.body.dataset.page as Page;
 const root = document.getElementById("app")!;
+document.body.classList.add("auth");
 const slug = tenantSlug();
 const API = `/t/${slug}/api`;
 const nextUrl = () => safeNext(new URLSearchParams(location.search).get("next"));
@@ -29,12 +30,14 @@ async function call<T = any>(method: string, path: string, body?: unknown): Prom
 
 // ---- small view helpers
 const val = (id: string) => S.v[id] ?? "";
+const EYE = `<svg class="i-show" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false"><path d="M1.5 12S5.5 5 12 5s10.5 7 10.5 7-4 7-10.5 7S1.5 12 1.5 12z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="12" cy="12" r="3.2" fill="none" stroke="currentColor" stroke-width="1.8"/></svg><svg class="i-hide" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false"><path d="M1.5 12S5.5 5 12 5s10.5 7 10.5 7-4 7-10.5 7S1.5 12 1.5 12z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="12" cy="12" r="3.2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M3 21 21 3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>`;
+/** Outlined input whose label floats onto the border (always a real <label for>). */
 function field(id: string, label: string, type: string, ac: string, opts: { hint?: string; required?: boolean; extra?: string } = {}): string {
   const err = S.errors[id];
   const describedBy = [opts.hint ? `${id}-hint` : "", err ? `${id}-err` : ""].filter(Boolean).join(" ");
-  const input = `<input id="${id}" name="${id}" type="${type}" value="${esc(val(id))}" autocomplete="${ac}"${opts.required === false ? "" : " required"}${err ? ' aria-invalid="true"' : ""}${describedBy ? ` aria-describedby="${describedBy}"` : ""}>`;
-  const wrapped = type === "password" ? `<div class="pwrow">${input}<button type="button" class="linkish" data-act="togglePw" data-for="${id}" aria-pressed="false">Show</button></div>` : input;
-  return `<div class="mb-sm"><label class="field" for="${id}">${esc(label)}</label>${wrapped}${opts.hint ? `<p class="hint" id="${id}-hint">${esc(opts.hint)}</p>` : ""}${err ? `<div class="err" id="${id}-err" role="alert">${esc(err)}</div>` : ""}</div>`;
+  const input = `<input id="${id}" name="${id}" type="${type}" value="${esc(val(id))}" placeholder=" " autocomplete="${ac}"${opts.required === false ? "" : " required"}${err ? ' aria-invalid="true"' : ""}${describedBy ? ` aria-describedby="${describedBy}"` : ""}>`;
+  const eye = type === "password" ? `<button type="button" class="eye" data-act="togglePw" data-for="${id}" aria-label="Show password" aria-pressed="false">${EYE}</button>` : "";
+  return `<div class="mb-md"><div class="ff${type === "password" ? " has-eye" : ""}">${input}<label for="${id}">${esc(label)}<span aria-hidden="true">*</span></label>${eye}</div>${opts.hint ? `<p class="hint" id="${id}-hint">${esc(opts.hint)}</p>` : ""}${err ? `<div class="err" id="${id}-err" role="alert">${esc(err)}</div>` : ""}</div>`;
 }
 const busyBtn = (label: string, busyLabel: string) => `<button type="submit" class="primary wide"${S.busy ? " disabled" : ""}>${S.busy ? busyLabel : label}</button>`;
 const brandName = () => S.brand?.displayName ?? "";
@@ -88,7 +91,7 @@ function resetView(): string {
 function render(focus = true, keep?: string) {
   root.setAttribute("aria-busy", "false");
   const body = { login: loginView, signup: signupView, forgot: forgotView, reset: resetView }[page]();
-  root.innerHTML = `${headerHtml(brandName(), undefined)}<main class="authcard">${body}</main>`;
+  root.innerHTML = `<main class="authcard"><div class="authbrand"><span class="mark" aria-hidden="true"></span><span class="authbrand-name">${esc(brandName())}</span></div>${body}</main>`;
   document.title = `${brandName() ? brandName() + " – " : ""}${{ login: "Log in", signup: "Sign up", forgot: "Forgot password", reset: "Reset password" }[page]}`;
   if (keep) { const el = document.getElementById(keep) as HTMLInputElement | null; el?.focus(); if (el && "setSelectionRange" in el && el.type === "text") { try { el.setSelectionRange(el.value.length, el.value.length); } catch { /* not supported for this type */ } } }
   else if (focus) (document.querySelector('[aria-invalid="true"]') as HTMLElement | null ?? document.getElementById("h"))?.focus();
@@ -178,7 +181,7 @@ root.addEventListener("click", (e) => {
   const b = (e.target as HTMLElement).closest("button[data-act]") as HTMLElement | null; if (!b) return;
   if (b.dataset.act === "togglePw") {
     const input = document.getElementById(b.dataset.for!) as HTMLInputElement; const show = input.type === "password";
-    input.type = show ? "text" : "password"; b.textContent = show ? "Hide" : "Show"; b.setAttribute("aria-pressed", String(show)); return;
+    input.type = show ? "text" : "password"; b.setAttribute("aria-label", show ? "Hide password" : "Show password"); b.setAttribute("aria-pressed", String(show)); return;
   }
   if (b.dataset.act === "pickEmployer") { S.employer = { id: b.dataset.id!, name: b.dataset.name! }; S.employerResults = []; S.errors.access = ""; render(false, "employer"); return; }
   if (b.dataset.act === "back") { S.step = 1; S.banner = undefined; render(); }

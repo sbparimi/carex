@@ -250,9 +250,9 @@ test.describe("sign up", () => {
     await page.getByRole("button", { name: "Next" }).click();
     await heading(page, "Create your login"); await scanOf(page, "signup-2");
     await page.getByLabel("Email address").fill("new.patient@example.test");
-    await page.getByLabel("Password").fill(PW);
-    await page.getByRole("button", { name: "Show" }).click();
-    await expect(page.getByLabel("Password")).toHaveAttribute("type", "text");
+    await page.getByLabel(/^Password/).fill(PW);
+    await page.getByRole("button", { name: "Show password" }).click();
+    await expect(page.getByLabel(/^Password/)).toHaveAttribute("type", "text");
     await page.getByRole("button", { name: "Create account" }).click();
     await heading(page, "Book an appointment");
     await expect(page.locator("header.site")).toContainText("Pat");
@@ -263,7 +263,7 @@ test.describe("sign up", () => {
     await page.getByRole("radio", { name: /Through an insurance provider/ }).check();
     await page.getByLabel("Insurance provider", { exact: true }).selectOption({ index: 1 });
     await page.getByRole("button", { name: "Next" }).click();
-    await page.getByLabel("Email address").fill("ins.patient@example.test"); await page.getByLabel("Password").fill(PW);
+    await page.getByLabel("Email address").fill("ins.patient@example.test"); await page.getByLabel(/^Password/).fill(PW);
     await page.getByRole("button", { name: "Create account" }).click();
     await heading(page, "Book an appointment");
   });
@@ -285,13 +285,13 @@ test.describe("sign up", () => {
     await page.getByRole("radio", { name: "Through an employer" }).check();
     await page.getByLabel("Employer", { exact: true }).fill("acme"); await page.getByRole("button", { name: /Acme Logistics/ }).click();
     await page.getByRole("button", { name: "Next" }).click();
-    await page.getByLabel("Email address").fill("pat.synthetic@example.test"); await page.getByLabel("Password").fill(PW);
+    await page.getByLabel("Email address").fill("pat.synthetic@example.test"); await page.getByLabel(/^Password/).fill(PW);
     await page.getByRole("button", { name: "Create account" }).click();
     await expect(page.getByRole("alert").first()).toBeVisible();
     await page.goto(`${NW}signup`); await step1(page, { dob: "2020-01-01" });
     await page.getByRole("radio", { name: /Through an insurance provider/ }).check(); await page.getByLabel("Insurance provider", { exact: true }).selectOption({ index: 1 });
     await page.getByRole("button", { name: "Next" }).click();
-    await page.getByLabel("Email address").fill("kid@example.test"); await page.getByLabel("Password").fill(PW);
+    await page.getByLabel("Email address").fill("kid@example.test"); await page.getByLabel(/^Password/).fill(PW);
     await page.getByRole("button", { name: "Create account" }).click();
     await heading(page, /Let's get started/);                                  // sent back to the step with the problem
     await expect(page.getByText(/18/)).toBeVisible();
@@ -302,13 +302,13 @@ test.describe("log in, log out, reset password", () => {
   test("login shows the tenant brand, rejects wrong passwords generically, and signs in with the right one", async ({ page }) => {
     await signIn(page); await page.request.post(`${NW}api/auth/logout`);
     await page.goto(`${NW}login`);
-    await heading(page, "Welcome"); await expect(page.locator("header.site .brand")).toContainText("Northwind Health");
+    await heading(page, "Welcome"); await expect(page.locator(".authbrand")).toContainText("Northwind Health");
     await expect(page.locator("body")).not.toContainText(/crossover/i);
     await scanOf(page, "login");
-    await page.getByLabel("Email address").fill("pat.synthetic@example.test"); await page.getByLabel("Password").fill("wrong password 123");
+    await page.getByLabel("Email address").fill("pat.synthetic@example.test"); await page.getByLabel(/^Password/).fill("wrong password 123");
     await page.getByRole("button", { name: "Continue" }).click();
     await expect(page.getByRole("alert")).toContainText(/Invalid email or password/);
-    await page.getByLabel("Password").fill(PW); await page.getByRole("button", { name: "Continue" }).click();
+    await page.getByLabel(/^Password/).fill(PW); await page.getByRole("button", { name: "Continue" }).click();
     await heading(page, "Book an appointment");
   });
 
@@ -327,11 +327,11 @@ test.describe("log in, log out, reset password", () => {
     const token = (await (await page.request.get("/__test/reset-token")).json()).token as string;
     expect(token).toMatch(/^[A-Za-z0-9_-]{20,}$/);
     await page.goto(`${NW}reset#token=${token}`); await heading(page, "Choose a new password"); await scanOf(page, "reset");
-    await page.getByLabel("New password").fill("another long passphrase 42"); await page.getByRole("button", { name: "Change password" }).click();
+    await page.getByLabel(/^New password/).fill("another long passphrase 42"); await page.getByRole("button", { name: "Change password" }).click();
     await heading(page, "Password updated");
-    await page.goto("about:blank"); await page.goto(`${NW}reset#token=${token}`); await page.getByLabel("New password").fill("yet another passphrase 43"); await page.getByRole("button", { name: "Change password" }).click();
+    await page.goto("about:blank"); await page.goto(`${NW}reset#token=${token}`); await page.getByLabel(/^New password/).fill("yet another passphrase 43"); await page.getByRole("button", { name: "Change password" }).click();
     await expect(page.getByRole("alert")).toBeVisible();                       // single use
-    await page.goto(`${NW}login`); await page.getByLabel("Email address").fill("pat.synthetic@example.test"); await page.getByLabel("Password").fill("another long passphrase 42");
+    await page.goto(`${NW}login`); await page.getByLabel("Email address").fill("pat.synthetic@example.test"); await page.getByLabel(/^Password/).fill("another long passphrase 42");
     await page.getByRole("button", { name: "Continue" }).click(); await heading(page, "Book an appointment");
   });
 
@@ -342,7 +342,7 @@ test.describe("log in, log out, reset password", () => {
 
   test("an account belongs to one clinic brand: Northwind login does not work on Bayview", async ({ page }) => {
     await signIn(page); await page.request.post(`${NW}api/auth/logout`);
-    await page.goto(`${BV}login`); await page.getByLabel("Email address").fill("pat.synthetic@example.test"); await page.getByLabel("Password").fill(PW);
+    await page.goto(`${BV}login`); await page.getByLabel("Email address").fill("pat.synthetic@example.test"); await page.getByLabel(/^Password/).fill(PW);
     await page.getByRole("button", { name: "Continue" }).click();
     await expect(page.getByRole("alert")).toContainText(/Invalid email or password/);
   });
@@ -353,7 +353,7 @@ test.describe("booking requires an account", () => {
     await signIn(page); await page.request.post(`${NW}api/auth/logout`);
     await page.goto(`${NW}appointments`);
     await expect(page).toHaveURL(/\/login\?next=/);
-    await page.getByLabel("Email address").fill("pat.synthetic@example.test"); await page.getByLabel("Password").fill(PW);
+    await page.getByLabel("Email address").fill("pat.synthetic@example.test"); await page.getByLabel(/^Password/).fill(PW);
     await page.getByRole("button", { name: "Continue" }).click();
     await heading(page, "My appointments");
   });

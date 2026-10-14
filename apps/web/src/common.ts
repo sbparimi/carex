@@ -52,5 +52,5 @@ export async function logout(): Promise<void> {
 export function headerHtml(brandName: string, me: Me | undefined, current: "book" | "appointments" | "none" = "none"): string {
   const s = tenantSlug();
   const nav = me ? `<nav class="topnav" aria-label="Account"><a href="/t/${s}/"${current === "book" ? ' aria-current="page"' : ""}>Book</a><a href="/t/${s}/appointments"${current === "appointments" ? ' aria-current="page"' : ""}>My appointments</a><span class="who">${esc(me.firstName)}</span><button type="button" class="linkish" data-act="logout">Log out</button></nav>` : "";
-  return `<header class="site"><div class="brand">${esc(brandName)}</div>${nav}</header>`;
+  return `<header class="site"><div class="brand"><span class="mark" aria-hidden="true"></span>${esc(brandName)}</div>${nav}</header>`;
 }
