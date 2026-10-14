@@ -1,9 +1,10 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import {
-  Evidence, State, Task, TaskStatus, WorkerResult, Approval, RestrictedAction,
+  Evidence, State, Task, TaskStatus, WorkerResult, Approval, RestrictedAction, Diagnosis, Verdict,
 } from "./schemas.js";
 import { findGraphProblem } from "./dag.js";
+import { checkCommand } from "./policy.mjs";
 
 /** Legal status transitions. `done` is intentionally NOT reachable via transition(); see markDone(). */
 const ALLOWED: Record<TaskStatus, TaskStatus[]> = {
@@ -21,13 +22,21 @@ export class HarnessError extends Error {}
 
 const now = () => new Date().toISOString();
 
-export class StateStore {
-  private constructor(private path: string, private state: State) {}
+export interface StoreHooks {
+  /** Test seam: runs before a checkpoint is written (throw to simulate a crash that loses it). */
+  beforeSave?: (n: number) => void;
+  /** Test seam: runs after a checkpoint is durable (throw to simulate a crash right after it). */
+  afterSave?: (n: number) => void;
+}
 
-  static open(path: string): StateStore {
+export class StateStore {
+  private saves = 0;
+  private constructor(private path: string, private state: State, private hooks: StoreHooks = {}) {}
+
+  static open(path: string, hooks: StoreHooks = {}): StateStore {
     if (!existsSync(path)) {
-      const empty: State = { version: 1, tasks: {}, evidence: {}, results: {}, approvals: {}, log: [] };
-      const s = new StateStore(path, empty);
+      const empty: State = { version: 1, tasks: {}, evidence: {}, results: {}, approvals: {}, verdicts: {}, log: [] };
+      const s = new StateStore(path, empty, hooks);
       s.save();
       return s;
     }
@@ -35,7 +44,7 @@ export class StateStore {
     if (!parsed.success) throw new HarnessError(`corrupt state file: ${parsed.error.message}`);
     const problem = findGraphProblem(parsed.data.tasks);
     if (problem) throw new HarnessError(`corrupt state file: ${problem}`);
-    return new StateStore(path, parsed.data);
+    return new StateStore(path, parsed.data, hooks);
   }
 
   snapshot(): State { return structuredClone(this.state); }
@@ -48,10 +57,13 @@ export class StateStore {
   /** Atomic checkpoint: validate, write temp file, rename. A crash never leaves a half-written file. */
   private save(): void {
     State.parse(this.state);
+    const n = ++this.saves;
+    this.hooks.beforeSave?.(n);
     mkdirSync(dirname(this.path), { recursive: true });
     const tmp = `${this.path}.tmp`;
     writeFileSync(tmp, JSON.stringify(this.state, null, 2));
     renameSync(tmp, this.path);
+    this.hooks.afterSave?.(n);
   }
 
   private log(event: string, taskId?: string, detail?: string) {
@@ -60,6 +72,10 @@ export class StateStore {
 
   addTask(input: unknown): Task {
     const task = Task.parse({ ...(input as object), status: "pending", retries: 0, evidenceIds: [], updatedAt: now() });
+    for (const c of task.requiredChecks) {
+      const v = checkCommand(c.command);
+      if (v.restricted) throw new HarnessError(`required check ${c.id} uses a restricted command (${v.restricted}: ${v.reason})`);
+    }
     if (this.state.tasks[task.id]) throw new HarnessError(`task ${task.id} already exists`);
     const next = { ...this.state.tasks, [task.id]: task };
     const problem = findGraphProblem(next);
@@ -81,6 +97,11 @@ export class StateStore {
     if (t.status === "failed" && to === "ready") {
       if (t.retries >= t.budget.maxRetries) throw new HarnessError(`${taskId} exhausted its retry budget (${t.budget.maxRetries}); escalate instead`);
       t.retries += 1;
+    }
+    if (to === "in_progress") {
+      // A new attempt starts clean: evidence and verdicts from earlier attempts cannot complete it.
+      t.evidenceIds = [];
+      delete this.state.verdicts[taskId];
     }
     t.status = to;
     t.updatedAt = now();
@@ -123,9 +144,30 @@ export class StateStore {
       return !latest || latest.exitCode !== c.expectExit;
     });
     if (missing.length) throw new HarnessError(`${taskId} lacks passing evidence for: ${missing.map((c) => c.id).join(", ")}`);
+    if (t.highRisk && this.state.verdicts[taskId]?.verdict !== "pass") {
+      throw new HarnessError(`${taskId} is high-risk and needs a passing independent review before it can be done`);
+    }
     t.status = "done";
     t.updatedAt = now();
     this.log("done", taskId);
+    this.save();
+  }
+
+  recordFailure(taskId: string, raw: unknown): void {
+    const t = this.task(taskId);
+    t.lastFailure = Diagnosis.parse(raw);
+    this.log("failure_diagnosed", taskId, t.lastFailure.category);
+    this.save();
+  }
+
+  /** The reviewer must be an independent role, and a task's own role cannot approve it. */
+  submitVerdict(raw: unknown): void {
+    const v = Verdict.parse(raw);
+    const t = this.task(v.taskId);
+    if (v.reviewerRole === t.role) throw new HarnessError(`${t.id}: reviewer role ${v.reviewerRole} is the author's role; review must be independent`);
+    if (t.status !== "needs_review") throw new HarnessError(`${t.id} is ${t.status}; verdicts are only accepted in needs_review`);
+    this.state.verdicts[t.id] = v;
+    this.log("verdict", t.id, v.verdict);
     this.save();
   }
 

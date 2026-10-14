@@ -17,6 +17,7 @@ export function buildWorkerPrompt(task: Task, roleInstructions = ""): string {
     `You may write ONLY files matching: ${task.scope.write.join(", ") || "(nothing)"}`,
     `You may read: ${task.scope.read.join(", ") || "anything in the repository"}`,
     `Never touch harness/state, docs/prd, .env files, CI workflows, or .git. Never push, merge, deploy, or read credentials.`,
+    task.lastFailure && `PREVIOUS ATTEMPT FAILED VERIFICATION (${task.lastFailure.category}).\n${task.lastFailure.summary}\nReproduce with: ${task.lastFailure.reproduce}\nOutput (tail):\n${task.lastFailure.excerpt}\nMake the smallest fix. Do not weaken, skip or delete tests, and do not change acceptance criteria.`,
     `Required checks (run by the harness, not by you):\n${task.requiredChecks.map((c) => `- ${c.id}: ${c.command}`).join("\n")}`,
     `Budget: ${task.budget.maxMinutes} minutes. Do not delegate to other agents.`,
     `Do not edit or delete tests to make them pass. If blocked, say so.`,

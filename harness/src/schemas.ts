@@ -19,6 +19,21 @@ export const Check = z.object({
   expectExit: z.number().int().default(0),
 });
 
+export const FailureCategory = z.enum([
+  "code_or_test", "configuration", "infrastructure", "external_dependency", "timeout", "policy", "unknown",
+]);
+export type FailureCategory = z.infer<typeof FailureCategory>;
+
+/** Diagnosis attached to a task after a failed verification; fed to the next attempt. */
+export const Diagnosis = z.object({
+  category: FailureCategory,
+  summary: z.string(),
+  evidenceId: z.string(),
+  reproduce: z.string(),
+  excerpt: z.string().max(2000),
+});
+export type Diagnosis = z.infer<typeof Diagnosis>;
+
 export const Task = z.object({
   id: z.string().regex(/^T-[A-Za-z0-9_-]+$/),
   title: z.string().min(1),
@@ -39,6 +54,7 @@ export const Task = z.object({
   status: TaskStatus.default("pending"),
   retries: z.number().int().min(0).default(0),
   evidenceIds: z.array(z.string()).default([]),
+  lastFailure: Diagnosis.optional(),
   updatedAt: z.string().datetime(),
 });
 export type Task = z.infer<typeof Task>;
@@ -72,6 +88,16 @@ export const WorkerResult = z.object({
 });
 export type WorkerResult = z.infer<typeof WorkerResult>;
 
+/** Independent review. The reviewer must not hold the same role as the task's author. */
+export const Verdict = z.object({
+  taskId: z.string(),
+  reviewerRole: Role,
+  verdict: z.enum(["pass", "fail"]),
+  reasons: z.array(z.string()),
+  at: z.string().datetime(),
+});
+export type Verdict = z.infer<typeof Verdict>;
+
 export const RestrictedAction = z.enum([
   "production_deploy", "merge_to_main", "push_remote", "authentication",
   "account_connection", "destructive_infra", "credential_access",
@@ -104,6 +130,7 @@ export const State = z.object({
   evidence: z.record(Evidence),
   results: z.record(WorkerResult),
   approvals: z.record(Approval),
+  verdicts: z.record(Verdict).default({}),
   log: z.array(LogEntry),
 });
 export type State = z.infer<typeof State>;
