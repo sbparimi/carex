@@ -10,3 +10,4 @@ _to_delete/
 .e2e/
 test-results/
 playwright-report/
+vitest.config.ts.timestamp-*
