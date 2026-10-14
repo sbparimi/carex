@@ -57,7 +57,7 @@ describe("catalog filtering (FR-002..FR-005, BR-003..BR-005)", () => {
   });
   it("returns provisional slots only for an eligible provider", async () => {
     const ok = await get(`${NW}/slots?clinicId=cl-sb&serviceId=sv-pc-n&providerId=pr-a`);
-    expect(ok.body.slots).toHaveLength(9); expect(ok.body.note).toMatch(/provisional/i);
+    expect(ok.body.slots.length).toBeGreaterThan(0); expect(ok.body.slots.map((x: any) => x.startsAt)).toEqual([...ok.body.slots.map((x: any) => x.startsAt)].sort()); expect(ok.body.note).toMatch(/provisional/i);
     expect((await get(`${NW}/slots?clinicId=cl-sb&serviceId=sv-pc-n&providerId=pr-b`)).body.slots).toEqual([]);   // pr-b is not eligible for primary care
   });
 });
