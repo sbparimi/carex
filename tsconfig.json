@@ -18,12 +18,6 @@
     },
     "baseUrl": "."
   },
-  "baseUrl": ".",
-  "paths": {
-    "@carex/contracts": [
-      "packages/contracts/src/index.ts"
-    ]
-  },
   "include": [
     "apps/api",
     "apps/web/test",

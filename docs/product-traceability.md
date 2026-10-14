@@ -26,6 +26,7 @@ Test runs: 138 unit and API tests (vitest, 13 files), 67 harness tests, 63 brows
 | Accounts, login-required booking | Done | accounts, accounts-api, my-appointments-api tests; e2e sign up, login, reset, my appointments |
 | Cancel and reschedule (account) | Done | db-manage.test, my-appointments-api.test, e2e my appointments |
 | Rate limiting and hardening | Done | ratelimit.test, manage-api.test (429, headers, body limit); e2e strict-CSP check |
+| Web deployment (Vercel + Neon) | Built, not deployed | deploy.test (handler, health, mailer); build:vercel; CI workflow |
 | Admin configuration | API done, no UI | admin-keys.test, db-admin.test, admin-api.test |
 
 ## Not built yet (deliberately, or blocked on decisions)

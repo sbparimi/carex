@@ -9,6 +9,7 @@ import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { buildApp } from "./index.js";
 import { seedDb } from "./db.js";
+import { mailerFromEnv } from "./mailer.js";
 import { demoCatalog, seedDemoPatients, DEMO_PASSWORD, DEMO_PATIENTS } from "./seed-demo.js";
 import type { Mailer } from "./accounts.js";
 
@@ -24,7 +25,7 @@ const mailer: Mailer = {
   },
 };
 const app = await buildApp({
-  db: url ? { url } : { dir }, mailer, secureCookies: process.env.CAREX_SECURE_COOKIES === "1",
+  db: url ? { url } : { dir }, mailer: mailerFromEnv(process.env, mailer), secureCookies: process.env.CAREX_SECURE_COOKIES === "1",
   staticDir: process.env.STATIC_DIR ?? resolve(process.cwd(), "apps/web/public"),
   log: (e) => console.log(JSON.stringify(e)),
 });

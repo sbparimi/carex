@@ -5,7 +5,7 @@ White-label, multi-tenant patient appointment booking (PRD v0.2 in `docs/prd/`),
 - Harness docs and milestone evidence: `docs/harness/`
 - Run harness tests: `npm install && npm run harness:test`
 - Product code lives in `apps/` (API with CareX-native scheduling engine on PostgreSQL (Neon, or in-process PGlite locally) with patient accounts, patient web UI) and `packages/` (contracts)
-- Decisions: `docs/product/` (ADR-002 scheduling, ADR-003 (superseded), ADR-004 admin API, ADR-005 accounts and Postgres)
+- Decisions: `docs/product/` (ADR-002 scheduling, ADR-003 (superseded), ADR-004 admin API, ADR-005 accounts and Postgres, ADR-006 design standard, ADR-007 Vercel deployment)
 - Harness live run evidence: `docs/harness/07-live-run.md`
 
 The harness is separate from the product runtime: nothing under `apps/` or `packages/` may import from `harness/`.
@@ -25,3 +25,6 @@ See [docs/product-traceability.md](docs/product-traceability.md) for what the bo
 - `new.demo@example.test` (Northwind; none)
 - `sam.demo@example.test` (Bayview Care; one upcoming)
 To reload: stop the server, delete `./data/pglite`, start again. Do not set the flag on a production database.
+
+## Deploy to the web (GitHub + Vercel + Neon)
+See `docs/product/07-adr-vercel-deployment.md` for the decisions, known limits and the step-by-step. In short: push to GitHub, import the repo in Vercel, set `DATABASE_URL` (Neon pooled string) in Vercel's environment variables, then create a tenant with `npm run ops -- create-tenant ...` (or `npm run ops -- seed-demo --yes` for a demo). `.env.example` lists every variable. CI runs on every push (`.github/workflows/ci.yml`).

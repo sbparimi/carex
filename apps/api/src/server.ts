@@ -22,6 +22,8 @@ export interface Deps {
   secureCookies?: boolean;
   /** Per-client request budgets per minute; the defaults suit a single small deployment. Clients are identified by socket address (no proxy headers are trusted). */
   limits?: Partial<Record<"read" | "write" | "auth", { limit: number; windowMs: number }>>;
+  /** Behind a trusted reverse proxy (Vercel): identify clients by x-real-ip / x-forwarded-for instead of the socket address. Never enable when the app is directly exposed. */
+  trustProxy?: boolean;
   /** Admin configuration API (ADR-004). Without it every /admin route answers 404. */
   admin?: { keys: AdminKeys; config: DbAdmin };
   /** Registered ONLY by the e2e server entry; never by the dev or production entries. */
@@ -100,7 +102,8 @@ export function createServer(deps: Deps): Server {
       const tenant = await deps.catalog.tenantBySlug(tenantSlug);
       if (!tenant) return fail(404, "not_found", "Not found");                                       // FR-001: no fallback to another tenant
       const path = m[2]!.replace(/\/$/, ""); const q = url.searchParams; const t = tenant.id;
-      const client = req.socket.remoteAddress ?? "unknown";
+      const fwd = deps.trustProxy ? (String(req.headers["x-real-ip"] ?? "") || String(req.headers["x-forwarded-for"] ?? "").split(",")[0]!.trim()) : "";
+      const client = fwd || (req.socket.remoteAddress ?? "unknown");
       const allow = (l: ReturnType<typeof createRateLimiter>, key: string) => { const r = l.check(key); if (!r.allowed) res.setHeader("retry-after", String(r.retryAfterSec)); return r.allowed; };
       const tooMany = () => fail(429, "rate_limited", "Too many requests. Please wait a moment and try again.");
       if (!allow(req.method === "GET" ? limiter.read : limiter.write, client)) return tooMany();

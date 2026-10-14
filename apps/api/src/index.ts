@@ -10,7 +10,7 @@ import { Accounts, type Mailer } from "./accounts.js";
 export { createServer, DbCatalog, DbScheduling, BookingService, openDb };
 
 /** Wires the real CareX engine to one PostgreSQL database (Neon via `db.url`, or in-process PGlite). Seeding is the caller's decision. */
-export async function buildApp(opts: { db?: OpenOptions; /** An already-open database (tests). */ database?: Db; now?: () => Date; changeNoticeMinutes?: number; mailer?: Mailer } & Partial<Pick<Deps, "log" | "telemetry" | "staticDir" | "limits" | "secureCookies">> = {}) {
+export async function buildApp(opts: { db?: OpenOptions; /** An already-open database (tests). */ database?: Db; now?: () => Date; changeNoticeMinutes?: number; mailer?: Mailer } & Partial<Pick<Deps, "trustProxy" | "log" | "telemetry" | "staticDir" | "limits" | "secureCookies">> = {}) {
   const db: Db = opts.database ?? await openDb(opts.db ?? {});
   const catalog = new DbCatalog(db);
   const notice = opts.changeNoticeMinutes ?? 120;
