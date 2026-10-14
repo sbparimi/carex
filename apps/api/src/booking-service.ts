@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { BookingRequest, type BookingOutcome, type ManagedAppointment, type RescheduleOutcome, type Slot } from "@carex/contracts";
 import type { CatalogPort } from "./catalog.js";
-import { BookingNotFoundError, ChangeWindowClosedError, SchedulingTimeoutError, SchedulingUnavailableError, SlotTakenError, type ManagedBooking, type SchedulingSource } from "./scheduling.js";
+import { BookingNotFoundError, ChangeWindowClosedError, IdempotencyConflictError, SchedulingTimeoutError, SchedulingUnavailableError, SlotTakenError, type ManagedBooking, type SchedulingSource } from "./scheduling.js";
 
 export class DomainError extends Error {
   constructor(public code: "not_found" | "invalid_request" | "idempotency_conflict" | "payload_too_large" | "change_window_closed" | "scheduling_unavailable", message: string) { super(message); }
@@ -32,12 +32,12 @@ export class BookingService {
   }
 
   async cancel(tenantId: string, bookingId: string): Promise<ManagedAppointment> {
-    try { return this.requireManaged(tenantId, await this.source.cancel(tenantId, bookingId)); }
+    try { const m = this.requireManaged(tenantId, await this.source.cancel(tenantId, bookingId)); this.forget(tenantId, bookingId); return m; }
     catch (e) { throw this.mapManageError(e); }
   }
 
   async reschedule(tenantId: string, bookingId: string, slotId: string): Promise<RescheduleOutcome> {
-    try { return { status: "rescheduled", appointment: this.requireManaged(tenantId, await this.source.reschedule(tenantId, bookingId, slotId)) }; }
+    try { const appointment = this.requireManaged(tenantId, await this.source.reschedule(tenantId, bookingId, slotId)); this.forget(tenantId, bookingId); return { status: "rescheduled", appointment }; }
     catch (e) {
       if (e instanceof SlotTakenError) {
         const b = await this.source.getBooking(tenantId, bookingId).catch(() => undefined);
@@ -46,6 +46,11 @@ export class BookingService {
       }
       throw this.mapManageError(e);
     }
+  }
+
+  /** A cached outcome describes the booking as it was when created; after a change it must be re-read from the source of truth. */
+  private forget(tenantId: string, bookingId: string) {
+    for (const [k, v] of this.settled) if (k.startsWith(`${tenantId}:`) && v.outcome.status === "confirmed" && v.outcome.bookingId === bookingId) this.settled.delete(k);
   }
 
   private toManaged(tenantId: string, b: ManagedBooking): ManagedAppointment | undefined {
@@ -118,13 +123,18 @@ export class BookingService {
   private async attempt(tenantId: string, req: BookingRequest, key: string): Promise<BookingOutcome> {
     const elig = this.catalog.eligible(tenantId, req.clinicId, req.serviceId, req.providerId);
     if (!elig) throw new DomainError("not_found", "selection is not available");   // same answer for "other tenant" and "does not exist"
-    const offered = await this.source.listSlots({ tenantId, clinicId: req.clinicId, serviceId: req.serviceId, providerId: req.providerId });
-    const slot = offered.find((s) => s.id === req.slotId);
-    if (!slot) return this.unavailable(offered);
+    // A key that already has a booking at the source is a replay: let the source answer (it also checks the request matches).
+    const prior = await this.source.lookupByKey(tenantId, key).catch(() => undefined);
+    if (!prior) {
+      const offered = await this.source.listSlots({ tenantId, clinicId: req.clinicId, serviceId: req.serviceId, providerId: req.providerId });
+      if (!offered.some((s) => s.id === req.slotId)) return this.unavailable(offered);
+    }
     try {
       const rec = await this.source.reserve({ tenantId, clinicId: req.clinicId, serviceId: req.serviceId, providerId: req.providerId, slotId: req.slotId, idempotencyKey: key, patient: req.patient });
-      return { status: "confirmed", bookingId: rec.bookingId, summary: { ...elig, startsAt: slot.startsAt, endsAt: slot.endsAt, timeZone: elig.clinic.timeZone } };
+      if (rec.status !== "confirmed") return { status: "failed", code: "booking_cancelled", message: "This booking was cancelled. Please start a new booking.", retryable: false };
+      return { status: "confirmed", bookingId: rec.bookingId, summary: { ...elig, startsAt: rec.startsAt, endsAt: rec.endsAt, timeZone: elig.clinic.timeZone } };
     } catch (e) {
+      if (e instanceof IdempotencyConflictError) throw new DomainError("idempotency_conflict", "this Idempotency-Key was used with a different request");
       if (e instanceof SlotTakenError) return this.unavailable(await this.source.listSlots({ tenantId, clinicId: req.clinicId, serviceId: req.serviceId, providerId: req.providerId }).catch(() => []));
       if (e instanceof SchedulingTimeoutError) return { status: "pending", correlationId: key, message: "We could not confirm whether your appointment was booked yet. Please do not rebook; we are checking." };
       return { status: "failed", code: "scheduling_unavailable", message: "Booking is temporarily unavailable. No appointment was created.", retryable: true };

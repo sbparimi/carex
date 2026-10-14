@@ -146,7 +146,7 @@ export function createServer(deps: Deps): Server {
         const key = String(req.headers["idempotency-key"] ?? "");
         const outcome = await deps.bookings.create(t, body, key);
         emitTelemetry(tel, { event: outcome.status === "confirmed" ? "booking_confirmed" : "booking_failed", tenantId: t, correlationId: cid, errorCode: outcome.status === "confirmed" ? undefined : outcome.status });
-        const code = { confirmed: 201, pending: 202, slot_unavailable: 409, failed: 503 }[outcome.status];
+        const code = outcome.status === "failed" ? (outcome.retryable ? 503 : 409) : { confirmed: 201, pending: 202, slot_unavailable: 409 }[outcome.status];
         return reply(code, withToken(t, outcome));
       }
       return fail(404, "not_found", "Not found");

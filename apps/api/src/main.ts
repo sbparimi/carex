@@ -3,7 +3,10 @@
 //   CAREX_SEED_SYNTHETIC=1  load the synthetic demo tenants if the database is empty (development only; never with real data)
 //   PORT, HOST          listen address (default 8080 on 127.0.0.1)
 //   STATIC_DIR          built web assets (default apps/web/public)
+//   CAREX_TOKEN_SECRET  >= 32 characters; signs guest "manage this appointment" links. Required unless CAREX_SEED_SYNTHETIC=1
+//                       (development), where a random per-process secret is used and links stop working after a restart.
 import { mkdirSync } from "node:fs";
+import { randomBytes } from "node:crypto";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildApp } from "./index.js";
@@ -12,7 +15,14 @@ import { syntheticCatalog } from "./seed.js";
 
 const dbPath = process.env.CAREX_DB ?? "./data/carex.db";
 if (dbPath !== ":memory:") mkdirSync(dirname(dbPath), { recursive: true });
+let manageSecret = process.env.CAREX_TOKEN_SECRET;
+if (!manageSecret || manageSecret.length < 32) {
+  if (process.env.CAREX_SEED_SYNTHETIC !== "1") { console.error("CAREX_TOKEN_SECRET must be set to at least 32 characters. Refusing to start."); process.exit(1); }
+  manageSecret = randomBytes(32).toString("base64url");
+  console.log(JSON.stringify({ event: "ephemeral_token_secret", note: "development only; manage links break on restart" }));
+}
 const app = buildApp({
+  manageSecret,
   dbPath, staticDir: process.env.STATIC_DIR ?? fileURLToPath(new URL("../../web/public", import.meta.url)),
   log: (e) => console.log(JSON.stringify(e)),
 });

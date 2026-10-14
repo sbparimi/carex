@@ -17,7 +17,8 @@ function fresh() {
 }
 let state = fresh();
 const deps: Deps = {
-  catalog: state.catalog, bookings: state.bookings,
+  catalog: state.catalog, bookings: state.bookings, manageSecret: "e2e-only-secret-e2e-only-secret-e2e-only-0123",
+  limits: { read: { limit: 100_000, windowMs: 60_000 }, write: { limit: 100_000, windowMs: 60_000 }, manage: { limit: 100_000, windowMs: 60_000 } },   // tests hit the API far faster than a patient would
   staticDir: process.env.STATIC_DIR ?? fileURLToPath(new URL("../../web/public", import.meta.url)),
   testHooks: {
     injectFault: (f) => state.source.injectFault(f as Fault),
