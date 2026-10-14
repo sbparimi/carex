@@ -21,6 +21,7 @@ async function toReview(page: Page, slotIndex = 0) { await pickState(page); awai
 async function fillDetails(page: Page) {
   await page.getByLabel("First name").fill("Pat"); await page.getByLabel("Last name").fill("Synthetic"); await page.getByLabel("Email").fill("pat.synthetic@example.test");
 }
+const REF = /CX-[0-9A-Z]{4}-[0-9A-Z]{4}/;   // patient-facing booking reference
 const confirm = (page: Page) => page.getByRole("button", { name: "Confirm appointment" });
 
 test("happy path: Book Now to confirmed appointment with authoritative summary", async ({ page }) => {
@@ -41,7 +42,7 @@ test("happy path: Book Now to confirmed appointment with authoritative summary",
   await expect(page.locator("dl.summary")).toContainText(/(PST|PDT)/);                  // explicit clinic time zone
   await fillDetails(page); await confirm(page).click();
   await heading(page, "Appointment confirmed");
-  await expect(page.getByText("bk-1")).toBeVisible();
+  await expect(page.getByText(REF)).toBeVisible();
   await expect(page.locator("dl.summary")).toContainText("Primary Care");
 });
 
@@ -101,19 +102,20 @@ test("slot taken before confirmation: refused, selections preserved, alternative
   await heading(page, "Choose a provider and time");
   await expect(page.getByRole("radio", { name: "Dr. Alex Example" })).toBeChecked();   // valid selections kept
   await expect(page.locator('input[name="slot"]:checked')).toHaveCount(0);            // the lost slot is cleared
-  await expect(page.locator('input[name="slot"]')).toHaveCount(8);                     // and no longer offered
+  await expect(page.locator(`input[name="slot"][value="${first}"]`)).toHaveCount(0);   // and no longer offered
   await page.locator('input[name="slot"]').first().check(); await next(page); await fillDetails(page); await confirm(page).click();
   await heading(page, "Appointment confirmed");
 });
 
 test("double-clicking Confirm sends one booking request and creates one booking", async ({ page }) => {
   await toReview(page); await fillDetails(page);
+  const slotsBefore = await (await page.request.get("/t/northwind-health/api/slots?clinicId=cl-sb&serviceId=sv-pc-n&providerId=pr-a")).json();
   let posts = 0; page.on("request", (r) => { if (r.method() === "POST" && r.url().endsWith("/bookings")) posts++; });
   await confirm(page).dblclick();
   await heading(page, "Appointment confirmed");
   expect(posts).toBe(1);
   const slots = await (await page.request.get("/t/northwind-health/api/slots?clinicId=cl-sb&serviceId=sv-pc-n&providerId=pr-a")).json();
-  expect(slots.slots).toHaveLength(8);                                                 // exactly one slot consumed
+  expect(slots.slots.length).toBe(slotsBefore.slots.length - 1);                       // exactly one slot consumed
 });
 
 test("timeout after the booking was saved: shows 'checking', never 'confirmed', then reconciles", async ({ page }) => {
@@ -121,9 +123,9 @@ test("timeout after the booking was saved: shows 'checking', never 'confirmed', 
   await confirm(page).click();
   await heading(page, "We're checking your booking");
   await expect(page.getByText("Appointment confirmed")).toHaveCount(0);
-  await expect(page.getByText(/bk-\d/)).toHaveCount(0);                                // no booking number claimed yet
+  await expect(page.getByText(REF)).toHaveCount(0);                                // no booking number claimed yet
   await page.getByRole("button", { name: "Check status" }).click();
-  await heading(page, "Appointment confirmed"); await expect(page.getByText("bk-1")).toBeVisible();
+  await heading(page, "Appointment confirmed"); await expect(page.getByText(REF)).toBeVisible();
 });
 
 test("scheduling outage: clear failure, nothing claimed, retry works", async ({ page }) => {
@@ -208,4 +210,14 @@ test.describe("accessibility (axe: WCAG 2.0/2.1/2.2 A and AA rules)", () => {
     await toReview(page); await fillDetails(page); await fault(page, "timeout_after_commit"); await confirm(page).click();
     await heading(page, "We're checking your booking"); await scan(page, "pending");
   });
+});
+
+test("long availability is shown a few days at a time, and more can be revealed", async ({ page }) => {
+  await pickState(page); await pickClinic(page); await pickVisit(page);
+  await page.getByRole("radio", { name: "Dr. Alex Example" }).check();
+  await expect(page.locator('input[name="slot"]').first()).toBeAttached();
+  await expect(page.locator("fieldset .slots")).toHaveCount(3);                         // not the whole fortnight at once
+  await page.getByRole("button", { name: "Show more dates" }).click();
+  await expect(page.locator("fieldset .slots")).toHaveCount(6);
+  await expect(page.locator('input[name="slot"]:focus')).toHaveCount(1);                // focus moves to the new times, not lost
 });

@@ -1,4 +1,12 @@
-import { createHash, randomUUID } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
+
+/** Patient-facing booking reference, e.g. CX-7K3M-9PQ2. Crockford base32 (no I, L, O, U), 40 random bits. */
+const ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
+export function bookingReference(): string {
+  const b = randomBytes(8); let out = "";
+  for (let i = 0; i < 8; i++) out += ALPHABET[b[i]! & 31];
+  return `CX-${out.slice(0, 4)}-${out.slice(4)}`;
+}
 import type { Slot } from "@carex/contracts";
 import { inTransaction, type Db } from "./db.js";
 import { IdempotencyConflictError, SlotTakenError, type BookingRecord, type ReserveInput, type SchedulingSource } from "./scheduling.js";
@@ -43,7 +51,7 @@ export class SqliteScheduling implements SchedulingSource {
       }
       const slot = this.derive(input).find((s) => s.id === input.slotId);
       if (!slot) throw new SlotTakenError("Slot is not available");
-      const id = randomUUID();
+      const id = bookingReference();
       const p = input.patient;
       try {
         this.db.prepare(

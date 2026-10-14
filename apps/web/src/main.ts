@@ -11,7 +11,7 @@ const API = `/t/${slug}/api`;
 const KEY = `carex:${slug}`;
 
 const S = {
-  screen: "entry" as Screen, sel: {} as Selection, data: { states: [], clinics: [], visitTypes: [], providers: [], slots: [] } as Data,
+  screen: "entry" as Screen, daysShown: 3, sel: {} as Selection, data: { states: [], clinics: [], visitTypes: [], providers: [], slots: [] } as Data,
   brand: undefined as BrandConfig | undefined, patient: { firstName: "", lastName: "", email: "", phone: "" },
   errors: {} as Record<string, string>, outcome: undefined as BookingOutcome | undefined, idemKey: "", busy: false,
   banner: undefined as { kind: "error" | "warning" | "info"; text: string } | undefined, loading: false,
@@ -32,6 +32,8 @@ const clinic = () => S.data.clinics.find((c) => c.id === S.sel.clinicId);
 const visit = () => S.data.visitTypes.find((v) => v.id === S.sel.serviceId);
 const provider = () => S.data.providers.find((p) => p.id === S.sel.providerId);
 const slot = () => S.data.slots.find((s) => s.id === S.sel.slotId);
+/** How many day groups must be visible so that an already chosen slot is never hidden. */
+const dayIndexOf = (byDay: Map<string, Slot[]>) => { const i = [...byDay.values()].findIndex((ss) => ss.some((x) => x.id === S.sel.slotId)); return i < 0 ? 0 : i + 1; };
 const tz = () => clinic()?.timeZone ?? "UTC";
 const fmtDay = (iso: string, zone: string) => new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: zone }).format(new Date(iso));
 const fmtTime = (iso: string, zone: string) => new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit", timeZoneName: "short", timeZone: zone }).format(new Date(iso));
@@ -67,7 +69,7 @@ function view(): string {
     case "visit": return `<h1 tabindex="-1" id="h">What type of visit do you need?</h1><p class="lead">${esc(clinic()?.name ?? "")}</p>${S.loading ? skeleton() : S.data.visitTypes.length === 0 ? empty("No visit types are available at this clinic.", "Change clinic") : `<fieldset><legend class="sr-only">Visit types</legend>${radios("visit", S.data.visitTypes.map((v) => ({ id: v.id, title: v.label, sub: v.description })), S.sel.serviceId)}</fieldset>${actions("serviceId", { id: "next", label: "Continue", disabled: !S.sel.serviceId })}`}`;
     case "slot": {
       const byDay = new Map<string, Slot[]>(); for (const s of S.data.slots) { const d = fmtDay(s.startsAt, tz()); byDay.set(d, [...(byDay.get(d) ?? []), s]); }
-      return `<h1 tabindex="-1" id="h">Choose a provider and time</h1><p class="lead">${esc(clinic()?.name ?? "")} · ${esc(visit()?.label ?? "")}</p>${banner()}${S.loading ? skeleton() : S.data.providers.length === 0 ? empty("No providers are currently available for this selection.", "Change visit type") : `<fieldset><legend>Provider</legend>${radios("provider", S.data.providers.map((p) => ({ id: p.id, title: p.displayName })), S.sel.providerId)}</fieldset>${S.sel.providerId ? (S.data.slots.length === 0 ? `<div class="banner info" role="status"><span class="icon" aria-hidden="true">i</span><span class="text">No times are currently available for this provider. Try refreshing or choose another provider.</span></div>` : `<p class="hint">Times are shown in ${esc(tz())}. Availability is provisional until you confirm.</p>${[...byDay].map(([d, ss]) => `<fieldset><legend>${esc(d)}</legend><div class="slots">${radios("slot", ss.map((s) => ({ id: s.id, title: fmtTime(s.startsAt, tz()) })), S.sel.slotId)}</div></fieldset>`).join("")}`) + `<div class="actions"><button type="button" data-act="refresh">Refresh availability</button></div>` : ""}${actions("providerId", { id: "next", label: "Continue", disabled: !S.sel.slotId })}`}`;
+      return `<h1 tabindex="-1" id="h">Choose a provider and time</h1><p class="lead">${esc(clinic()?.name ?? "")} · ${esc(visit()?.label ?? "")}</p>${banner()}${S.loading ? skeleton() : S.data.providers.length === 0 ? empty("No providers are currently available for this selection.", "Change visit type") : `<fieldset><legend>Provider</legend>${radios("provider", S.data.providers.map((p) => ({ id: p.id, title: p.displayName })), S.sel.providerId)}</fieldset>${S.sel.providerId ? (S.data.slots.length === 0 ? `<div class="banner info" role="status"><span class="icon" aria-hidden="true">i</span><span class="text">No times are currently available for this provider. Try refreshing or choose another provider.</span></div>` : `<p class="hint">Times are shown in ${esc(tz())}. Availability is provisional until you confirm.</p>${[...byDay].slice(0, Math.max(S.daysShown, dayIndexOf(byDay))).map(([d, ss]) => `<fieldset><legend>${esc(d)}</legend><div class="slots">${radios("slot", ss.map((s) => ({ id: s.id, title: fmtTime(s.startsAt, tz()) })), S.sel.slotId)}</div></fieldset>`).join("")}${byDay.size > Math.max(S.daysShown, dayIndexOf(byDay)) ? `<div class="actions"><button type="button" data-act="moreDays">Show more dates</button></div>` : ""}`) + `<div class="actions"><button type="button" data-act="refresh">Refresh availability</button></div>` : ""}${actions("providerId", { id: "next", label: "Continue", disabled: !S.sel.slotId })}`}`;
     }
     case "review": {
       const e = S.errors; const f = (id: string, label: string, type: string, val: string, ac: string) => `<div style="margin-bottom:.75rem"><label class="field" for="${id}">${label}</label><input id="${id}" type="${type}" value="${esc(val)}" autocomplete="${ac}"${e[id] ? ` aria-invalid="true" aria-describedby="${id}-err"` : ""}>${e[id] ? `<div class="err" id="${id}-err" role="alert">${esc(e[id]!)}</div>` : ""}</div>`;
@@ -129,6 +131,8 @@ async function onAct(act: string) {
       if (S.screen === "slot" && S.sel.slotId) { S.screen = "review"; S.banner = undefined; S.errors = {}; return render(); }
       return;
     case "refresh": { S.banner = undefined; await load(loadSlots); render(false); S.banner = { kind: "info", text: "Availability refreshed." }; render(false); (document.querySelector('[data-act="refresh"]') as HTMLElement | null)?.focus(); return; }
+    case "moreDays": { const before = new Set(S.data.slots.map((x) => fmtDay(x.startsAt, tz()))); const had = S.daysShown; S.daysShown += 3; render(false);
+      const days = [...before]; const firstNew = S.data.slots.find((x) => days.indexOf(fmtDay(x.startsAt, tz())) >= had); if (firstNew) focusRadio("slot", firstNew.id); return; }
     case "edit": return goSlot();
     case "restart": S.sel = {}; S.outcome = undefined; S.idemKey = ""; S.patient = { firstName: "", lastName: "", email: "", phone: "" }; return goState();
     case "pickAnother": S.sel = applySelection(S.sel, "slotId", undefined); S.idemKey = ""; S.banner = { kind: "warning", text: "That time was taken. Your other choices are kept; please pick another time." }; return goSlot();
@@ -184,7 +188,7 @@ root.addEventListener("change", async (e) => {
   if (t.id === "state") { set("stateCode", t.value || undefined); render(false); (document.getElementById("state") as HTMLElement).focus(); }
   else if (t.name === "clinic") { set("clinicId", t.value); S.idemKey = ""; render(false); focusRadio("clinic", t.value); }
   else if (t.name === "visit") { set("serviceId", t.value); S.idemKey = ""; render(false); focusRadio("visit", t.value); }
-  else if (t.name === "provider") { set("providerId", t.value); S.idemKey = ""; S.data.slots = []; await load(loadSlots); render(false); focusRadio("provider", t.value); }
+  else if (t.name === "provider") { set("providerId", t.value); S.idemKey = ""; S.daysShown = 3; S.data.slots = []; await load(loadSlots); render(false); focusRadio("provider", t.value); }
   else if (t.name === "slot") { set("slotId", t.value); S.idemKey = ""; render(false); focusRadio("slot", t.value); }
 });
 root.addEventListener("input", (e) => { const t = e.target as HTMLInputElement; if (t.id in S.patient) (S.patient as Record<string, string>)[t.id] = t.value; });
