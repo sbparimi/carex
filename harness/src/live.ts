@@ -10,6 +10,7 @@ import { StateStore } from "./store.js";
 import { Orchestrator } from "./orchestrator.js";
 import { worktreeWorker, claudeCliAgent, type AgentRunner } from "./dispatch.js";
 import { makeRunnerVerifier } from "./runner.js";
+import { installWorkerPolicy } from "./workerpolicy.js";
 
 const repo = resolve(process.argv[2] ?? ".");
 const stateFile = resolve(process.argv[3] ?? join(repo, "harness/state/phase2.json"));
@@ -34,7 +35,7 @@ const inner = claudeCliAgent({ bin, plain, extraArgs: ["--permission-mode", "acc
 const agent: AgentRunner = (task, cwd, prompt) => { process.env.HARNESS_TASK_ID = task.id; process.env.HARNESS_STATE = stateFile; return inner(task, cwd, prompt); };
 const roleFile = (role: string) => { const p = join(repo, "harness/roles", `${role}.md`); return existsSync(p) ? readFileSync(p, "utf8") : ""; };
 
-const orch = new Orchestrator(store, worktreeWorker({ repo, agent, roleInstructions: (t) => roleFile(t.role) }), makeRunnerVerifier({ repo }), { maxConcurrent: 1 }, undefined, { maxDispatches: 6, maxWallMs: 25 * 60_000 });
+const orch = new Orchestrator(store, worktreeWorker({ repo, agent, roleInstructions: (t) => roleFile(t.role), prepare: (t, cwd) => { installWorkerPolicy(repo, cwd, t); } }), makeRunnerVerifier({ repo }), { maxConcurrent: 1 }, undefined, { maxDispatches: 6, maxWallMs: 25 * 60_000 });
 const outcome = await orch.run();
 const s = store.snapshot();
 console.log(JSON.stringify({ outcome, tasks: Object.fromEntries(Object.entries(s.tasks).map(([k, t]) => [k, { status: t.status, attempts: (t as { attempts?: number }).attempts, lastFailure: t.lastFailure?.summary }])) }, null, 2));

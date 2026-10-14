@@ -1,0 +1,95 @@
+{
+  "version": 1,
+  "tasks": {
+    "T-p2-ratelimit": {
+      "id": "T-p2-ratelimit",
+      "title": "Rate limiter module",
+      "objective": "Implement apps/api/src/ratelimit.ts exporting createRateLimiter({limit, windowMs, maxKeys?, now?}) returning {check(key), sweep(), size()}, so that every test in apps/api/test/ratelimit.test.ts passes. Read that test file first; it is the spec and you must not edit it. Fixed window per key, deny does not extend the window, retryAfterSec is whole seconds rounded up (min 1), fail closed for new keys when maxKeys live keys are tracked (evict expired keys first). No dependencies.",
+      "role": "backend",
+      "requirementIds": [
+        "BR-hardening"
+      ],
+      "dependsOn": [],
+      "scope": {
+        "write": [
+          "apps/api/src/ratelimit.ts"
+        ],
+        "read": [
+          "apps/api/**",
+          "packages/**",
+          "tsconfig.json"
+        ]
+      },
+      "requiredChecks": [
+        {
+          "id": "tests",
+          "description": "npx vitest run apps/api/test/ratelimit.test.ts",
+          "command": "npx vitest run apps/api/test/ratelimit.test.ts",
+          "expectExit": 0
+        },
+        {
+          "id": "types",
+          "description": "npx tsc -p tsconfig.json --noEmit",
+          "command": "npx tsc -p tsconfig.json --noEmit",
+          "expectExit": 0
+        }
+      ],
+      "budget": {
+        "maxRetries": 1,
+        "maxMinutes": 10
+      },
+      "highRisk": false,
+      "status": "blocked",
+      "retries": 0,
+      "evidenceIds": [],
+      "updatedAt": "2026-10-14T15:20:44.040Z"
+    }
+  },
+  "evidence": {},
+  "results": {
+    "T-p2-ratelimit": {
+      "taskId": "T-p2-ratelimit",
+      "status": "blocked",
+      "summary": "Write permission for apps/api/src/ratelimit.ts was denied by the harness, so no file was created. The test/type commands were also not approved, so nothing was run. I read the spec (apps/api/test/ratelimit.test.ts) and have a design ready: fixed window per key, resetAt = first-request time + windowMs, expiry when now >= resetAt, denies leave the window untouched, retryAfterSec = max(1, ceil((resetAt - now)/1000)), config validation (integer limit >= 1, windowMs > 0, integer maxKeys >= 1), and a Map of keys that sweeps expired entries first when full and then fails closed for new keys.",
+      "changedFiles": [],
+      "testsExecuted": [],
+      "criteriaSatisfied": [],
+      "criteriaUnsatisfied": [
+        "apps/api/src/ratelimit.ts not created",
+        "ratelimit tests not run",
+        "tsc not run"
+      ],
+      "risks": [
+        "Nothing has been verified. Need the write permission on apps/api/src/ratelimit.ts granted, or the harness to apply the implementation."
+      ],
+      "nextTask": "Re-run T-p2-ratelimit with write access to apps/api/src/ratelimit.ts."
+    }
+  },
+  "approvals": {},
+  "verdicts": {},
+  "log": [
+    {
+      "at": "2026-10-14T15:20:26.335Z",
+      "event": "task_added",
+      "taskId": "T-p2-ratelimit"
+    },
+    {
+      "at": "2026-10-14T15:20:26.337Z",
+      "event": "transition",
+      "taskId": "T-p2-ratelimit",
+      "detail": "ready"
+    },
+    {
+      "at": "2026-10-14T15:20:26.339Z",
+      "event": "transition",
+      "taskId": "T-p2-ratelimit",
+      "detail": "in_progress"
+    },
+    {
+      "at": "2026-10-14T15:20:44.040Z",
+      "event": "result_submitted",
+      "taskId": "T-p2-ratelimit",
+      "detail": "blocked -> blocked"
+    }
+  ]
+}

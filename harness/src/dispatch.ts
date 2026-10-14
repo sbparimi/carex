@@ -36,9 +36,10 @@ const failed = (taskId: string, summary: string, risks: string[] = []): WorkerRe
  * - any change outside the task's write scope, or to a protected path, fails the task
  * - in-scope work is committed to the task branch (never merged here: merging needs approval)
  */
-export function worktreeWorker(opts: { repo: string; baseRef?: string; agent: AgentRunner; roleInstructions?: (t: Task) => string }): Worker {
+export function worktreeWorker(opts: { repo: string; baseRef?: string; agent: AgentRunner; roleInstructions?: (t: Task) => string; prepare?: (task: Task, cwd: string) => void }): Worker {
   return async (task) => {
     const cwd = createWorktree(opts.repo, task.id, opts.baseRef ?? "HEAD");
+    opts.prepare?.(task, cwd);
     const raw = await opts.agent(task, cwd, buildWorkerPrompt(task, opts.roleInstructions?.(task)));
     const parsed = WorkerResultSchema.safeParse(raw);
     if (!parsed.success) return failed(task.id, `agent returned an invalid result: ${parsed.error.issues[0]?.message ?? "unknown"}`);
