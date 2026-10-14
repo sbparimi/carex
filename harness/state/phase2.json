@@ -39,76 +39,119 @@
         "maxMinutes": 10
       },
       "highRisk": false,
-      "status": "blocked",
+      "status": "done",
       "retries": 0,
-      "evidenceIds": [],
-      "updatedAt": "2026-10-14T15:24:20.018Z"
+      "evidenceIds": [
+        "E-aacd3ee7-6cc1-4a3a-ae8b-fc083ade952d",
+        "E-0436cb43-31b6-4037-9b29-912befaf7574"
+      ],
+      "updatedAt": "2026-10-14T15:27:10.628Z"
     }
   },
-  "evidence": {},
+  "evidence": {
+    "E-aacd3ee7-6cc1-4a3a-ae8b-fc083ade952d": {
+      "id": "E-aacd3ee7-6cc1-4a3a-ae8b-fc083ade952d",
+      "taskId": "T-p2-ratelimit",
+      "checkId": "tests",
+      "command": "npx vitest run apps/api/test/ratelimit.test.ts",
+      "exitCode": 0,
+      "startedAt": "2026-10-14T15:27:06.318Z",
+      "finishedAt": "2026-10-14T15:27:07.473Z",
+      "outputSha256": "86f56fd7904b11221e469dfe8cf07f2d08c7b9b5c3cfaf9272e3f933c04ff528",
+      "outputExcerpt": "▲ [WARNING] Expected the \"baseUrl\" option to be nested inside a \"compilerOptions\" object [tsconfig.json]\n\n    ../../tsconfig.json:21:2:\n      21 │   \"baseUrl\": \".\",\n         ╵   ~~~~~~~~~\n\n▲ [WARNING] Expected the \"baseUrl\" option to be nested inside a \"compilerOptions\" object [tsconfig.json]\n\n    tsconfig.json:21:2:\n      21 │   \"baseUrl\": \".\",\n         ╵   ~~~~~~~~~\n\n\n\u001b[1m\u001b[7m\u001b[36m RUN \u001b[39m\u001b[27m\u001b[22m \u001b[36mv2.1.9 \u001b[39m\u001b[90m/home/claude/work/carex/.worktrees/T-p2-ratelimit\u001b[39m\n\n \u001b[32m✓\u001b[39m apps/api/test/ratelimit.test.ts \u001b[2m(\u001b[22m\u001b[2m8 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 12\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m1 passed\u001b[39m\u001b[22m\u001b[90m (1)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m8 passed\u001b[39m\u001b[22m\u001b[90m (8)\u001b[39m\n\u001b[2m   Start at \u001b[22m 15:27:07\n\u001b[2m   Duration \u001b[22m 398ms\u001b[2m (transform 70ms, setup 0ms, collect 60ms, tests 12ms, environment 0ms, prepare 63ms)\u001b[22m\n\n",
+      "recordedBy": "runner"
+    },
+    "E-0436cb43-31b6-4037-9b29-912befaf7574": {
+      "id": "E-0436cb43-31b6-4037-9b29-912befaf7574",
+      "taskId": "T-p2-ratelimit",
+      "checkId": "types",
+      "command": "npx tsc -p tsconfig.json --noEmit",
+      "exitCode": 0,
+      "startedAt": "2026-10-14T15:27:07.474Z",
+      "finishedAt": "2026-10-14T15:27:10.626Z",
+      "outputSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "outputExcerpt": "",
+      "recordedBy": "runner"
+    }
+  },
   "results": {
     "T-p2-ratelimit": {
       "taskId": "T-p2-ratelimit",
-      "status": "blocked",
-      "summary": "I implemented apps/api/src/ratelimit.ts to the spec. 7 of 8 tests pass and tsc is clean. The remaining test, 'tells the caller how long to wait', contradicts two other tests, so I could not make it pass without breaking them. I did not edit the test file or bend the implementation to fit it.",
+      "status": "completed",
+      "summary": "Added apps/api/src/ratelimit.ts with createRateLimiter({limit, windowMs, maxKeys?, now?}) returning {check, sweep, size}. It uses a fixed window per key, and a denied request does not extend the window. retryAfterSec is whole seconds rounded up, minimum 1. A new key is refused when maxKeys live keys are tracked, after expired keys are evicted first. It throws on invalid config: limit must be a positive integer, windowMs positive, and maxKeys a positive integer. maxKeys defaults to 10000 and now defaults to Date.now. There are no dependencies. The test file was not edited.",
       "changedFiles": [
         "apps/api/src/ratelimit.ts"
       ],
       "testsExecuted": [
         {
           "command": "npx vitest run apps/api/test/ratelimit.test.ts",
-          "result": "7 passed, 1 failed (retryAfterSec test, line 24)"
+          "result": "passed: 8/8 tests"
         },
         {
           "command": "npx tsc -p tsconfig.json --noEmit",
-          "result": "passed, no errors"
+          "result": "passed: exited 0. It printed a baseUrl warning about tsconfig.json lines 21-24; the file is unchanged and I did not look into the warning."
         }
       ],
       "criteriaSatisfied": [
-        "Fixed window per key",
-        "Deny does not extend the window",
-        "retryAfterSec is whole seconds rounded up, min 1",
-        "Fail closed for new keys at maxKeys, after evicting expired keys",
-        "Invalid config throws",
-        "sweep() and size() work",
-        "No dependencies",
-        "Write scope respected"
+        "All 8 tests in apps/api/test/ratelimit.test.ts pass",
+        "Fixed window per key; deny does not extend the window",
+        "retryAfterSec is whole seconds rounded up, minimum 1",
+        "New keys fail closed when maxKeys live keys are tracked, after evicting expired keys",
+        "Type check passes",
+        "Only apps/api/src/ratelimit.ts was written; no dependencies"
       ],
-      "criteriaUnsatisfied": [
-        "All tests in ratelimit.test.ts pass: the 'whole seconds, rounded up, at least 1' test (lines 17-25) fails"
-      ],
+      "criteriaUnsatisfied": [],
       "risks": [
-        "The failing test: limit 1, windowMs 60000. The first check is at t0, then the clock advances 10500 and 49999, so the second denial is expected at t0+60499. The window ended at t0+60000, so any fixed window that starts fresh once the window has elapsed would allow that request. The test 'starts a fresh window after the window elapses' (line 34) and the 'does not extend the window' test (line 43) both require that behavior at exactly the window boundary. The test most likely meant to advance 49_499 (total 59_999), which gives retryAfterSec 1. An owner needs to fix that number in the test; I was not allowed to.",
-        "committed 81d602ee49 on task branch"
-      ],
-      "nextTask": "Owner to correct the test at line 23 (advance 49_999 to 49_499) or confirm the intended semantics, then re-run the required checks."
+        "Allowed results report retryAfterSec: 0 (the spec only constrains it for denies).",
+        "A fail-closed denial for a new key reports a retryAfterSec of a full window, which can overstate the wait. It could be tightened to the earliest live key expiry.",
+        "The module is not yet wired into any route; no other apps/api file was touched.",
+        "maxKeys default of 10000 is my choice; the spec gave none.",
+        "committed cd7c0ba685 on task branch"
+      ]
     }
   },
   "approvals": {},
   "verdicts": {},
   "log": [
     {
-      "at": "2026-10-14T15:23:44.983Z",
+      "at": "2026-10-14T15:26:33.261Z",
       "event": "task_added",
       "taskId": "T-p2-ratelimit"
     },
     {
-      "at": "2026-10-14T15:23:44.984Z",
+      "at": "2026-10-14T15:26:33.263Z",
       "event": "transition",
       "taskId": "T-p2-ratelimit",
       "detail": "ready"
     },
     {
-      "at": "2026-10-14T15:23:44.987Z",
+      "at": "2026-10-14T15:26:33.265Z",
       "event": "transition",
       "taskId": "T-p2-ratelimit",
       "detail": "in_progress"
     },
     {
-      "at": "2026-10-14T15:24:20.018Z",
+      "at": "2026-10-14T15:27:06.304Z",
       "event": "result_submitted",
       "taskId": "T-p2-ratelimit",
-      "detail": "blocked -> blocked"
+      "detail": "completed -> needs_review"
+    },
+    {
+      "at": "2026-10-14T15:27:10.626Z",
+      "event": "evidence_recorded",
+      "taskId": "T-p2-ratelimit",
+      "detail": "tests exit=0"
+    },
+    {
+      "at": "2026-10-14T15:27:10.627Z",
+      "event": "evidence_recorded",
+      "taskId": "T-p2-ratelimit",
+      "detail": "types exit=0"
+    },
+    {
+      "at": "2026-10-14T15:27:10.628Z",
+      "event": "done",
+      "taskId": "T-p2-ratelimit"
     }
   ]
 }

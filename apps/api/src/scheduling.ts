@@ -2,6 +2,8 @@ import type { Patient, Slot } from "@carex/contracts";
 
 export class SlotTakenError extends Error {}
 export class SchedulingTimeoutError extends Error {}
+/** The same Idempotency-Key was reused for a different request. */
+export class IdempotencyConflictError extends Error {}
 export class SchedulingUnavailableError extends Error {}
 
 export interface ReserveInput {

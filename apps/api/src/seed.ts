@@ -29,7 +29,7 @@ export function syntheticCatalog(): CatalogData {
       clinic("cl-oak", "tn-bay", "CA", "Oakland Clinic", "Oakland", "America/Los_Angeles"),
     ],
     services: [
-      svc("sv-physio-n", "tn-north", "physio", "Physio"), svc("sv-pc-n", "tn-north", "primary_care", "Primary Care"),
+      { ...svc("sv-physio-n", "tn-north", "physio", "Physio"), durationMin: 45 }, svc("sv-pc-n", "tn-north", "primary_care", "Primary Care"),
       svc("sv-vision-n", "tn-north", "vision_care", "Vision Care"), svc("sv-coach-n", "tn-north", "health_coach", "Health Coach"),
       svc("sv-fit-n", "tn-north", "fitness", "Fitness"),
       svc("sv-pc-b", "tn-bay", "primary_care", "Primary Care"),
@@ -46,6 +46,16 @@ export function syntheticCatalog(): CatalogData {
       { tenantId: "tn-north", clinicId: "cl-au", serviceId: "sv-coach-n", active: true },
       { tenantId: "tn-bay", clinicId: "cl-oak", serviceId: "sv-pc-b", active: true },
     ],
+    availability: [
+      ...[1, 2, 3, 4, 5].flatMap((weekday) => [
+        { tenantId: "tn-north", providerId: "pr-a", clinicId: "cl-sb", weekday, startMinute: 9 * 60, endMinute: 12 * 60 },
+        { tenantId: "tn-north", providerId: "pr-a", clinicId: "cl-sb", weekday, startMinute: 13 * 60, endMinute: 17 * 60 },
+        { tenantId: "tn-north", providerId: "pr-b", clinicId: "cl-sb", weekday, startMinute: 8 * 60, endMinute: 12 * 60 },
+        { tenantId: "tn-bay", providerId: "pr-z", clinicId: "cl-oak", weekday, startMinute: 9 * 60, endMinute: 17 * 60 },
+      ]),
+      ...[2, 4].map((weekday) => ({ tenantId: "tn-north", providerId: "pr-c", clinicId: "cl-au", weekday, startMinute: 10 * 60, endMinute: 14 * 60 })),
+    ],
+    timeOff: [],
     eligibility: [
       { tenantId: "tn-north", clinicId: "cl-sb", serviceId: "sv-physio-n", providerId: "pr-b", active: true },
       { tenantId: "tn-north", clinicId: "cl-sb", serviceId: "sv-pc-n", providerId: "pr-a", active: true },
