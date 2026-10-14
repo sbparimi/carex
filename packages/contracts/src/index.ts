@@ -44,7 +44,8 @@ export type Patient = z.infer<typeof Patient>;
 /** BR-007: the booking is only created on explicit confirmation. */
 export const BookingRequest = z.object({
   clinicId: Id, serviceId: Id, providerId: Id, slotId: Slot.shape.id,
-  patient: Patient,
+  /** Ignored by the server: the patient is the signed-in account (ADR-005). Kept optional so older clients still parse. */
+  patient: Patient.optional(),
   confirmed: z.literal(true),
 });
 export type BookingRequest = z.infer<typeof BookingRequest>;
@@ -56,7 +57,7 @@ export type AppointmentSummary = z.infer<typeof AppointmentSummary>;
 
 /** BR-008: `confirmed` is only ever produced from an authoritative scheduling-source result. */
 export const BookingOutcome = z.discriminatedUnion("status", [
-  z.object({ status: z.literal("confirmed"), bookingId: z.string(), summary: AppointmentSummary, manageToken: z.string().optional() }),
+  z.object({ status: z.literal("confirmed"), bookingId: z.string(), summary: AppointmentSummary }),
   z.object({ status: z.literal("slot_unavailable"), message: z.string(), alternatives: z.array(Slot) }),
   z.object({ status: z.literal("pending"), correlationId: z.string(), message: z.string() }),
   z.object({ status: z.literal("failed"), code: z.string(), message: z.string(), retryable: z.boolean() }),

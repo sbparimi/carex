@@ -1,32 +1,36 @@
 // Process entry. Reads configuration from environment variables only; no secrets are read or logged here.
-//   CAREX_DB            path of the SQLite file (default ./data/carex.db)
-//   CAREX_SEED_SYNTHETIC=1  load the synthetic demo tenants if the database is empty (development only; never with real data)
+//   DATABASE_URL        PostgreSQL connection string (NeonDB). Put it in a local .env file, never in chat or git.
+//                       Without it, CareX uses a local file database (PGlite) at CAREX_DATA_DIR (default ./data/pglite): fine for development, not for production.
+//   CAREX_SEED_SYNTHETIC=1  load the synthetic demo tenants and demo employers/insurers if the database is empty (development and demos only)
 //   PORT, HOST          listen address (default 8080 on 127.0.0.1)
 //   STATIC_DIR          built web assets (default ./apps/web/public relative to the working directory; run from the repo root)
-//   CAREX_TOKEN_SECRET  >= 32 characters; signs guest "manage this appointment" links. Required unless CAREX_SEED_SYNTHETIC=1
-//                       (development), where a random per-process secret is used and links stop working after a restart.
+//   CAREX_SECURE_COOKIES=1  mark session cookies Secure (set this behind HTTPS in production)
 import { mkdirSync } from "node:fs";
-import { randomBytes } from "node:crypto";
-import { dirname, resolve } from "node:path";
+import { resolve } from "node:path";
 import { buildApp } from "./index.js";
 import { seedDb } from "./db.js";
 import { syntheticCatalog } from "./seed.js";
+import type { Mailer } from "./accounts.js";
 
-const dbPath = process.env.CAREX_DB ?? "./data/carex.db";
-if (dbPath !== ":memory:") mkdirSync(dirname(dbPath), { recursive: true });
-let manageSecret = process.env.CAREX_TOKEN_SECRET;
-if (!manageSecret || manageSecret.length < 32) {
-  if (process.env.CAREX_SEED_SYNTHETIC !== "1") { console.error("CAREX_TOKEN_SECRET must be set to at least 32 characters. Refusing to start."); process.exit(1); }
-  manageSecret = randomBytes(32).toString("base64url");
-  console.log(JSON.stringify({ event: "ephemeral_token_secret", note: "development only; manage links break on restart" }));
-}
-const app = buildApp({
-  manageSecret,
-  dbPath, staticDir: process.env.STATIC_DIR ?? resolve(process.cwd(), "apps/web/public"),
+const url = process.env.DATABASE_URL;
+const dir = process.env.CAREX_DATA_DIR ?? "./data/pglite";
+if (!url) mkdirSync(resolve(dir, ".."), { recursive: true });
+const dev = process.env.CAREX_SEED_SYNTHETIC === "1";
+// There is no email provider yet. In development the reset link is printed to this console; otherwise nothing is sent and nothing secret is logged.
+const mailer: Mailer = {
+  async sendPasswordReset(to, slug, token) {
+    if (dev) console.log(JSON.stringify({ event: "dev_password_reset_link", path: `/t/${slug}/reset#token=${token}`, note: "development only; no email provider is configured" }));
+    else console.log(JSON.stringify({ event: "password_reset_requested_no_mailer" }));
+  },
+};
+const app = await buildApp({
+  db: url ? { url } : { dir }, mailer, secureCookies: process.env.CAREX_SECURE_COOKIES === "1",
+  staticDir: process.env.STATIC_DIR ?? resolve(process.cwd(), "apps/web/public"),
   log: (e) => console.log(JSON.stringify(e)),
 });
-const empty = (app.db.prepare("SELECT COUNT(*) AS n FROM tenants").get() as { n: number }).n === 0;
-if (empty && process.env.CAREX_SEED_SYNTHETIC === "1") { seedDb(app.db, syntheticCatalog()); console.log(JSON.stringify({ event: "seeded_synthetic_data" })); }
+const empty = (await app.db.get<{ n: number }>("SELECT COUNT(*)::int AS n FROM tenants"))!.n === 0;
+if (empty && dev) { await seedDb(app.db, syntheticCatalog()); console.log(JSON.stringify({ event: "seeded_synthetic_data" })); }
 else if (empty) console.log(JSON.stringify({ event: "database_has_no_tenants", hint: "set CAREX_SEED_SYNTHETIC=1 for development" }));
+console.log(JSON.stringify({ event: "database", kind: url ? "postgres" : "pglite-local" }));
 const port = Number(process.env.PORT ?? 8080);
 app.server.listen(port, process.env.HOST ?? "127.0.0.1", () => console.log(JSON.stringify({ event: "listening", port })));

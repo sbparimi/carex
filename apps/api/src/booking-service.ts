@@ -7,6 +7,9 @@ export class DomainError extends Error {
   constructor(public code: "not_found" | "invalid_request" | "idempotency_conflict" | "payload_too_large" | "change_window_closed" | "scheduling_unavailable", message: string) { super(message); }
 }
 
+/** The signed-in account a booking belongs to. Contact details come from here, never from the request body. */
+export interface Principal { id: string; firstName: string; lastName: string; email: string; phone: string }
+
 const hash = (v: unknown) => createHash("sha256").update(JSON.stringify(v)).digest("hex");
 
 /**
@@ -25,20 +28,30 @@ export class BookingService {
     this.notice = opts.changeNoticeMinutes ?? 120; this.now = opts.now ?? (() => new Date());
   }
 
-  // ---- managing an existing booking (view, cancel, reschedule). Authorisation (the manage token) is checked by the caller.
-  async managed(tenantId: string, bookingId: string): Promise<ManagedAppointment | undefined> {
-    const b = await this.source.getBooking(tenantId, bookingId);
+  // ---- an account's own bookings (view, cancel, reschedule). Ownership is enforced here: another user's booking is "not found".
+  async list(tenantId: string, userId: string): Promise<ManagedAppointment[]> {
+    const out: ManagedAppointment[] = [];
+    for (const b of await this.source.listForUser(tenantId, userId)) { const m = await this.toManaged(tenantId, b); if (m) out.push(m); }
+    return out;
+  }
+
+  async managed(tenantId: string, userId: string, bookingId: string): Promise<ManagedAppointment | undefined> {
+    const b = await this.owned(tenantId, userId, bookingId);
     return b && this.toManaged(tenantId, b);
   }
 
-  async cancel(tenantId: string, bookingId: string): Promise<ManagedAppointment> {
-    try { const m = this.requireManaged(tenantId, await this.source.cancel(tenantId, bookingId)); this.forget(tenantId, bookingId); return m; }
-    catch (e) { throw this.mapManageError(e); }
+  async cancel(tenantId: string, userId: string, bookingId: string): Promise<ManagedAppointment> {
+    try {
+      if (!(await this.owned(tenantId, userId, bookingId))) throw new BookingNotFoundError("Booking not found");
+      const m = await this.requireManaged(tenantId, await this.source.cancel(tenantId, bookingId)); this.forget(tenantId, bookingId); return m;
+    } catch (e) { throw this.mapManageError(e); }
   }
 
-  async reschedule(tenantId: string, bookingId: string, slotId: string): Promise<RescheduleOutcome> {
-    try { const appointment = this.requireManaged(tenantId, await this.source.reschedule(tenantId, bookingId, slotId)); this.forget(tenantId, bookingId); return { status: "rescheduled", appointment }; }
-    catch (e) {
+  async reschedule(tenantId: string, userId: string, bookingId: string, slotId: string): Promise<RescheduleOutcome> {
+    try {
+      if (!(await this.owned(tenantId, userId, bookingId))) throw new BookingNotFoundError("Booking not found");
+      const appointment = await this.requireManaged(tenantId, await this.source.reschedule(tenantId, bookingId, slotId)); this.forget(tenantId, bookingId); return { status: "rescheduled", appointment };
+    } catch (e) {
       if (e instanceof SlotTakenError) {
         const b = await this.source.getBooking(tenantId, bookingId).catch(() => undefined);
         const alternatives = b ? await this.source.listSlots({ tenantId, clinicId: b.clinicId, serviceId: b.serviceId, providerId: b.providerId }).catch(() => []) : [];
@@ -48,19 +61,24 @@ export class BookingService {
     }
   }
 
+  private async owned(tenantId: string, userId: string, bookingId: string): Promise<ManagedBooking | undefined> {
+    const b = await this.source.getBooking(tenantId, bookingId);
+    return b && b.userId === userId ? b : undefined;
+  }
+
   /** A cached outcome describes the booking as it was when created; after a change it must be re-read from the source of truth. */
   private forget(tenantId: string, bookingId: string) {
     for (const [k, v] of this.settled) if (k.startsWith(`${tenantId}:`) && v.outcome.status === "confirmed" && v.outcome.bookingId === bookingId) this.settled.delete(k);
   }
 
-  private toManaged(tenantId: string, b: ManagedBooking): ManagedAppointment | undefined {
-    const d = this.catalog.describe(tenantId, b.clinicId, b.serviceId, b.providerId);
+  private async toManaged(tenantId: string, b: ManagedBooking): Promise<ManagedAppointment | undefined> {
+    const d = await this.catalog.describe(tenantId, b.clinicId, b.serviceId, b.providerId);
     if (!d) return undefined;
     const canChange = b.status === "confirmed" && Date.parse(b.startsAt) - this.now().getTime() >= this.notice * 60_000;
     return { bookingId: b.bookingId, status: b.status, summary: { ...d, startsAt: b.startsAt, endsAt: b.endsAt, timeZone: d.clinic.timeZone }, canChange, changeNoticeMinutes: this.notice };
   }
-  private requireManaged(tenantId: string, b: ManagedBooking): ManagedAppointment {
-    const m = this.toManaged(tenantId, b);
+  private async requireManaged(tenantId: string, b: ManagedBooking): Promise<ManagedAppointment> {
+    const m = await this.toManaged(tenantId, b);
     if (!m) throw new DomainError("not_found", "not found");
     return m;
   }
@@ -72,23 +90,23 @@ export class BookingService {
   }
 
   async slots(tenantId: string, clinicId: string, serviceId: string, providerId: string): Promise<Slot[]> {
-    if (!this.catalog.eligible(tenantId, clinicId, serviceId, providerId)) return [];
+    if (!(await this.catalog.eligible(tenantId, clinicId, serviceId, providerId))) return [];
     return this.source.listSlots({ tenantId, clinicId, serviceId, providerId });
   }
 
-  async create(tenantId: string, raw: unknown, idempotencyKey: string): Promise<BookingOutcome> {
+  async create(tenantId: string, user: Principal, raw: unknown, idempotencyKey: string): Promise<BookingOutcome> {
     if (!/^[A-Za-z0-9_-]{8,64}$/.test(idempotencyKey)) throw new DomainError("invalid_request", "Idempotency-Key header is required (8-64 URL-safe characters)");
     const parsed = BookingRequest.safeParse(raw);
     if (!parsed.success) throw new DomainError("invalid_request", "invalid booking request");
     const req = parsed.data;
-    const k = `${tenantId}:${idempotencyKey}`;
-    const fingerprint = hash(req);
+    const k = `${tenantId}:${user.id}:${idempotencyKey}`;
+    const fingerprint = hash({ ...req, patient: undefined });
 
     const done = this.settled.get(k);
     if (done) {
       if (done.fingerprint !== fingerprint) throw new DomainError("idempotency_conflict", "this Idempotency-Key was used with a different request");
       if (done.outcome.status !== "pending") return done.outcome;           // replay returns the same result
-      const r = await this.reconcile(tenantId, idempotencyKey);             // pending: ask the source of truth first
+      const r = await this.reconcile(tenantId, user.id, idempotencyKey);      // pending: ask the source of truth first
       if (r && r.status !== "pending") return r;
       this.settled.delete(k);                                               // source has no booking for this key: a retry is safe (the source dedupes by key)
     }
@@ -97,7 +115,7 @@ export class BookingService {
       if (running.fingerprint !== fingerprint) throw new DomainError("idempotency_conflict", "this Idempotency-Key was used with a different request");
       return running.promise;                                                // concurrent duplicate: share one attempt
     }
-    const promise = this.attempt(tenantId, req, idempotencyKey).then((outcome) => {
+    const promise = this.attempt(tenantId, user, req, idempotencyKey).then((outcome) => {
       // Only outcomes that may already exist at the source are remembered. Failures and lost races are re-attemptable.
       if (outcome.status === "confirmed" || outcome.status === "pending") this.settled.set(k, { fingerprint, outcome, req });
       return outcome;
@@ -107,21 +125,21 @@ export class BookingService {
   }
 
   /** Reconcile an unknown outcome with the source of truth by key. A source that cannot answer leaves it pending. */
-  async reconcile(tenantId: string, idempotencyKey: string): Promise<BookingOutcome | undefined> {
-    const prior = this.settled.get(`${tenantId}:${idempotencyKey}`);
+  async reconcile(tenantId: string, userId: string, idempotencyKey: string): Promise<BookingOutcome | undefined> {
+    const prior = this.settled.get(`${tenantId}:${userId}:${idempotencyKey}`);
     if (!prior) return undefined;
     if (prior.outcome.status !== "pending") return prior.outcome;
     const rec = await this.source.lookupByKey(tenantId, idempotencyKey).catch(() => undefined);
     if (!rec || rec.status !== "confirmed") return prior.outcome;             // unknown or since cancelled: claim nothing
-    const e = this.catalog.eligible(tenantId, prior.req.clinicId, prior.req.serviceId, prior.req.providerId);
+    const e = await this.catalog.eligible(tenantId, prior.req.clinicId, prior.req.serviceId, prior.req.providerId);
     if (!e) return prior.outcome;
     const outcome: BookingOutcome = { status: "confirmed", bookingId: rec.bookingId, summary: { ...e, startsAt: rec.startsAt, endsAt: rec.endsAt, timeZone: e.clinic.timeZone } };
-    this.settled.set(`${tenantId}:${idempotencyKey}`, { ...prior, outcome });
+    this.settled.set(`${tenantId}:${userId}:${idempotencyKey}`, { ...prior, outcome });
     return outcome;
   }
 
-  private async attempt(tenantId: string, req: BookingRequest, key: string): Promise<BookingOutcome> {
-    const elig = this.catalog.eligible(tenantId, req.clinicId, req.serviceId, req.providerId);
+  private async attempt(tenantId: string, user: Principal, req: BookingRequest, key: string): Promise<BookingOutcome> {
+    const elig = await this.catalog.eligible(tenantId, req.clinicId, req.serviceId, req.providerId);
     if (!elig) throw new DomainError("not_found", "selection is not available");   // same answer for "other tenant" and "does not exist"
     // A key that already has a booking at the source is a replay: let the source answer (it also checks the request matches).
     const prior = await this.source.lookupByKey(tenantId, key).catch(() => undefined);
@@ -130,7 +148,7 @@ export class BookingService {
       if (!offered.some((s) => s.id === req.slotId)) return this.unavailable(offered);
     }
     try {
-      const rec = await this.source.reserve({ tenantId, clinicId: req.clinicId, serviceId: req.serviceId, providerId: req.providerId, slotId: req.slotId, idempotencyKey: key, patient: req.patient });
+      const rec = await this.source.reserve({ tenantId, clinicId: req.clinicId, serviceId: req.serviceId, providerId: req.providerId, slotId: req.slotId, idempotencyKey: key, userId: user.id, patient: { firstName: user.firstName, lastName: user.lastName, email: user.email, phone: user.phone } });
       if (rec.status !== "confirmed") return { status: "failed", code: "booking_cancelled", message: "This booking was cancelled. Please start a new booking.", retryable: false };
       return { status: "confirmed", bookingId: rec.bookingId, summary: { ...elig, startsAt: rec.startsAt, endsAt: rec.endsAt, timeZone: elig.clinic.timeZone } };
     } catch (e) {

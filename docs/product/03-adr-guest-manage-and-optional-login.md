@@ -1,6 +1,6 @@
 # ADR-003: Guest management links now; optional patient login later
 
-Status: guest links accepted and built. Optional login: **design only, not built, needs approval** (owner answer: "Guest plus optional login").
+Status: **SUPERSEDED by ADR-005** (accounts replace guest links; guest booking was removed). Historical text: guest links accepted and built. Optional login: **design only, not built, needs approval** (owner answer: "Guest plus optional login").
 
 ## Decision (built)
 A guest who books receives a manage link. The link carries a stateless token, `HMAC-SHA256(secret, tenantId + bookingId)`, base64url, in the **URL fragment** (never sent to servers or logs); the page sends it in the `x-manage-token` header.

@@ -2,21 +2,15 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import type { AddressInfo } from "node:net";
 import type { Server } from "node:http";
-import { buildApp } from "../src/index.js";
-import { seedDb } from "../src/db.js";
-import { syntheticCatalog } from "../src/seed.js";
+import { startApi, type Api, type Client } from "./helpers.js";
 
 const NW = "/t/northwind-health/api"; const BV = "/t/bayview-care/api";
-let server: Server; let base: string; let app: ReturnType<typeof buildApp>; let key: string; let bayKey: string;
-const now = new Date("2026-11-02T08:00:00Z");
+let api: Api; let key: string; let bayKey: string; let base: string; let patient: Client;
 beforeEach(async () => {
-  app = buildApp({ dbPath: ":memory:", now: () => now, manageSecret: "api-test-secret-api-test-secret-0123456789" });
-  seedDb(app.db, syntheticCatalog());
-  key = app.admin.keys.create("tn-north", "test"); bayKey = app.admin.keys.create("tn-bay", "test");
-  server = app.server; await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
-  base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  api = await startApi(); base = api.base; patient = api.client(); await patient.signup("northwind-health");
+  key = await api.app.admin.keys.create("tn-north", "test"); bayKey = await api.app.admin.keys.create("tn-bay", "test");
 });
-afterEach(() => new Promise<void>((r) => server.close(() => r())));
+afterEach(() => api.close());
 const call = async (method: string, path: string, body?: unknown, k: string | null = key) => {
   const r = await fetch(base + path, { method, headers: { ...(body !== undefined ? { "content-type": "application/json" } : {}), ...(k ? { authorization: `Bearer ${k}` } : {}) }, body: body === undefined ? undefined : JSON.stringify(body) });
   const text = await r.text(); let json: any; try { json = JSON.parse(text); } catch { json = undefined; }
@@ -28,7 +22,7 @@ describe("authentication", () => {
     expect((await call("GET", `${NW}/admin/clinics`, undefined, null)).status).toBe(401);
     expect((await call("GET", `${NW}/admin/clinics`, undefined, "cxa_short")).status).toBe(401);
     expect((await call("GET", `${NW}/admin/clinics`, undefined, bayKey)).status).toBe(401);
-    app.admin.keys.revokeByLabel("tn-north", "test");
+    await api.app.admin.keys.revokeByLabel("tn-north", "test");
     expect((await call("GET", `${NW}/admin/clinics`)).status).toBe(401);
   });
   it("gives identical bodies for every kind of failure", async () => {
@@ -41,7 +35,7 @@ describe("authentication", () => {
     expect(codes).toContain(429);
   });
   it("does not exist when the admin service is not wired", async () => {
-    const bare = (await import("../src/server.js")).createServer({ catalog: app.catalog, bookings: app.bookings });
+    const bare = (await import("../src/server.js")).createServer({ catalog: api.app.catalog, bookings: api.app.bookings, accounts: api.app.accounts });
     await new Promise<void>((r) => bare.listen(0, "127.0.0.1", r));
     const res = await fetch(`http://127.0.0.1:${(bare.address() as AddressInfo).port}${NW}/admin/clinics`, { headers: { authorization: `Bearer ${key}` } });
     expect(res.status).toBe(404); bare.close();
@@ -53,21 +47,21 @@ describe("configuration changes show up for patients immediately", () => {
     expect((await call("GET", `${NW}/admin/clinics`)).body.clinics).toHaveLength(4);
     const c = await call("POST", `${NW}/admin/clinics`, { name: "Harbor Clinic", city: "Harbor", address: "9 Example Way", stateCode: "WA", timeZone: "America/Los_Angeles" });
     expect(c.status).toBe(201);
-    const pub = async () => (await (await fetch(`${base}${NW}/states`)).json() as any).states as string[];
+    const pub = async () => (await patient.get(`${NW}/states`)).body.states as string[];
     expect(await pub()).not.toContain("WA");
     expect((await call("PATCH", `${NW}/admin/clinics/${c.body.id}`, { status: "active", bookable: true })).status).toBe(200);
     expect(await pub()).toContain("WA");
   });
   it("changes branding and the analytics flag", async () => {
     expect((await call("PATCH", `${NW}/admin/brand`, { displayName: "Northwind Care", primaryColor: "#223344" })).body.brand.displayName).toBe("Northwind Care");
-    const cfg = await (await fetch(`${base}${NW}/config`)).json() as any;
+    const cfg = (await patient.get(`${NW}/config`)).body;
     expect(cfg.brand).toMatchObject({ displayName: "Northwind Care", primaryColor: "#223344" });
     expect((await call("PUT", `${NW}/admin/analytics`, { enabled: false })).status).toBe(204);
   });
   it("replaces weekly hours and adds then removes time off", async () => {
     const put = await call("PUT", `${NW}/admin/providers/pr-a/clinics/cl-sb/availability`, { rules: [{ weekday: 1, startMinute: 540, endMinute: 600 }] });
     expect(put.status).toBe(200); expect(put.body.rules).toHaveLength(1);
-    const slots = async () => ((await (await fetch(`${base}${NW}/slots?clinicId=cl-sb&serviceId=sv-pc-n&providerId=pr-a`)).json()) as any).slots as { id: string; startsAt: string; endsAt: string }[];
+    const slots = async () => (await patient.get(`${NW}/slots?clinicId=cl-sb&serviceId=sv-pc-n&providerId=pr-a`)).body.slots as { id: string; startsAt: string; endsAt: string }[];
     const before = await slots(); expect(before.length).toBeGreaterThan(0);
     const t = await call("POST", `${NW}/admin/providers/pr-a/time-off`, { startsAt: before[0]!.startsAt, endsAt: before[0]!.endsAt });
     expect(t.status).toBe(201);
@@ -77,7 +71,7 @@ describe("configuration changes show up for patients immediately", () => {
   });
   it("switches a visit type on at a clinic", async () => {
     expect((await call("PUT", `${NW}/admin/clinics/cl-sb/visit-types/sv-vision-n`, { active: true })).status).toBe(204);
-    const vt = await (await fetch(`${base}${NW}/clinics/cl-sb/visit-types`)).json() as any;
+    const vt = (await patient.get(`${NW}/clinics/cl-sb/visit-types`)).body;
     expect(vt.visitTypes.map((v: any) => v.id)).toContain("sv-vision-n");
   });
 });

@@ -1,6 +1,6 @@
 import { applySelection } from "../../../packages/contracts/src/selection.js";
 import { safeBrand } from "./theme.js";
-import { download, icsFor } from "./common.js";
+import { download, icsFor, fetchMe, headerHtml, logout, toLogin, type Me } from "./common.js";
 import type { Selection, Step, BookingOutcome, PublicClinic, VisitType, PublicProvider, Slot, BrandConfig } from "@carex/contracts";
 
 type Screen = "entry" | "state" | "clinic" | "visit" | "slot" | "review" | "result";
@@ -13,8 +13,8 @@ const KEY = `carex:${slug}`;
 
 const S = {
   screen: "entry" as Screen, daysShown: 3, sel: {} as Selection, data: { states: [], clinics: [], visitTypes: [], providers: [], slots: [] } as Data,
-  brand: undefined as BrandConfig | undefined, patient: { firstName: "", lastName: "", email: "", phone: "" },
-  errors: {} as Record<string, string>, outcome: undefined as BookingOutcome | undefined, idemKey: "", busy: false,
+  brand: undefined as BrandConfig | undefined, me: undefined as Me | undefined,
+  outcome: undefined as BookingOutcome | undefined, idemKey: "", busy: false,
   banner: undefined as { kind: "error" | "warning" | "info"; text: string } | undefined, loading: false,
 };
 
@@ -24,7 +24,11 @@ const STATES: Record<string, string> = { AL: "Alabama", AK: "Alaska", AZ: "Arizo
 // ---- API (availability from the server is always provisional)
 async function api<T>(path: string, init?: RequestInit): Promise<{ status: number; body: T }> {
   const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), 12_000);
-  try { const r = await fetch(API + path, { ...init, signal: ctl.signal }); return { status: r.status, body: await r.json() as T }; }
+  try {
+    const r = await fetch(API + path, { ...init, signal: ctl.signal });
+    if (r.status === 401) { toLogin(); return new Promise(() => {}); }          // session ended: go to login and come back here
+    return { status: r.status, body: await r.json() as T };
+  }
   finally { clearTimeout(t); }
 }
 
@@ -61,17 +65,12 @@ function radios(name: string, items: { id: string; title: string; sub?: string }
   return items.map((i) => `<label class="choice"><input type="radio" name="${name}" value="${esc(i.id)}"${i.id === selected ? " checked" : ""}><span class="card"><span>${esc(i.title)}${i.sub ? `<small>${esc(i.sub)}</small>` : ""}</span><span class="badge" aria-hidden="true">Selected</span></span></label>`).join("");
 }
 
-const manageLink = (o: Extract<BookingOutcome, { status: "confirmed" }>) =>
-  o.manageToken ? `${location.origin}/t/${slug}/manage#ref=${encodeURIComponent(o.bookingId)}&token=${encodeURIComponent(o.manageToken)}` : "";
-function manageBlock(o: Extract<BookingOutcome, { status: "confirmed" }>): string {
-  const url = manageLink(o);
-  return url ? `<h2 class="h2-md">Change or cancel</h2><p class="hint">Keep this private link. It is the only way to change or cancel online, and it has not been emailed to you. Anyone who has the link can manage this appointment.</p><p class="linkbox">${esc(url)}</p><div class="actions"><button type="button" data-act="copyLink">Copy link</button></div>` : "";
-}
+const appointmentsBlock = () => `<h2 class="h2-md">Change or cancel</h2><p class="hint">You can view, change or cancel this appointment any time from your account.</p><div class="actions"><a class="button" href="/t/${slug}/appointments">My appointments</a></div>`;
 
 function view(): string {
   const empty = (msg: string, changeLabel: string) => `<div class="banner info" role="status"><span class="icon" aria-hidden="true">i</span><span class="text">${esc(msg)}</span></div>${actions("none", null)}<div class="actions"><button type="button" data-act="back">${esc(changeLabel)}</button></div>`;
   switch (S.screen) {
-    case "entry": return `<h1 tabindex="-1" id="h">Book an appointment</h1><p class="lead">Choose a location, visit type, provider and time. You will review everything before confirming.</p><div class="actions"><button type="button" class="primary" data-act="start">Book Now</button></div>`;
+    case "entry": return `<h1 tabindex="-1" id="h">Book an appointment</h1><p class="lead">Welcome, ${esc(S.me?.firstName ?? "")}. Choose a location, visit type, provider and time. You will review everything before confirming.</p><div class="actions"><button type="button" class="primary" data-act="start">Book Now</button></div>`;
     case "state": return `<h1 tabindex="-1" id="h">Where would you like to be seen?</h1>${S.loading ? skeleton() : S.data.states.length === 0 ? empty("No locations are available right now.", "Back") : `<div class="mb-md"><label class="field" for="state">State</label><select id="state" aria-describedby="state-hint"><option value="">Select a state</option>${S.data.states.map((s) => `<option value="${s}"${S.sel.stateCode === s ? " selected" : ""}>${esc(stateName(s))}</option>`).join("")}</select><p class="hint" id="state-hint">Only states with bookable clinics are listed.</p></div>${actions("stateCode", { id: "next", label: "Continue", disabled: !S.sel.stateCode })}`}`;
     case "clinic": return `<h1 tabindex="-1" id="h">Choose a clinic</h1><p class="lead">State: ${esc(stateName(S.sel.stateCode ?? ""))}</p>${S.loading ? skeleton() : S.data.clinics.length === 0 ? empty(`No clinics are available in ${stateName(S.sel.stateCode ?? "")}.`, "Change state") : `<fieldset><legend class="sr-only">Clinics</legend>${radios("clinic", S.data.clinics.map((c) => ({ id: c.id, title: c.name, sub: c.address })), S.sel.clinicId)}</fieldset>${actions("clinicId", { id: "next", label: "Continue", disabled: !S.sel.clinicId })}`}`;
     case "visit": return `<h1 tabindex="-1" id="h">What type of visit do you need?</h1><p class="lead">${esc(clinic()?.name ?? "")}</p>${S.loading ? skeleton() : S.data.visitTypes.length === 0 ? empty("No visit types are available at this clinic.", "Change clinic") : `<fieldset><legend class="sr-only">Visit types</legend>${radios("visit", S.data.visitTypes.map((v) => ({ id: v.id, title: v.label, sub: v.description })), S.sel.serviceId)}</fieldset>${actions("serviceId", { id: "next", label: "Continue", disabled: !S.sel.serviceId })}`}`;
@@ -80,12 +79,12 @@ function view(): string {
       return `<h1 tabindex="-1" id="h">Choose a provider and time</h1><p class="lead">${esc(clinic()?.name ?? "")} · ${esc(visit()?.label ?? "")}</p>${banner()}${S.loading ? skeleton() : S.data.providers.length === 0 ? empty("No providers are currently available for this selection.", "Change visit type") : `<fieldset><legend>Provider</legend>${radios("provider", S.data.providers.map((p) => ({ id: p.id, title: p.displayName })), S.sel.providerId)}</fieldset>${S.sel.providerId ? (S.data.slots.length === 0 ? `<div class="banner info" role="status"><span class="icon" aria-hidden="true">i</span><span class="text">No times are currently available for this provider. Try refreshing or choose another provider.</span></div>` : `<p class="hint">Times are shown in ${esc(tz())}. Availability is provisional until you confirm.</p>${[...byDay].slice(0, Math.max(S.daysShown, dayIndexOf(byDay))).map(([d, ss]) => `<fieldset><legend>${esc(d)}</legend><div class="slots">${radios("slot", ss.map((s) => ({ id: s.id, title: fmtTime(s.startsAt, tz()) })), S.sel.slotId)}</div></fieldset>`).join("")}${byDay.size > Math.max(S.daysShown, dayIndexOf(byDay)) ? `<div class="actions"><button type="button" data-act="moreDays">Show more dates</button></div>` : ""}`) + `<div class="actions"><button type="button" data-act="refresh">Refresh availability</button></div>` : ""}${actions("providerId", { id: "next", label: "Continue", disabled: !S.sel.slotId })}`}`;
     }
     case "review": {
-      const e = S.errors; const f = (id: string, label: string, type: string, val: string, ac: string) => `<div class="mb-sm"><label class="field" for="${id}">${label}</label><input id="${id}" type="${type}" value="${esc(val)}" autocomplete="${ac}"${e[id] ? ` aria-invalid="true" aria-describedby="${id}-err"` : ""}>${e[id] ? `<div class="err" id="${id}-err" role="alert">${esc(e[id]!)}</div>` : ""}</div>`;
-      return `<h1 tabindex="-1" id="h">Review your appointment</h1>${banner()}<dl class="summary"><dt>Clinic</dt><dd>${esc(clinic()?.name ?? "")}<br>${esc(clinic()?.address ?? "")}</dd><dt>Visit type</dt><dd>${esc(visit()?.label ?? "")}</dd><dt>Provider</dt><dd>${esc(provider()?.displayName ?? "")}</dd><dt>Date</dt><dd>${esc(slot() ? fmtDay(slot()!.startsAt, tz()) : "")}</dd><dt>Time</dt><dd>${esc(slot() ? fmtTime(slot()!.startsAt, tz()) : "")}</dd></dl><p class="hint"><button type="button" class="btn-inline" data-act="edit">Change choices</button></p><h2 class="h2-md">Your details</h2><p class="hint">We only ask for what is needed to book. Provide an email or a phone number.</p>${f("firstName", "First name", "text", S.patient.firstName, "given-name")}${f("lastName", "Last name", "text", S.patient.lastName, "family-name")}${f("email", "Email", "email", S.patient.email, "email")}${f("phone", "Phone", "tel", S.patient.phone, "tel")}${e.contact ? `<div class="err" role="alert">${esc(e.contact)}</div>` : ""}<div class="actions"><button type="button" data-act="back">Back</button><button type="button" class="primary" data-act="confirm"${S.busy ? " disabled" : ""}>${S.busy ? "Confirming…" : "Confirm appointment"}</button></div>`;
+      const u = S.me;
+      return `<h1 tabindex="-1" id="h">Review your appointment</h1>${banner()}<dl class="summary"><dt>Clinic</dt><dd>${esc(clinic()?.name ?? "")}<br>${esc(clinic()?.address ?? "")}</dd><dt>Visit type</dt><dd>${esc(visit()?.label ?? "")}</dd><dt>Provider</dt><dd>${esc(provider()?.displayName ?? "")}</dd><dt>Date</dt><dd>${esc(slot() ? fmtDay(slot()!.startsAt, tz()) : "")}</dd><dt>Time</dt><dd>${esc(slot() ? fmtTime(slot()!.startsAt, tz()) : "")}</dd></dl><p class="hint"><button type="button" class="btn-inline" data-act="edit">Change choices</button></p><h2 class="h2-md">Booking for</h2><dl class="summary"><dt>Name</dt><dd>${esc(u ? `${u.firstName} ${u.lastName}` : "")}</dd><dt>Email</dt><dd>${esc(u?.email ?? "")}</dd><dt>Phone</dt><dd>${esc(u?.phone ?? "")}</dd></dl><p class="hint">These details come from your account.</p><div class="actions"><button type="button" data-act="back">Back</button><button type="button" class="primary" data-act="confirm"${S.busy ? " disabled" : ""}>${S.busy ? "Confirming…" : "Confirm appointment"}</button></div>`;
     }
     case "result": {
       const o = S.outcome!;
-      if (o.status === "confirmed") return `<h1 tabindex="-1" id="h">Appointment confirmed</h1><div class="banner success" role="status"><span class="icon" aria-hidden="true">✓</span><span class="text">Your booking reference is <strong>${esc(o.bookingId)}</strong>.</span></div><dl class="summary"><dt>Clinic</dt><dd>${esc(o.summary.clinic.name)}<br>${esc(o.summary.clinic.address)}</dd><dt>Visit type</dt><dd>${esc(o.summary.visitType.label)}</dd><dt>Provider</dt><dd>${esc(o.summary.provider.displayName)}</dd><dt>Date</dt><dd>${esc(fmtDay(o.summary.startsAt, o.summary.timeZone))}</dd><dt>Time</dt><dd>${esc(fmtTime(o.summary.startsAt, o.summary.timeZone))}</dd></dl>${manageBlock(o)}<div class="actions"><button type="button" data-act="ics">Add to calendar</button><button type="button" data-act="restart">Book another appointment</button></div>`;
+      if (o.status === "confirmed") return `<h1 tabindex="-1" id="h">Appointment confirmed</h1><div class="banner success" role="status"><span class="icon" aria-hidden="true">✓</span><span class="text">Your booking reference is <strong>${esc(o.bookingId)}</strong>.</span></div><dl class="summary"><dt>Clinic</dt><dd>${esc(o.summary.clinic.name)}<br>${esc(o.summary.clinic.address)}</dd><dt>Visit type</dt><dd>${esc(o.summary.visitType.label)}</dd><dt>Provider</dt><dd>${esc(o.summary.provider.displayName)}</dd><dt>Date</dt><dd>${esc(fmtDay(o.summary.startsAt, o.summary.timeZone))}</dd><dt>Time</dt><dd>${esc(fmtTime(o.summary.startsAt, o.summary.timeZone))}</dd></dl>${appointmentsBlock()}<div class="actions"><button type="button" data-act="ics">Add to calendar</button><button type="button" data-act="restart">Book another appointment</button></div>`;
       if (o.status === "pending") return `<h1 tabindex="-1" id="h">We're checking your booking</h1><div class="banner warning" role="status"><span class="icon" aria-hidden="true">!</span><span class="text">${esc(o.message)}</span></div><div class="actions"><button type="button" class="primary" data-act="check">Check status</button></div>`;
       if (o.status === "slot_unavailable") return `<h1 tabindex="-1" id="h">That time is no longer available</h1><div class="banner warning" role="alert"><span class="icon" aria-hidden="true">!</span><span class="text">${esc(o.message)}</span></div><div class="actions"><button type="button" class="primary" data-act="pickAnother">Choose another time</button></div>`;
       return `<h1 tabindex="-1" id="h">We couldn't complete your booking</h1><div class="banner error" role="alert"><span class="icon" aria-hidden="true">✕</span><span class="text">${esc(o.message)}</span></div><div class="actions"><button type="button" data-act="back">Back to review</button>${o.retryable ? `<button type="button" class="primary" data-act="confirm">Try again</button>` : ""}</div>`;
@@ -95,7 +94,7 @@ function view(): string {
 
 function render(focus = true) {
   root.setAttribute("aria-busy", "false");
-  root.innerHTML = `<header class="site"><div class="brand">${esc(S.brand?.displayName ?? "")}</div></header><main>${steps()}${S.screen === "slot" || S.screen === "review" ? "" : banner()}${view()}</main>`;
+  root.innerHTML = `${headerHtml(S.brand?.displayName ?? "", S.me, "book")}<main>${steps()}${S.screen === "slot" || S.screen === "review" ? "" : banner()}${view()}</main>`;
   document.title = `${S.brand?.displayName ? S.brand.displayName + " – " : ""}Book an appointment`;
   if (focus) (document.getElementById("h") as HTMLElement | null)?.focus();
   save();
@@ -136,46 +135,30 @@ async function onAct(act: string) {
       if (S.screen === "state" && S.sel.stateCode) return goClinic();
       if (S.screen === "clinic" && S.sel.clinicId) return goVisit();
       if (S.screen === "visit" && S.sel.serviceId) return goSlot();
-      if (S.screen === "slot" && S.sel.slotId) { S.screen = "review"; S.banner = undefined; S.errors = {}; return render(); }
+      if (S.screen === "slot" && S.sel.slotId) { S.screen = "review"; S.banner = undefined; return render(); }
       return;
     case "refresh": { S.banner = undefined; await load(loadSlots); render(false); S.banner = { kind: "info", text: "Availability refreshed." }; render(false); (document.querySelector('[data-act="refresh"]') as HTMLElement | null)?.focus(); return; }
     case "moreDays": { const before = new Set(S.data.slots.map((x) => fmtDay(x.startsAt, tz()))); const had = S.daysShown; S.daysShown += 3; render(false);
       const days = [...before]; const firstNew = S.data.slots.find((x) => days.indexOf(fmtDay(x.startsAt, tz())) >= had); if (firstNew) focusRadio("slot", firstNew.id); return; }
-    case "copyLink": {
-      const o = S.outcome; const url = o && o.status === "confirmed" ? manageLink(o) : "";
-      try { await navigator.clipboard.writeText(url); S.banner = { kind: "info", text: "Link copied." }; } catch { S.banner = { kind: "warning", text: "Could not copy automatically. Select the link above and copy it." }; }
-      return render(false);
-    }
     case "ics": {
       const o = S.outcome; if (!o || o.status !== "confirmed") return;
       const a = o.summary; download("appointment.ics", "text/calendar", icsFor({ bookingId: o.bookingId, clinicName: a.clinic.name, address: a.clinic.address, startsAt: a.startsAt, endsAt: a.endsAt, label: `${a.visitType.label} with ${a.provider.displayName}` }));
       return;
     }
     case "edit": return goSlot();
-    case "restart": S.sel = {}; S.outcome = undefined; S.idemKey = ""; S.patient = { firstName: "", lastName: "", email: "", phone: "" }; return goState();
+    case "restart": S.sel = {}; S.outcome = undefined; S.idemKey = ""; return goState();
     case "pickAnother": S.sel = applySelection(S.sel, "slotId", undefined); S.idemKey = ""; S.banner = { kind: "warning", text: "That time was taken. Your other choices are kept; please pick another time." }; return goSlot();
     case "check": return check();
     case "confirm": return confirm();
   }
 }
 
-function validate(): boolean {
-  const p = S.patient; const e: Record<string, string> = {};
-  if (!p.firstName.trim()) e.firstName = "Enter your first name."; if (!p.lastName.trim()) e.lastName = "Enter your last name.";
-  if (p.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(p.email)) e.email = "Enter a valid email address.";
-  if (p.phone && !/^[0-9+() .-]{7,20}$/.test(p.phone)) e.phone = "Enter a valid phone number.";
-  if (!p.email && !p.phone) e.contact = "Enter an email address or a phone number.";
-  S.errors = e; return Object.keys(e).length === 0;
-}
-
 async function confirm() {
   if (S.busy) return;                                                  // duplicate-click guard (server-side idempotency is the real protection)
-  syncForm();
-  if (!validate()) { render(false); (document.querySelector('[aria-invalid="true"]') as HTMLElement | null)?.focus(); return; }
   S.busy = true; S.banner = undefined; render(false);
   if (!S.idemKey) S.idemKey = crypto.randomUUID();
   try {
-    const body = { clinicId: S.sel.clinicId, serviceId: S.sel.serviceId, providerId: S.sel.providerId, slotId: S.sel.slotId, confirmed: true, patient: { firstName: S.patient.firstName.trim(), lastName: S.patient.lastName.trim(), ...(S.patient.email ? { email: S.patient.email.trim() } : {}), ...(S.patient.phone ? { phone: S.patient.phone.trim() } : {}) } };
+    const body = { clinicId: S.sel.clinicId, serviceId: S.sel.serviceId, providerId: S.sel.providerId, slotId: S.sel.slotId, confirmed: true };
     const r = await api<BookingOutcome | { error: { code: string } }>("/bookings", { method: "POST", headers: { "content-type": "application/json", "idempotency-key": S.idemKey }, body: JSON.stringify(body) });
     if ("status" in r.body) S.outcome = r.body;
     else S.outcome = { status: "failed", code: r.body.error.code, message: r.status === 404 ? "This selection is no longer available. Please start again." : "We couldn't complete your booking. No appointment was created.", retryable: r.status >= 500 };
@@ -195,11 +178,7 @@ async function check() {
   render();
 }
 
-function syncForm() {
-  for (const id of ["firstName", "lastName", "email", "phone"] as const) { const el = document.getElementById(id) as HTMLInputElement | null; if (el) S.patient[id] = el.value; }
-}
-
-root.addEventListener("click", (e) => { const b = (e.target as HTMLElement).closest("button[data-act]") as HTMLElement | null; if (b && !(b as HTMLButtonElement).disabled) void onAct(b.dataset.act!); });
+root.addEventListener("click", (e) => { const b = (e.target as HTMLElement).closest("button[data-act]") as HTMLElement | null; if (b && !(b as HTMLButtonElement).disabled) { if (b.dataset.act === "logout") void logout(); else void onAct(b.dataset.act!); } });
 root.addEventListener("change", async (e) => {
   const t = e.target as HTMLInputElement | HTMLSelectElement;
   const set = (step: Step, v: string | undefined) => { S.sel = applySelection(S.sel, step, v); };
@@ -209,7 +188,6 @@ root.addEventListener("change", async (e) => {
   else if (t.name === "provider") { set("providerId", t.value); S.idemKey = ""; S.daysShown = 3; S.data.slots = []; await load(loadSlots); render(false); focusRadio("provider", t.value); }
   else if (t.name === "slot") { set("slotId", t.value); S.idemKey = ""; render(false); focusRadio("slot", t.value); }
 });
-root.addEventListener("input", (e) => { const t = e.target as HTMLInputElement; if (t.id in S.patient) (S.patient as Record<string, string>)[t.id] = t.value; });
 function focusRadio(name: string, value: string) { (document.querySelector(`input[name="${name}"][value="${CSS.escape(value)}"]`) as HTMLElement | null)?.focus(); }
 
 // ---- boot: tenant config, then revalidate any saved selection against the server (FR-009)
@@ -224,6 +202,8 @@ async function boot() {
     root.innerHTML = `<main><h1 tabindex="-1" id="h">This booking page isn't available</h1><p class="lead">Please check the link or contact the clinic directly.</p></main>`;
     document.title = "Booking unavailable"; (document.getElementById("h") as HTMLElement).focus(); return;
   }
+  const me = await fetchMe(); if (!me) { toLogin(); return; }
+  S.me = me;
   let saved: { sel?: Selection } = {};
   try { saved = JSON.parse(sessionStorage.getItem(KEY) ?? "{}"); } catch { /* ignore */ }
   const sv = saved.sel;

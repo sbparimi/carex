@@ -1,15 +1,15 @@
 // Owner-approved spec: view, cancel and reschedule on the real scheduling engine (ADR-003). Fixed clock: Wed 2026-10-14 14:00Z.
 import { describe, it, expect, beforeEach } from "vitest";
-import { openDb, seedDb, type Db } from "../src/db.js";
+import { openTestDb, seedDb, type Db } from "../src/db.js";
 import { syntheticCatalog } from "../src/seed.js";
-import { SqliteScheduling } from "../src/sqlite-scheduling.js";
+import { DbScheduling } from "../src/db-scheduling.js";
 import { BookingNotFoundError, ChangeWindowClosedError, SlotTakenError } from "../src/scheduling.js";
 
 const patient = { firstName: "Pat", lastName: "Example", email: "pat@example.test" };
 const q = { tenantId: "tn-north", clinicId: "cl-sb", serviceId: "sv-pc-n", providerId: "pr-a" };
-let db: Db; let now: Date; let s: SqliteScheduling;
+let db: Db; let now: Date; let s: DbScheduling;
 const book = async (idx: number, key: string) => { const slot = (await s.listSlots(q))[idx]!; return { slot, rec: await s.reserve({ ...q, slotId: slot.id, idempotencyKey: key, patient }) }; };
-beforeEach(() => { db = openDb(); seedDb(db, syntheticCatalog()); now = new Date("2026-10-14T14:00:00Z"); s = new SqliteScheduling(db, { now: () => now }); });
+beforeEach(async () => { db = await openTestDb(); await seedDb(db, syntheticCatalog()); now = new Date("2026-10-14T14:00:00Z"); s = new DbScheduling(db, { now: () => now }); });
 
 describe("viewing", () => {
   it("returns the booking the patient owns, without patient details", async () => {
@@ -33,7 +33,7 @@ describe("cancelling", () => {
     expect(c.status).toBe("cancelled");
     expect((await s.listSlots(q)).map((x) => x.id)).toContain(slot.id);
     expect((await s.cancel("tn-north", rec.bookingId)).status).toBe("cancelled");
-    expect((db.prepare("SELECT cancelled_at FROM appointments WHERE id = ?").get(rec.bookingId) as { cancelled_at: string | null }).cancelled_at).toBeTruthy();
+    expect((await db.get<{ cancelled_at: string | null }>("SELECT cancelled_at FROM appointments WHERE id = ?", rec.bookingId))!.cancelled_at).toBeTruthy();
     const again = await s.reserve({ ...q, slotId: slot.id, idempotencyKey: "key-manage-04", patient });   // someone else can now take it
     expect(again.bookingId).not.toBe(rec.bookingId);
   });
@@ -57,7 +57,7 @@ describe("cancelling", () => {
     expect((await s.getBooking("tn-north", r2.bookingId))!.status).toBe("confirmed");
   });
   it("honours a configured notice window", async () => {
-    const strict = new SqliteScheduling(db, { now: () => now, minChangeNoticeMinutes: 24 * 60 });
+    const strict = new DbScheduling(db, { now: () => now, minChangeNoticeMinutes: 24 * 60 });
     const { rec } = await book(2, "key-manage-09");
     await expect(strict.cancel("tn-north", rec.bookingId)).rejects.toBeInstanceOf(ChangeWindowClosedError);
   });
@@ -72,7 +72,7 @@ describe("rescheduling", () => {
     const ids = (await s.listSlots(q)).map((x) => x.id);
     expect(ids).toContain(slot.id); expect(ids).not.toContain(target.id);
     expect(await s.lookupByKey("tn-north", "key-manage-10")).toMatchObject({ bookingId: rec.bookingId, startsAt: target.startsAt, status: "confirmed" });
-    expect((db.prepare("SELECT reschedule_count AS n FROM appointments WHERE id = ?").get(rec.bookingId) as { n: number }).n).toBe(1);
+    expect((await db.get<{ n: number }>("SELECT reschedule_count AS n FROM appointments WHERE id = ?", rec.bookingId))!.n).toBe(1);
   });
   it("leaves the original booking untouched when the new slot is taken, never offered, or someone else's provider", async () => {
     const { rec, slot } = await book(2, "key-manage-11");

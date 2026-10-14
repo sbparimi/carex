@@ -1,7 +1,7 @@
 /** FR-010: step-level events with coded fields only. Unknown events and unknown fields are dropped, never forwarded. */
 const EVENTS = new Set([
   "booking_started", "state_selected", "clinic_selected", "visit_type_selected", "provider_selected", "slot_selected",
-  "booking_confirm_attempted", "booking_confirmed", "booking_failed", "booking_cancelled", "booking_rescheduled",
+  "booking_confirm_attempted", "booking_confirmed", "booking_failed", "booking_cancelled", "booking_rescheduled", "account_created",
 ]);
 const FIELDS = new Set(["event", "tenantId", "correlationId", "errorCode", "step"]);
 

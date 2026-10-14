@@ -1,6 +1,6 @@
 # CareX booking: requirement traceability
 
-Status as of 2026-10-14. The system of record is the CareX-native scheduling engine on SQLite (ADR-002); the mock source is gone from production code. "Evidence" names the automated test that exercises the requirement. Parts were built by live harness workers (`docs/harness/07-live-run.md`), the rest directly.
+Status as of 2026-10-14. The system of record is the CareX-native scheduling engine on PostgreSQL (ADR-002, ADR-005); the mock source is gone from production code. "Evidence" names the automated test that exercises the requirement. Parts were built by live harness workers (`docs/harness/07-live-run.md`), the rest directly.
 
 Test runs: 138 unit and API tests (vitest, 13 files), 67 harness tests, 63 browser runs (21 tests x Chromium at 1440, 768 and 390 px, axe WCAG A/AA, CSP-violation check). Browser suite runs in the cloud workspace only; the device has no browsers.
 
@@ -22,17 +22,18 @@ Test runs: 138 unit and API tests (vitest, 13 files), 67 harness tests, 63 brows
 | BR-011 accessibility | Automated checks pass | axe WCAG 2.0 to 2.2 A/AA on every screen, keyboard flow, 320 px and 200 % text reflow. Manual screen-reader and keyboard review still required; no formal target approved. |
 | §12 edge-state matrix | Mostly | no clinics, no providers, no slots, stale slot, timeout, integration outage, duplicate click, missing tenant, malformed tenant covered. "Clinic deactivated mid-flow" is handled by server revalidation but has no dedicated test. |
 
-| Persistence | Done | sqlite-catalog/sqlite-scheduling tests (WAL, transactions, partial unique index prevents double booking) |
-| Cancel and reschedule (guest) | Done | sqlite-manage.test, manage-api.test, manage-token.test, e2e manage flows |
+| Persistence | Done (validate on Neon) | db-catalog/db-scheduling tests (transactions, partial unique index prevents double booking; PGlite) |
+| Accounts, login-required booking | Done | accounts, accounts-api, my-appointments-api tests; e2e sign up, login, reset, my appointments |
+| Cancel and reschedule (account) | Done | db-manage.test, my-appointments-api.test, e2e my appointments |
 | Rate limiting and hardening | Done | ratelimit.test, manage-api.test (429, headers, body limit); e2e strict-CSP check |
-| Admin configuration | API done, no UI | admin-keys.test, sqlite-admin.test, admin-api.test |
+| Admin configuration | API done, no UI | admin-keys.test, db-admin.test, admin-api.test |
 
 ## Not built yet (deliberately, or blocked on decisions)
 - Optional patient login (ADR-003): design only; needs your approval and an email provider.
 - Confirmation emails/SMS and calendar invites by delivery (link and .ics download exist).
 - Admin UI; creating providers and visit types through the API; admin audit log.
 - AI assistant features: excluded by owner decision.
-- Real EHR or PostgreSQL adapter (the `SchedulingSource` seam exists); `node:sqlite` is still experimental in Node.
+- Real EHR adapter (the `SchedulingSource` seam exists); email provider for reset and confirmation mail.
 - Encryption at rest, retention policy, HIPAA/legal review, formal accessibility target: human decisions. Appointments store patient name and contact; use synthetic data only until these are settled.
 - Trusted-proxy handling for client IPs behind a load balancer (rate limiting uses the socket address).
 - Multilingual UI, Figma deliverables, cross-browser matrix (Chromium only).

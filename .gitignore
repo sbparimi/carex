@@ -14,3 +14,4 @@ playwright-report/
 vitest.config.ts.timestamp-*
 dist/
 data/
+apps/web/public/auth.js

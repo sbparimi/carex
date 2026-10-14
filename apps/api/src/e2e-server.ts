@@ -1,28 +1,35 @@
-// Test-only entry used by Playwright. Real CareX engine on an in-memory database with synthetic data, plus fault injection
-// and reset endpoints. Never deployed.
+// Test-only entry used by Playwright. Real CareX engine on an in-memory PGlite database with synthetic data, plus fault injection,
+// reset and a captured-reset-token endpoint. Never deployed.
 import { fileURLToPath } from "node:url";
-import { openDb, seedDb } from "./db.js";
+import { openTestDb, seedDb } from "./db.js";
 import { syntheticCatalog } from "./seed.js";
-import { SqliteCatalog } from "./sqlite-catalog.js";
-import { SqliteScheduling } from "./sqlite-scheduling.js";
+import { DbCatalog } from "./db-catalog.js";
+import { DbScheduling } from "./db-scheduling.js";
 import { FaultInjectingScheduling, type Fault } from "./fault-injection.js";
 import { BookingService } from "./booking-service.js";
+import { AdminKeys } from "./admin-keys.js";
+import { DbAdmin } from "./db-admin.js";
+import { Accounts, type Mailer } from "./accounts.js";
 import { createServer, type Deps } from "./server.js";
 
-function fresh() {
-  const db = openDb(); seedDb(db, syntheticCatalog());
-  const catalog = new SqliteCatalog(db);
-  const source = new FaultInjectingScheduling(new SqliteScheduling(db));
-  return { catalog, source, bookings: new BookingService(catalog, source) };
+let lastResetToken = "";
+const mailer: Mailer = { async sendPasswordReset(_to, _slug, token) { lastResetToken = token; } };
+
+async function fresh() {
+  const db = await openTestDb(); await seedDb(db, syntheticCatalog());
+  const catalog = new DbCatalog(db);
+  const source = new FaultInjectingScheduling(new DbScheduling(db));
+  return { db, catalog, source, bookings: new BookingService(catalog, source), accounts: new Accounts(db, undefined, mailer), admin: { keys: new AdminKeys(db), config: new DbAdmin(db) } };
 }
-let state = fresh();
+let state = await fresh();
 const deps: Deps = {
-  catalog: state.catalog, bookings: state.bookings, manageSecret: "e2e-only-secret-e2e-only-secret-e2e-only-0123",
-  limits: { read: { limit: 100_000, windowMs: 60_000 }, write: { limit: 100_000, windowMs: 60_000 }, manage: { limit: 100_000, windowMs: 60_000 } },   // tests hit the API far faster than a patient would
+  catalog: state.catalog, bookings: state.bookings, accounts: state.accounts, admin: state.admin,
+  limits: { read: { limit: 100_000, windowMs: 60_000 }, write: { limit: 100_000, windowMs: 60_000 }, auth: { limit: 100_000, windowMs: 60_000 } },   // tests hit the API far faster than a patient would
   staticDir: process.env.STATIC_DIR ?? fileURLToPath(new URL("../../web/public", import.meta.url)),
   testHooks: {
     injectFault: (f) => state.source.injectFault(f as Fault),
-    reset: () => { state = fresh(); deps.catalog = state.catalog; deps.bookings = state.bookings; },
+    reset: async () => { const s = await fresh(); state = s; deps.catalog = s.catalog; deps.bookings = s.bookings; deps.accounts = s.accounts; deps.admin = s.admin; },
+    lastResetToken: () => lastResetToken,
   },
 };
 const port = Number(process.env.PORT ?? 4173);

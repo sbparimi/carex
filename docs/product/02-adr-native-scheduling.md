@@ -1,3 +1,5 @@
+> Update: storage is now PostgreSQL/Neon with PGlite locally, and identity is accounts; see ADR-005.
+
 # ADR-002: CareX-native scheduling and persistence
 
 Status: accepted by the Product Owner's instruction on 2026-10-14 ("stop building mock, I want the real system"). Scope: no AI features.

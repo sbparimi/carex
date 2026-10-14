@@ -1,21 +1,21 @@
-// Owner-approved spec for apps/api/src/sqlite-scheduling.ts, the CareX-native scheduling engine (ADR-002).
+// Owner-approved spec for apps/api/src/db-scheduling.ts, the CareX-native scheduling engine (ADR-002).
 // Fixed clock: Wed 2026-10-14 14:00Z = 07:00 in America/Los_Angeles (PDT, UTC-7).
 import { describe, it, expect, beforeEach } from "vitest";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { openDb, seedDb, type Db } from "../src/db.js";
+import { openDb, openTestDb, seedDb, type Db } from "../src/db.js";
 import { syntheticCatalog } from "../src/seed.js";
-import { SqliteScheduling } from "../src/sqlite-scheduling.js";
+import { DbScheduling } from "../src/db-scheduling.js";
 import { IdempotencyConflictError, SlotTakenError } from "../src/scheduling.js";
 
 const NOW = "2026-10-14T14:00:00Z";
 const patient = { firstName: "Pat", lastName: "Example", email: "pat@example.test" };
 const q = (over: object = {}) => ({ tenantId: "tn-north", clinicId: "cl-sb", serviceId: "sv-pc-n", providerId: "pr-a", ...over });
-const reserve = (s: SqliteScheduling, slotId: string, key: string, over: object = {}) => s.reserve({ ...q(), slotId, idempotencyKey: key, patient, ...over });
-let db: Db; let now: Date; let s: SqliteScheduling;
-const make = (opts: object = {}) => new SqliteScheduling(db, { now: () => now, ...opts });
-beforeEach(() => { db = openDb(); seedDb(db, syntheticCatalog()); now = new Date(NOW); s = make(); });
+const reserve = (s: DbScheduling, slotId: string, key: string, over: object = {}) => s.reserve({ ...q(), slotId, idempotencyKey: key, patient, ...over });
+let db: Db; let now: Date; let s: DbScheduling;
+const make = (opts: object = {}) => new DbScheduling(db, { now: () => now, ...opts });
+beforeEach(async () => { db = await openTestDb(); await seedDb(db, syntheticCatalog()); now = new Date(NOW); s = make(); });
 
 describe("slot generation from availability rules", () => {
   it("builds slots in the clinic's local working hours, converted to UTC", async () => {
@@ -54,7 +54,7 @@ describe("slot generation from availability rules", () => {
     expect(slots.find((x) => x.startsAt.startsWith("2026-11-02"))!.startsAt).toBe("2026-11-02T17:00:00.000Z");   // 09:00 PST
   });
   it("removes slots that overlap provider time off", async () => {
-    db.prepare("INSERT INTO time_off (tenant_id, provider_id, starts_at, ends_at) VALUES (?,?,?,?)").run("tn-north", "pr-a", "2026-10-14T16:15:00Z", "2026-10-14T17:00:00Z");
+    await db.run("INSERT INTO time_off (tenant_id, provider_id, starts_at, ends_at) VALUES (?,?,?,?)", "tn-north", "pr-a", "2026-10-14T16:15:00Z", "2026-10-14T17:00:00Z");
     const starts = (await s.listSlots(q())).map((x) => x.startsAt);
     expect(starts).not.toContain("2026-10-14T16:00:00.000Z");        // 16:00-16:30 overlaps the leave
     expect(starts).not.toContain("2026-10-14T16:30:00.000Z");
@@ -80,7 +80,7 @@ describe("booking (atomic, idempotent, durable)", () => {
     const a = await reserve(s, slot.id, "key-bbbbbbbb");
     const b = await reserve(s, slot.id, "key-bbbbbbbb");
     expect(b.bookingId).toBe(a.bookingId);
-    expect((db.prepare("SELECT COUNT(*) AS n FROM appointments").get() as { n: number }).n).toBe(1);
+    expect((await db.get<{ n: number }>("SELECT COUNT(*)::int AS n FROM appointments"))!.n).toBe(1);
   });
   it("rejects a reused key with a different request", async () => {
     const slots = await s.listSlots(q());
@@ -115,20 +115,22 @@ describe("booking (atomic, idempotent, durable)", () => {
     expect(await s.lookupByKey("tn-north", "key-unknown1")).toBeUndefined();
   });
   it("survives a restart: bookings are durable and still block the slot", async () => {
-    const file = join(mkdtempSync(join(tmpdir(), "carex-db-")), "carex.db");
-    const db1 = openDb(file); seedDb(db1, syntheticCatalog());
-    const s1 = new SqliteScheduling(db1, { now: () => now });
+    const dir = join(mkdtempSync(join(tmpdir(), "carex-pg-")), "data");
+    const db1 = await openDb({ dir }); await seedDb(db1, syntheticCatalog());
+    const s1 = new DbScheduling(db1, { now: () => now });
     const slot = (await s1.listSlots(q()))[0]!;
     const rec = await s1.reserve({ ...q(), slotId: slot.id, idempotencyKey: "key-kkkkkkkk", patient });
-    db1.close();
-    const s2 = new SqliteScheduling(openDb(file), { now: () => now });
+    await db1.close();
+    const db2 = await openDb({ dir });
+    const s2 = new DbScheduling(db2, { now: () => now });
     expect(await s2.lookupByKey("tn-north", "key-kkkkkkkk")).toEqual(rec);
     expect((await s2.listSlots(q())).map((x) => x.id)).not.toContain(slot.id);
-  });
-  it("the database itself refuses a second confirmed appointment for the same provider and start", () => {
-    const ins = (id: string, key: string) => db.prepare("INSERT INTO appointments (id, tenant_id, clinic_id, visit_type_id, provider_id, starts_at, ends_at, status, idempotency_key, request_hash, patient_first_name, patient_last_name, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)")
-      .run(id, "tn-north", "cl-sb", "sv-pc-n", "pr-a", "2026-10-14T16:00:00.000Z", "2026-10-14T16:30:00.000Z", "confirmed", key, "h", "A", "B", NOW);
-    ins("a1", "k1");
-    expect(() => ins("a2", "k2")).toThrow();
+    await db2.close();
+  }, 60_000);
+  it("the database itself refuses a second confirmed appointment for the same provider and start", async () => {
+    const ins = (id: string, key: string) => db.run("INSERT INTO appointments (id, tenant_id, clinic_id, visit_type_id, provider_id, starts_at, ends_at, status, idempotency_key, request_hash, patient_first_name, patient_last_name, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+      id, "tn-north", "cl-sb", "sv-pc-n", "pr-a", "2026-10-14T16:00:00.000Z", "2026-10-14T16:30:00.000Z", "confirmed", key, "h", "A", "B", NOW);
+    await ins("a1", "k1");
+    await expect(ins("a2", "k2")).rejects.toThrow();
   });
 });

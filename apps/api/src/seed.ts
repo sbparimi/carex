@@ -56,6 +56,16 @@ export function syntheticCatalog(): CatalogData {
       ...[2, 4].map((weekday) => ({ tenantId: "tn-north", providerId: "pr-c", clinicId: "cl-au", weekday, startMinute: 10 * 60, endMinute: 14 * 60 })),
     ],
     timeOff: [],
+    employers: [
+      { id: "em-n-1", tenantId: "tn-north", name: "Acme Logistics (demo)" }, { id: "em-n-2", tenantId: "tn-north", name: "Globex Manufacturing (demo)" },
+      { id: "em-n-3", tenantId: "tn-north", name: "Initech Software (demo)" }, { id: "em-n-4", tenantId: "tn-north", name: "Umbrella Retail Group (demo)" },
+      { id: "em-b-1", tenantId: "tn-bay", name: "Bayside Shipping (demo)" }, { id: "em-b-2", tenantId: "tn-bay", name: "Harbor Foods (demo)" },
+    ],
+    insurers: [
+      { id: "in-n-1", tenantId: "tn-north", name: "Example Health Plan (demo)" }, { id: "in-n-2", tenantId: "tn-north", name: "Sample Mutual Insurance (demo)" },
+      { id: "in-n-3", tenantId: "tn-north", name: "Placeholder Blue Network (demo)" },
+      { id: "in-b-1", tenantId: "tn-bay", name: "Bay Example Assurance (demo)" },
+    ],
     eligibility: [
       { tenantId: "tn-north", clinicId: "cl-sb", serviceId: "sv-physio-n", providerId: "pr-b", active: true },
       { tenantId: "tn-north", clinicId: "cl-sb", serviceId: "sv-pc-n", providerId: "pr-a", active: true },

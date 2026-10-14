@@ -18,11 +18,11 @@ const toProvider = (r: ProviderDbRow): PublicProvider => ({ id: r.id, displayNam
  * SQLite-backed CatalogPort. Mirrors the in-memory Catalog: every query is scoped by tenant_id
  * (on every joined table too) and uses bound parameters only (BR-001, BR-012, ADR-002).
  */
-export class SqliteCatalog implements CatalogPort {
+export class DbCatalog implements CatalogPort {
   constructor(private db: Db) {}
 
-  tenantBySlug(slug: string): TenantRow | undefined {
-    const r = this.db.prepare("SELECT id, slug, status, display_name, primary_color, logo_url, support_email, support_phone, analytics_enabled FROM tenants WHERE slug = ? AND status = 'active'").get(slug) as TenantDbRow | undefined;
+  async tenantBySlug(slug: string): Promise<TenantRow | undefined> {
+    const r = await this.db.get<TenantDbRow>("SELECT id, slug, status, display_name, primary_color, logo_url, support_email, support_phone, analytics_enabled FROM tenants WHERE slug = ? AND status = 'active'", slug);
     if (!r) return undefined;
     const brand: BrandConfig = { displayName: r.display_name, primaryColor: r.primary_color };
     if (r.logo_url !== null) brand.logoUrl = r.logo_url;
@@ -31,35 +31,35 @@ export class SqliteCatalog implements CatalogPort {
     return { id: r.id, slug: r.slug, status: r.status, brand, analyticsEnabled: r.analytics_enabled === 1 };
   }
 
-  states(tenantId: string): string[] {
-    const rows = this.db.prepare(`SELECT DISTINCT c.state_code FROM clinics c WHERE ${ACTIVE_CLINIC} ORDER BY c.state_code`).all(tenantId) as { state_code: string }[];
+  async states(tenantId: string): Promise<string[]> {
+    const rows = await this.db.all<{ state_code: string }>(`SELECT DISTINCT c.state_code FROM clinics c WHERE ${ACTIVE_CLINIC} ORDER BY c.state_code`, tenantId);
     return rows.map((r) => r.state_code);
   }
 
-  clinics(tenantId: string, stateCode: string): PublicClinic[] {
-    const rows = this.db.prepare(`SELECT ${CLINIC_COLS} FROM clinics c WHERE ${ACTIVE_CLINIC} AND c.state_code = ? ORDER BY c.name, c.id`).all(tenantId, stateCode) as unknown as ClinicDbRow[];
+  async clinics(tenantId: string, stateCode: string): Promise<PublicClinic[]> {
+    const rows = await this.db.all<ClinicDbRow>(`SELECT ${CLINIC_COLS} FROM clinics c WHERE ${ACTIVE_CLINIC} AND c.state_code = ? ORDER BY c.name, c.id`, tenantId, stateCode);
     return rows.map(toClinic);
   }
 
-  clinic(tenantId: string, clinicId: string): PublicClinic | undefined {
-    const r = this.db.prepare(`SELECT ${CLINIC_COLS} FROM clinics c WHERE ${ACTIVE_CLINIC} AND c.id = ?`).get(tenantId, clinicId) as ClinicDbRow | undefined;
+  async clinic(tenantId: string, clinicId: string): Promise<PublicClinic | undefined> {
+    const r = await this.db.get<ClinicDbRow>(`SELECT ${CLINIC_COLS} FROM clinics c WHERE ${ACTIVE_CLINIC} AND c.id = ?`, tenantId, clinicId);
     return r && toClinic(r);
   }
 
-  visitTypes(tenantId: string, clinicId: string): VisitType[] {
-    const rows = this.db.prepare(
+  async visitTypes(tenantId: string, clinicId: string): Promise<VisitType[]> {
+    const rows = await this.db.all<VisitTypeDbRow>(
       `SELECT v.id, v.canonical_type, v.label, v.description
          FROM clinics c
          JOIN clinic_visit_types cv ON cv.clinic_id = c.id AND cv.tenant_id = c.tenant_id AND cv.active = 1
          JOIN visit_types v ON v.id = cv.visit_type_id AND v.tenant_id = c.tenant_id AND v.status = 'active'
         WHERE ${ACTIVE_CLINIC} AND c.id = ?
         ORDER BY v.label, v.id`,
-    ).all(tenantId, clinicId) as unknown as VisitTypeDbRow[];
+      tenantId, clinicId);
     return rows.map(toVisitType);
   }
 
-  providers(tenantId: string, clinicId: string, serviceId: string): PublicProvider[] {
-    const rows = this.db.prepare(
+  async providers(tenantId: string, clinicId: string, serviceId: string): Promise<PublicProvider[]> {
+    const rows = await this.db.all<ProviderDbRow>(
       `SELECT p.id, p.display_name
          FROM clinics c
          JOIN clinic_visit_types cv ON cv.clinic_id = c.id AND cv.tenant_id = c.tenant_id AND cv.visit_type_id = ? AND cv.active = 1
@@ -68,22 +68,22 @@ export class SqliteCatalog implements CatalogPort {
          JOIN providers p ON p.id = e.provider_id AND p.tenant_id = c.tenant_id AND p.status = 'active'
         WHERE ${ACTIVE_CLINIC} AND c.id = ?
         ORDER BY p.display_name, p.id`,
-    ).all(serviceId, tenantId, clinicId) as unknown as ProviderDbRow[];
+      serviceId, tenantId, clinicId);
     return rows.map(toProvider);
   }
 
-  eligible(tenantId: string, clinicId: string, serviceId: string, providerId: string) {
-    const clinic = this.clinic(tenantId, clinicId);
-    const visitType = this.visitTypes(tenantId, clinicId).find((v) => v.id === serviceId);
-    const provider = this.providers(tenantId, clinicId, serviceId).find((p) => p.id === providerId);
+  async eligible(tenantId: string, clinicId: string, serviceId: string, providerId: string) {
+    const clinic = await this.clinic(tenantId, clinicId);
+    const visitType = (await this.visitTypes(tenantId, clinicId)).find((v) => v.id === serviceId);
+    const provider = (await this.providers(tenantId, clinicId, serviceId)).find((p) => p.id === providerId);
     return clinic && visitType && provider ? { clinic, visitType, provider } : undefined;
   }
 
   /** For an existing booking: names only, regardless of active/bookable flags, still scoped to the tenant. */
-  describe(tenantId: string, clinicId: string, serviceId: string, providerId: string) {
-    const c = this.db.prepare(`SELECT ${CLINIC_COLS} FROM clinics c WHERE c.tenant_id = ? AND c.id = ?`).get(tenantId, clinicId) as ClinicDbRow | undefined;
-    const v = this.db.prepare("SELECT v.id, v.canonical_type, v.label, v.description FROM visit_types v WHERE v.tenant_id = ? AND v.id = ?").get(tenantId, serviceId) as VisitTypeDbRow | undefined;
-    const p = this.db.prepare("SELECT p.id, p.display_name FROM providers p WHERE p.tenant_id = ? AND p.id = ?").get(tenantId, providerId) as ProviderDbRow | undefined;
+  async describe(tenantId: string, clinicId: string, serviceId: string, providerId: string) {
+    const c = await this.db.get<ClinicDbRow>(`SELECT ${CLINIC_COLS} FROM clinics c WHERE c.tenant_id = ? AND c.id = ?`, tenantId, clinicId);
+    const v = await this.db.get<VisitTypeDbRow>("SELECT v.id, v.canonical_type, v.label, v.description FROM visit_types v WHERE v.tenant_id = ? AND v.id = ?", tenantId, serviceId);
+    const p = await this.db.get<ProviderDbRow>("SELECT p.id, p.display_name FROM providers p WHERE p.tenant_id = ? AND p.id = ?", tenantId, providerId);
     return c && v && p ? { clinic: toClinic(c), visitType: toVisitType(v), provider: toProvider(p) } : undefined;
   }
 }

@@ -1,23 +1,22 @@
-// "Manage your appointment" page: view, cancel, or move a booking using the private link from the confirmation screen.
-// The token lives in the URL fragment (never sent to a server or in a Referer) and travels only in a request header.
+// "My appointments" page: the signed-in account's own appointments; view, cancel, or move one (ADR-005).
 import { safeBrand } from "./theme.js";
-import { bannerHtml, esc, fmtDay, fmtTime, radiosHtml, type Banner } from "./common.js";
+import { bannerHtml, esc, fmtDay, fmtTime, fetchMe, headerHtml, logout, radiosHtml, tenantSlug, toLogin, type Banner, type Me } from "./common.js";
 import type { BrandConfig, ManagedAppointment, RescheduleOutcome, Slot } from "@carex/contracts";
 
-type View = "loading" | "missing" | "notfound" | "details" | "confirmCancel" | "pickTime" | "confirmTime";
+type View = "loading" | "list" | "notfound" | "details" | "confirmCancel" | "pickTime" | "confirmTime";
 const root = document.getElementById("app")!;
 const slug = /^\/t\/([^/]+)/.exec(location.pathname)?.[1] ?? "";
 const API = `/t/${slug}/api`;
-const frag = new URLSearchParams(location.hash.replace(/^#/, ""));
-const ref = frag.get("ref") ?? ""; const token = frag.get("token") ?? "";
+let ref = "";
 
-const M = { view: "loading" as View, appt: undefined as ManagedAppointment | undefined, brand: undefined as BrandConfig | undefined, banner: undefined as Banner, slots: [] as Slot[], slotId: "", daysShown: 3, busy: false };
+const M = { view: "loading" as View, me: undefined as Me | undefined, list: [] as ManagedAppointment[], appt: undefined as ManagedAppointment | undefined, brand: undefined as BrandConfig | undefined, banner: undefined as Banner, slots: [] as Slot[], slotId: "", daysShown: 3, busy: false };
 
 async function call<T>(path: string, init: RequestInit = {}): Promise<{ status: number; body: T }> {
   const ctl = new AbortController(); const timer = setTimeout(() => ctl.abort(), 12_000);
   try {
-    const headers: Record<string, string> = { "x-manage-token": token, ...(init.body ? { "content-type": "application/json" } : {}) };
-    const r = await fetch(API + path, { ...init, headers, signal: ctl.signal });
+    const headers: Record<string, string> = { ...(init.method === "POST" ? { "content-type": "application/json" } : {}) };
+    const r = await fetch(API + path, { ...init, headers, ...(init.method === "POST" && !init.body ? { body: "{}" } : {}), signal: ctl.signal });
+    if (r.status === 401) { toLogin(); return new Promise(() => {}); }
     return { status: r.status, body: await r.json() as T };
   } finally { clearTimeout(timer); }
 }
@@ -40,13 +39,20 @@ function view(): string {
   const a = M.appt;
   switch (M.view) {
     case "loading": return `<div aria-hidden="true"><div class="skeleton"></div><div class="skeleton"></div></div><p class="sr-only" role="status">Loading</p>`;
-    case "missing": return `<h1 tabindex="-1" id="h">This link is incomplete</h1><div class="banner warning" role="status"><span class="icon" aria-hidden="true">!</span><span class="text">Open the full link from your confirmation screen.${support()}</span></div>`;
-    case "notfound": return `<h1 tabindex="-1" id="h">We couldn't find this appointment</h1><div class="banner warning" role="status"><span class="icon" aria-hidden="true">!</span><span class="text">The link may be incomplete or no longer valid.${support()}</span></div>${actions(btn("home", "Book a new appointment"))}`;
+    case "list": {
+      const nowMs = Date.now();
+      const upcoming = M.list.filter((x) => x.status === "confirmed" && Date.parse(x.summary.endsAt) >= nowMs);
+      const earlier = M.list.filter((x) => !upcoming.includes(x)).reverse();
+      const card = (x: ManagedAppointment) => `<li class="appt"><div><strong>${esc(x.summary.visitType.label)}</strong> with ${esc(x.summary.provider.displayName)}<br>${esc(fmtDay(x.summary.startsAt, x.summary.timeZone))}, ${esc(fmtTime(x.summary.startsAt, x.summary.timeZone))}<br><small>${esc(x.summary.clinic.name)} · ${esc(x.bookingId)}${x.status === "cancelled" ? " · Cancelled" : ""}</small></div><button type="button" data-act="open" data-ref="${esc(x.bookingId)}" aria-label="View ${esc(x.summary.visitType.label)} on ${esc(fmtDay(x.summary.startsAt, x.summary.timeZone))}">View</button></li>`;
+      const group = (title: string, items: ManagedAppointment[]) => items.length ? `<h2 class="h2-md">${title}</h2><ul class="appts">${items.map(card).join("")}</ul>` : "";
+      return `<h1 tabindex="-1" id="h">My appointments</h1>${bannerHtml(M.banner)}${M.list.length === 0 ? `<p class="lead">You have no appointments yet.</p>` : group("Upcoming", upcoming) + group("Earlier and cancelled", earlier)}${actions(btn("home", "Book an appointment", { primary: true }))}`;
+    }
+    case "notfound": return `<h1 tabindex="-1" id="h">We couldn't find this appointment</h1><div class="banner warning" role="status"><span class="icon" aria-hidden="true">!</span><span class="text">It may have been removed.${support()}</span></div>${actions(btn("list", "My appointments", { primary: true }))}`;
     case "details": {
       if (!a) return "";
-      if (a.status === "cancelled") return `<h1 tabindex="-1" id="h">Appointment cancelled</h1>${bannerHtml(M.banner ?? { kind: "info", text: "This appointment has been cancelled. The time has been released." })}${summary(a)}${actions(btn("home", "Book a new appointment", { primary: true }))}`;
+      if (a.status === "cancelled") return `<h1 tabindex="-1" id="h">Appointment cancelled</h1>${bannerHtml(M.banner ?? { kind: "info", text: "This appointment has been cancelled. The time has been released." })}${summary(a)}${actions(btn("list", "My appointments"), btn("home", "Book a new appointment", { primary: true }))}`;
       const note = a.canChange ? "" : `<p class="hint">Appointments can be changed online up to ${hours(a.changeNoticeMinutes)} before they start.${support()}</p>`;
-      return `<h1 tabindex="-1" id="h">Your appointment</h1>${bannerHtml(M.banner)}${summary(a)}${note}${a.canChange ? actions(btn("pick", "Change time"), btn("cancel", "Cancel appointment")) : ""}`;
+      return `<h1 tabindex="-1" id="h">Your appointment</h1>${bannerHtml(M.banner)}${summary(a)}${note}${actions(btn("list", "Back to my appointments"), ...(a.canChange ? [btn("pick", "Change time"), btn("cancel", "Cancel appointment")] : []))}`;
     }
     case "confirmCancel": return a ? `<h1 tabindex="-1" id="h">Cancel this appointment?</h1>${bannerHtml(M.banner)}${summary(a)}<p class="hint">The time will be released for other patients. You can book a new appointment afterwards.</p>${actions(btn("keep", "Keep appointment"), btn("doCancel", M.busy ? "Cancelling…" : "Yes, cancel appointment", { primary: true, disabled: M.busy }))}` : "";
     case "pickTime": {
@@ -66,8 +72,8 @@ function view(): string {
 
 function render(focus = true) {
   root.setAttribute("aria-busy", M.view === "loading" ? "true" : "false");
-  root.innerHTML = `<header class="site"><div class="brand">${esc(M.brand?.displayName ?? "")}</div></header><main>${view()}</main>`;
-  document.title = `${M.brand?.displayName ? M.brand.displayName + " – " : ""}Manage your appointment`;
+  root.innerHTML = `${headerHtml(M.brand?.displayName ?? "", M.me, "appointments")}<main>${view()}</main>`;
+  document.title = `${M.brand?.displayName ? M.brand.displayName + " – " : ""}My appointments`;
   if (focus) (document.getElementById("h") as HTMLElement | null)?.focus();
 }
 
@@ -80,19 +86,23 @@ function handleError(status: number, body: unknown): boolean {
   if (status >= 500) { M.banner = { kind: "error", text: "Scheduling is temporarily unavailable. Nothing was changed. Please try again shortly." }; render(false); return true; }
   return false;
 }
+async function reloadList() { const r = await call<{ appointments: ManagedAppointment[] }>("/bookings"); if (r.status === 200) M.list = r.body.appointments; }
 async function reloadAppointment() { const r = await call<ManagedAppointment>(`/bookings/${encodeURIComponent(ref)}`); if (r.status === 200) M.appt = r.body; return r; }
 async function loadSlots() {
   const a = M.appt!.summary; const q = new URLSearchParams({ clinicId: a.clinic.id, serviceId: a.visitType.id, providerId: a.provider.id });
-  const r = await fetch(`${API}/slots?${q}`); M.slots = ((await r.json()) as { slots: Slot[] }).slots.filter((s) => s.startsAt !== a.startsAt);
+  const r = await fetch(`${API}/slots?${q}`); if (r.status === 401) { toLogin(); return; }
+  M.slots = ((await r.json()) as { slots: Slot[] }).slots.filter((s) => s.startsAt !== a.startsAt);
   if (M.slotId && !M.slots.some((s) => s.id === M.slotId)) M.slotId = "";
 }
 
-async function act(name: string) {
+async function act(name: string, open = "") {
   if (M.busy) return;
   try {
     switch (name) {
       case "home": location.assign(`/t/${slug}/`); return;
       case "keep": M.view = "details"; M.banner = undefined; return render();
+      case "list": { M.view = "list"; M.banner = undefined; await reloadList(); return render(); }
+      case "open": { ref = open; const r = await reloadAppointment(); if (r.status !== 200) { M.view = "notfound"; return render(); } M.view = "details"; M.banner = undefined; return render(); }
       case "cancel": M.view = "confirmCancel"; M.banner = undefined; return render();
       case "doCancel": {
         M.busy = true; render(false);
@@ -117,7 +127,7 @@ async function act(name: string) {
   } catch { M.busy = false; M.banner = { kind: "error", text: "We couldn't reach the server. Nothing was changed. Please check your connection and try again." }; render(false); }
 }
 
-root.addEventListener("click", (ev) => { const t = (ev.target as HTMLElement).closest("[data-act]") as HTMLElement | null; if (t) void act(t.dataset.act!); });
+root.addEventListener("click", (ev) => { const t = (ev.target as HTMLElement).closest("[data-act]") as HTMLElement | null; if (t) { if (t.dataset.act === "logout") void logout(); else void act(t.dataset.act!, t.dataset.ref ?? ""); } });
 root.addEventListener("change", (ev) => { const t = ev.target as HTMLInputElement; if (t.name === "slot") { M.slotId = t.value; render(false); (document.querySelector(`input[name="slot"][value="${CSS.escape(t.value)}"]`) as HTMLElement | null)?.focus(); } });
 
 (async function boot() {
@@ -125,9 +135,10 @@ root.addEventListener("change", (ev) => { const t = ev.target as HTMLInputElemen
   try {
     const cfg = await fetch(`${API}/config`);
     if (cfg.status === 200) { M.brand = ((await cfg.json()) as { brand: BrandConfig }).brand; document.documentElement.style.setProperty("--brand", safeBrand(M.brand.primaryColor)); }
-    if (!ref || !token) { M.view = "missing"; return render(); }
-    const r = await reloadAppointment();
-    if (r.status !== 200) { M.view = "notfound"; return render(); }
-    M.view = "details"; render();
+    const me = await fetchMe(); if (!me) { toLogin(); return; }
+    M.me = me; await reloadList();
+    const want = new URLSearchParams(location.search).get("ref");
+    if (want && M.list.some((x) => x.bookingId === want)) { ref = want; await reloadAppointment(); M.view = "details"; } else M.view = "list";
+    render();
   } catch { M.view = "notfound"; render(); }
 })();
