@@ -42,7 +42,7 @@ test("happy path: Book Now to confirmed appointment with authoritative summary",
   await expect(page.locator("dl.summary")).toContainText(/(PST|PDT)/);                  // explicit clinic time zone
   await fillDetails(page); await confirm(page).click();
   await heading(page, "Appointment confirmed");
-  await expect(page.getByText(REF)).toBeVisible();
+  await expect(page.locator("strong").filter({ hasText: REF })).toBeVisible();
   await expect(page.locator("dl.summary")).toContainText("Primary Care");
 });
 
@@ -123,9 +123,9 @@ test("timeout after the booking was saved: shows 'checking', never 'confirmed', 
   await confirm(page).click();
   await heading(page, "We're checking your booking");
   await expect(page.getByText("Appointment confirmed")).toHaveCount(0);
-  await expect(page.getByText(REF)).toHaveCount(0);                                // no booking number claimed yet
+  await expect(page.locator("strong").filter({ hasText: REF })).toHaveCount(0);                                // no booking number claimed yet
   await page.getByRole("button", { name: "Check status" }).click();
-  await heading(page, "Appointment confirmed"); await expect(page.getByText(REF)).toBeVisible();
+  await heading(page, "Appointment confirmed"); await expect(page.locator("strong").filter({ hasText: REF })).toBeVisible();
 });
 
 test("scheduling outage: clear failure, nothing claimed, retry works", async ({ page }) => {
@@ -185,7 +185,7 @@ test("responsive: no horizontal scroll at 320px, and with 200% text", async ({ p
   await toReview(page);
   const overflow = () => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   expect(await overflow()).toBeLessThanOrEqual(0);
-  await page.addStyleTag({ content: "html { font-size: 200% !important; }" });
+  await page.evaluate(() => document.documentElement.style.setProperty("font-size", "200%", "important"));   // CSSOM, so the strict CSP still applies
   expect(await overflow()).toBeLessThanOrEqual(0);
 });
 
@@ -220,4 +220,87 @@ test("long availability is shown a few days at a time, and more can be revealed"
   await page.getByRole("button", { name: "Show more dates" }).click();
   await expect(page.locator("fieldset .slots")).toHaveCount(6);
   await expect(page.locator('input[name="slot"]:focus')).toHaveCount(1);                // focus moves to the new times, not lost
+});
+
+// ---------------------------------------------------------------- manage an appointment (guest link), calendar, CSP
+async function bookAndGetLink(page: Page): Promise<string> {
+  // a later slot: the earliest ones can fall inside the 120-minute change window
+  await toReview(page, 12); await fillDetails(page); await confirm(page).click();
+  await heading(page, "Appointment confirmed");
+  const link = (await page.locator(".linkbox").innerText()).trim();
+  expect(link).toMatch(/\/t\/northwind-health\/manage#ref=CX-[0-9A-Z]{4}-[0-9A-Z]{4}&token=[A-Za-z0-9_-]{43}$/);
+  return link;
+}
+const scanOf = async (page: Page, label: string) => {
+  const r = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze();
+  expect(r.violations.map((v) => `${label}: ${v.id} (${v.nodes.length})`)).toEqual([]);
+};
+
+test("confirmation offers a private manage link and a calendar file", async ({ page }) => {
+  await bookAndGetLink(page);
+  await expect(page.getByText(/only way to change or cancel online/)).toBeVisible();
+  const dl = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Add to calendar" }).click();
+  const file = await dl; expect(file.suggestedFilename()).toBe("appointment.ics");
+  const text = await (await import("node:fs/promises")).readFile((await file.path())!, "utf8");
+  expect(text).toMatch(/BEGIN:VEVENT[\s\S]*DTSTART:\d{8}T\d{6}Z[\s\S]*SUMMARY:Primary Care with Dr\. Alex Example[\s\S]*END:VEVENT/);
+  expect(text).not.toMatch(/Synthetic|pat\.synthetic/);                       // no patient details in the calendar file
+});
+
+test("manage page: view details, then cancel releases the time", async ({ page }) => {
+  const link = await bookAndGetLink(page);
+  const before = (await (await page.request.get("/t/northwind-health/api/slots?clinicId=cl-sb&serviceId=sv-pc-n&providerId=pr-a")).json()).slots.length;
+  await page.goto(link);
+  await heading(page, "Your appointment");
+  await expect(page.locator("dl.summary")).toContainText(/CX-[0-9A-Z]{4}-[0-9A-Z]{4}/);
+  await expect(page.locator("dl.summary")).toContainText("Dr. Alex Example");
+  await expect(page.locator("body")).not.toContainText("Synthetic");           // patient details are not shown or fetched
+  await scanOf(page, "manage-details");
+  await page.getByRole("button", { name: "Cancel appointment" }).click();
+  await heading(page, "Cancel this appointment?"); await scanOf(page, "manage-confirm-cancel");
+  await page.getByRole("button", { name: "Keep appointment" }).click(); await heading(page, "Your appointment");
+  await page.getByRole("button", { name: "Cancel appointment" }).click();
+  await page.getByRole("button", { name: "Yes, cancel appointment" }).click();
+  await heading(page, "Appointment cancelled"); await expect(page.getByText("Your appointment has been cancelled.")).toBeVisible(); await scanOf(page, "manage-cancelled");
+  const after = (await (await page.request.get("/t/northwind-health/api/slots?clinicId=cl-sb&serviceId=sv-pc-n&providerId=pr-a")).json()).slots.length;
+  expect(after).toBe(before + 1);
+  await page.reload(); await heading(page, "Appointment cancelled");            // state comes from the server, not the page
+});
+
+test("manage page: change time moves the same booking", async ({ page }) => {
+  const link = await bookAndGetLink(page);
+  await page.goto(link); await heading(page, "Your appointment");
+  const oldTime = await page.locator("dl.summary dd").nth(4).innerText();
+  const ref = (await page.locator("dl.summary dd").first().innerText()).trim();
+  await page.getByRole("button", { name: "Change time" }).click();
+  await heading(page, "Choose a new time"); await scanOf(page, "manage-pick");
+  await expect(page.getByRole("button", { name: "Continue" })).toBeDisabled();
+  await expect(page.locator("fieldset .slots")).toHaveCount(3);
+  await page.locator('input[name="slot"]').nth(4).check();
+  await page.getByRole("button", { name: "Continue" }).click();
+  await heading(page, "Confirm the new time"); await scanOf(page, "manage-confirm-time");
+  await page.getByRole("button", { name: "Confirm new time" }).click();
+  await heading(page, "Your appointment"); await expect(page.getByText("Your appointment time has been changed.")).toBeVisible();
+  await expect(page.locator("dl.summary dd").first()).toHaveText(ref);          // same reference
+  expect(await page.locator("dl.summary dd").nth(4).innerText()).not.toBe(oldTime);
+});
+
+test("manage page: a wrong or incomplete link reveals nothing", async ({ page }) => {
+  const link = await bookAndGetLink(page);
+  await page.goto(link.replace(/token=[A-Za-z0-9_-]{5}/, "token=AAAAA"));
+  await heading(page, "We couldn't find this appointment"); await scanOf(page, "manage-notfound");
+  await expect(page.locator("body")).not.toContainText("Dr. Alex");
+  await page.goto("/t/northwind-health/manage"); await heading(page, "This link is incomplete"); await scanOf(page, "manage-missing");
+});
+
+test("no content-security-policy violations or script errors in the booking and manage flows", async ({ page }) => {
+  const problems: string[] = [];
+  page.on("console", (m) => { if (/Content Security Policy|Refused to/i.test(m.text())) problems.push(m.text()); });
+  page.on("pageerror", (e) => problems.push(String(e)));
+  const link = await bookAndGetLink(page);
+  await page.goto(link); await heading(page, "Your appointment");
+  await page.getByRole("button", { name: "Change time" }).click(); await heading(page, "Choose a new time");
+  expect(problems).toEqual([]);
+  const csp = (await page.request.get("/t/northwind-health/")).headers()["content-security-policy"];
+  expect(csp).not.toMatch(/unsafe-inline/);
 });
