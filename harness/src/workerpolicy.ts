@@ -8,7 +8,7 @@ export function workerSettings(task: Task, hookCommand: string) {
   const prefix = (cmd: string) => cmd.trim().split(/\s+/).slice(0, 2).join(" ");
   const allow = [
     "Read", "Glob", "Grep",
-    ...task.scope.write.flatMap((g) => [`Edit(${g})`, `Write(${g})`]),
+    ...task.scope.write.flatMap((g) => [`Edit(${g})`, `Write(${g})`, `Edit(/${g})`, `Write(/${g})`]),   // bare and project-root-anchored forms
     ...[...new Set(task.requiredChecks.map((c) => prefix(c.command)))].map((p) => `Bash(${p}:*)`),
   ];
   const deny = ["Agent", "WebFetch", "WebSearch", "Read(.env)", "Read(.env.*)", "Read(**/.env)", "Read(**/.env.*)"];

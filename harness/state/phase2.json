@@ -184,6 +184,53 @@
         "E-cb8fc31b-8a13-4e64-84ca-47596e9566cf"
       ],
       "updatedAt": "2026-10-14T15:36:15.319Z"
+    },
+    "T-p2-token": {
+      "id": "T-p2-token",
+      "title": "Manage-token module",
+      "objective": "Implement apps/api/src/manage-token.ts exporting issueManageToken(secret, tenantId, bookingId): string and verifyManageToken(secret, tenantId, bookingId, token: string | undefined): boolean, so every test in apps/api/test/manage-token.test.ts passes. HMAC-SHA256 with node:crypto, base64url without padding, an unambiguous encoding of tenantId and bookingId (length-prefix or a separator that cannot occur), secret of at least 32 characters else throw, verification with crypto.timingSafeEqual after a length check, and verify must never throw. Read the spec first; do not edit it.",
+      "role": "security",
+      "requirementIds": [
+        "ADR-002"
+      ],
+      "dependsOn": [],
+      "scope": {
+        "write": [
+          "apps/api/src/manage-token.ts"
+        ],
+        "read": [
+          "apps/api/**",
+          "packages/**",
+          "tsconfig.json",
+          "docs/product/**"
+        ]
+      },
+      "requiredChecks": [
+        {
+          "id": "tests",
+          "description": "npx vitest run apps/api/test/manage-token.test.ts",
+          "command": "npx vitest run apps/api/test/manage-token.test.ts",
+          "expectExit": 0
+        },
+        {
+          "id": "types",
+          "description": "node harness/tools/tsc-scope.mjs apps/api/src/manage-token.ts",
+          "command": "node harness/tools/tsc-scope.mjs apps/api/src/manage-token.ts",
+          "expectExit": 0
+        }
+      ],
+      "budget": {
+        "maxRetries": 1,
+        "maxMinutes": 12
+      },
+      "highRisk": false,
+      "status": "done",
+      "retries": 0,
+      "evidenceIds": [
+        "E-dc266af1-c2c4-49f9-9b3b-114492ff75b3",
+        "E-37a1186b-fca6-48bb-93d3-55bb462e78d9"
+      ],
+      "updatedAt": "2026-10-14T15:45:00.260Z"
     }
   },
   "evidence": {
@@ -196,7 +243,7 @@
       "startedAt": "2026-10-14T15:27:06.318Z",
       "finishedAt": "2026-10-14T15:27:07.473Z",
       "outputSha256": "86f56fd7904b11221e469dfe8cf07f2d08c7b9b5c3cfaf9272e3f933c04ff528",
-      "outputExcerpt": "▲ [WARNING] Expected the \"baseUrl\" option to be nested inside a \"compilerOptions\" object [tsconfig.json]\n\n    ../../tsconfig.json:21:2:\n      21 │   \"baseUrl\": \".\",\n         ╵   ~~~~~~~~~\n\n▲ [WARNING] Expected the \"baseUrl\" option to be nested inside a \"compilerOptions\" object [tsconfig.json]\n\n    tsconfig.json:21:2:\n      21 │   \"baseUrl\": \".\",\n         ╵   ~~~~~~~~~\n\n\n\u001b[1m\u001b[7m\u001b[36m RUN \u001b[39m\u001b[27m\u001b[22m \u001b[36mv2.1.9 \u001b[39m\u001b[90m/home/claude/work/carex/.worktrees/T-p2-ratelimit\u001b[39m\n\n \u001b[32m✓\u001b[39m apps/api/test/ratelimit.test.ts \u001b[2m(\u001b[22m\u001b[2m8 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 12\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m1 passed\u001b[39m\u001b[22m\u001b[90m (1)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m8 passed\u001b[39m\u001b[22m\u001b[90m (8)\u001b[39m\n\u001b[2m   Start at \u001b[22m 15:27:07\n\u001b[2m   Duration \u001b[22m 398ms\u001b[2m (transform 70ms, setup 0ms, collect 60ms, tests 12ms, environment 0ms, prepare 63ms)\u001b[22m\n\n",
+      "outputExcerpt": "\u25b2 [WARNING] Expected the \"baseUrl\" option to be nested inside a \"compilerOptions\" object [tsconfig.json]\n\n    ../../tsconfig.json:21:2:\n      21 \u2502   \"baseUrl\": \".\",\n         \u2575   ~~~~~~~~~\n\n\u25b2 [WARNING] Expected the \"baseUrl\" option to be nested inside a \"compilerOptions\" object [tsconfig.json]\n\n    tsconfig.json:21:2:\n      21 \u2502   \"baseUrl\": \".\",\n         \u2575   ~~~~~~~~~\n\n\n\u001b[1m\u001b[7m\u001b[36m RUN \u001b[39m\u001b[27m\u001b[22m \u001b[36mv2.1.9 \u001b[39m\u001b[90m/home/claude/work/carex/.worktrees/T-p2-ratelimit\u001b[39m\n\n \u001b[32m\u2713\u001b[39m apps/api/test/ratelimit.test.ts \u001b[2m(\u001b[22m\u001b[2m8 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 12\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m1 passed\u001b[39m\u001b[22m\u001b[90m (1)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m8 passed\u001b[39m\u001b[22m\u001b[90m (8)\u001b[39m\n\u001b[2m   Start at \u001b[22m 15:27:07\n\u001b[2m   Duration \u001b[22m 398ms\u001b[2m (transform 70ms, setup 0ms, collect 60ms, tests 12ms, environment 0ms, prepare 63ms)\u001b[22m\n\n",
       "recordedBy": "runner"
     },
     "E-0436cb43-31b6-4037-9b29-912befaf7574": {
@@ -220,7 +267,7 @@
       "startedAt": "2026-10-14T15:32:59.115Z",
       "finishedAt": "2026-10-14T15:33:00.352Z",
       "outputSha256": "c18d0ec75567ab488e929c78af958ff7ef9eda319f5b8b0d0c02d31f5c8ca71e",
-      "outputExcerpt": "▲ [WARNING] Expected the \"baseUrl\" option to be nested inside a \"compilerOptions\" object [tsconfig.json]\n\n    ../../tsconfig.json:21:2:\n      21 │   \"baseUrl\": \".\",\n         ╵   ~~~~~~~~~\n\n▲ [WARNING] Expected the \"baseUrl\" option to be nested inside a \"compilerOptions\" object [tsconfig.json]\n\n    tsconfig.json:21:2:\n      21 │   \"baseUrl\": \".\",\n         ╵   ~~~~~~~~~\n\n\n\u001b[1m\u001b[7m\u001b[36m RUN \u001b[39m\u001b[27m\u001b[22m \u001b[36mv2.1.9 \u001b[39m\u001b[90m/home/claude/work/carex/.worktrees/T-p2-zoned\u001b[39m\n\n \u001b[32m✓\u001b[39m apps/api/test/zoned.test.ts \u001b[2m(\u001b[22m\u001b[2m8 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 41\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m1 passed\u001b[39m\u001b[22m\u001b[90m (1)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m8 passed\u001b[39m\u001b[22m\u001b[90m (8)\u001b[39m\n\u001b[2m   Start at \u001b[22m 15:32:59\n\u001b[2m   Duration \u001b[22m 443ms\u001b[2m (transform 88ms, setup 0ms, collect 83ms, tests 41ms, environment 0ms, prepare 64ms)\u001b[22m\n\n",
+      "outputExcerpt": "\u25b2 [WARNING] Expected the \"baseUrl\" option to be nested inside a \"compilerOptions\" object [tsconfig.json]\n\n    ../../tsconfig.json:21:2:\n      21 \u2502   \"baseUrl\": \".\",\n         \u2575   ~~~~~~~~~\n\n\u25b2 [WARNING] Expected the \"baseUrl\" option to be nested inside a \"compilerOptions\" object [tsconfig.json]\n\n    tsconfig.json:21:2:\n      21 \u2502   \"baseUrl\": \".\",\n         \u2575   ~~~~~~~~~\n\n\n\u001b[1m\u001b[7m\u001b[36m RUN \u001b[39m\u001b[27m\u001b[22m \u001b[36mv2.1.9 \u001b[39m\u001b[90m/home/claude/work/carex/.worktrees/T-p2-zoned\u001b[39m\n\n \u001b[32m\u2713\u001b[39m apps/api/test/zoned.test.ts \u001b[2m(\u001b[22m\u001b[2m8 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 41\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m1 passed\u001b[39m\u001b[22m\u001b[90m (1)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m8 passed\u001b[39m\u001b[22m\u001b[90m (8)\u001b[39m\n\u001b[2m   Start at \u001b[22m 15:32:59\n\u001b[2m   Duration \u001b[22m 443ms\u001b[2m (transform 88ms, setup 0ms, collect 83ms, tests 41ms, environment 0ms, prepare 64ms)\u001b[22m\n\n",
       "recordedBy": "runner"
     },
     "E-2dbd8d43-5e04-42cd-b2e5-ff2af32a6901": {
@@ -244,7 +291,7 @@
       "startedAt": "2026-10-14T15:36:09.805Z",
       "finishedAt": "2026-10-14T15:36:11.509Z",
       "outputSha256": "8645256e03b57449566ec4ded8781873b3073c72d6afd091c10f5b06f1ff362f",
-      "outputExcerpt": "▲ [WARNING] Expected the \"baseUrl\" option to be nested inside a \"compilerOptions\" object [tsconfig.json]\n\n    ../../tsconfig.json:21:2:\n      21 │   \"baseUrl\": \".\",\n         ╵   ~~~~~~~~~\n\n▲ [WARNING] Expected the \"baseUrl\" option to be nested inside a \"compilerOptions\" object [tsconfig.json]\n\n    tsconfig.json:21:2:\n      21 │   \"baseUrl\": \".\",\n         ╵   ~~~~~~~~~\n\n\n\u001b[1m\u001b[7m\u001b[36m RUN \u001b[39m\u001b[27m\u001b[22m \u001b[36mv2.1.9 \u001b[39m\u001b[90m/home/claude/work/carex/.worktrees/T-p2-sched\u001b[39m\n\n(node:6485) ExperimentalWarning: SQLite is an experimental feature and might change at any time\n(Use `node --trace-warnings ...` to show where the warning was created)\n \u001b[32m✓\u001b[39m apps/api/test/sqlite-scheduling.test.ts \u001b[2m(\u001b[22m\u001b[2m16 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 259\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m1 passed\u001b[39m\u001b[22m\u001b[90m (1)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m16 passed\u001b[39m\u001b[22m\u001b[90m (16)\u001b[39m\n\u001b[2m   Start at \u001b[22m 15:36:10\n\u001b[2m   Duration \u001b[22m 819ms\u001b[2m (transform 143ms, setup 0ms, collect 199ms, tests 259ms, environment 0ms, prepare 83ms)\u001b[22m\n\n",
+      "outputExcerpt": "\u25b2 [WARNING] Expected the \"baseUrl\" option to be nested inside a \"compilerOptions\" object [tsconfig.json]\n\n    ../../tsconfig.json:21:2:\n      21 \u2502   \"baseUrl\": \".\",\n         \u2575   ~~~~~~~~~\n\n\u25b2 [WARNING] Expected the \"baseUrl\" option to be nested inside a \"compilerOptions\" object [tsconfig.json]\n\n    tsconfig.json:21:2:\n      21 \u2502   \"baseUrl\": \".\",\n         \u2575   ~~~~~~~~~\n\n\n\u001b[1m\u001b[7m\u001b[36m RUN \u001b[39m\u001b[27m\u001b[22m \u001b[36mv2.1.9 \u001b[39m\u001b[90m/home/claude/work/carex/.worktrees/T-p2-sched\u001b[39m\n\n(node:6485) ExperimentalWarning: SQLite is an experimental feature and might change at any time\n(Use `node --trace-warnings ...` to show where the warning was created)\n \u001b[32m\u2713\u001b[39m apps/api/test/sqlite-scheduling.test.ts \u001b[2m(\u001b[22m\u001b[2m16 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 259\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m1 passed\u001b[39m\u001b[22m\u001b[90m (1)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m16 passed\u001b[39m\u001b[22m\u001b[90m (16)\u001b[39m\n\u001b[2m   Start at \u001b[22m 15:36:10\n\u001b[2m   Duration \u001b[22m 819ms\u001b[2m (transform 143ms, setup 0ms, collect 199ms, tests 259ms, environment 0ms, prepare 83ms)\u001b[22m\n\n",
       "recordedBy": "runner"
     },
     "E-cb8fc31b-8a13-4e64-84ca-47596e9566cf": {
@@ -257,6 +304,30 @@
       "finishedAt": "2026-10-14T15:36:15.313Z",
       "outputSha256": "3e61423ea78f0cef88d7c7b05e08b76d5803320e6ca4edfa7f1f4ca55487ff8d",
       "outputExcerpt": "no type errors in: apps/api/src/sqlite-scheduling.ts\n",
+      "recordedBy": "runner"
+    },
+    "E-dc266af1-c2c4-49f9-9b3b-114492ff75b3": {
+      "id": "E-dc266af1-c2c4-49f9-9b3b-114492ff75b3",
+      "taskId": "T-p2-token",
+      "checkId": "tests",
+      "command": "npx vitest run apps/api/test/manage-token.test.ts",
+      "exitCode": 0,
+      "startedAt": "2026-10-14T15:44:55.048Z",
+      "finishedAt": "2026-10-14T15:44:56.333Z",
+      "outputSha256": "739994bd4417d2461a9d9b85d6fac390358c6f7ebe5391f9049478658c8fc21e",
+      "outputExcerpt": "\u25b2 [WARNING] Expected the \"baseUrl\" option to be nested inside a \"compilerOptions\" object [tsconfig.json]\n\n    ../../tsconfig.json:21:2:\n      21 \u2502   \"baseUrl\": \".\",\n         \u2575   ~~~~~~~~~\n\n\u25b2 [WARNING] Expected the \"baseUrl\" option to be nested inside a \"compilerOptions\" object [tsconfig.json]\n\n    tsconfig.json:21:2:\n      21 \u2502   \"baseUrl\": \".\",\n         \u2575   ~~~~~~~~~\n\n\n\u001b[1m\u001b[7m\u001b[36m RUN \u001b[39m\u001b[27m\u001b[22m \u001b[36mv2.1.9 \u001b[39m\u001b[90m/home/claude/work/carex/.worktrees/T-p2-token\u001b[39m\n\n \u001b[32m\u2713\u001b[39m apps/api/test/manage-token.test.ts \u001b[2m(\u001b[22m\u001b[2m6 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 10\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m1 passed\u001b[39m\u001b[22m\u001b[90m (1)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m6 passed\u001b[39m\u001b[22m\u001b[90m (6)\u001b[39m\n\u001b[2m   Start at \u001b[22m 15:44:55\n\u001b[2m   Duration \u001b[22m 404ms\u001b[2m (transform 61ms, setup 0ms, collect 55ms, tests 10ms, environment 0ms, prepare 73ms)\u001b[22m\n\n",
+      "recordedBy": "runner"
+    },
+    "E-37a1186b-fca6-48bb-93d3-55bb462e78d9": {
+      "id": "E-37a1186b-fca6-48bb-93d3-55bb462e78d9",
+      "taskId": "T-p2-token",
+      "checkId": "types",
+      "command": "node harness/tools/tsc-scope.mjs apps/api/src/manage-token.ts",
+      "exitCode": 0,
+      "startedAt": "2026-10-14T15:44:56.334Z",
+      "finishedAt": "2026-10-14T15:45:00.253Z",
+      "outputSha256": "e1b583a3a6ed351ed813bcce87d19c2bba3c99adbccda58054b631dfcefddcb2",
+      "outputExcerpt": "no type errors in: apps/api/src/manage-token.ts\n",
       "recordedBy": "runner"
     }
   },
@@ -400,6 +471,42 @@
         "The request_hash covers tenant, clinic, service, provider, slot and patient fields.",
         "committed 9281bdb206 on task branch"
       ]
+    },
+    "T-p2-token": {
+      "taskId": "T-p2-token",
+      "status": "completed",
+      "summary": "Added apps/api/src/manage-token.ts. The token is an HMAC-SHA256 over a domain-tagged, length-prefixed encoding of tenantId and bookingId, output as 43-character unpadded base64url. issueManageToken throws if the secret is shorter than 32 characters. verifyManageToken checks the token's type and length, then compares with timingSafeEqual, and any exception makes it return false. The spec file was not edited.",
+      "changedFiles": [
+        "apps/api/src/manage-token.ts"
+      ],
+      "testsExecuted": [
+        {
+          "command": "npx vitest run apps/api/test/manage-token.test.ts",
+          "result": "1 file, 6 tests passed"
+        },
+        {
+          "command": "node harness/tools/tsc-scope.mjs apps/api/src/manage-token.ts",
+          "result": "no type errors in apps/api/src/manage-token.ts"
+        }
+      ],
+      "criteriaSatisfied": [
+        "HMAC-SHA256 via node:crypto",
+        "base64url without padding",
+        "unambiguous encoding: length prefixes plus a domain-separation tag",
+        "secret of at least 32 characters, otherwise throw",
+        "timingSafeEqual after a length check",
+        "verify never throws",
+        "all 6 spec tests pass"
+      ],
+      "criteriaUnsatisfied": [],
+      "risks": [
+        "The spec header cites ADR-003 while the task cites ADR-002, so the ADR reference should be reconciled by the owner.",
+        "The token never expires or rotates and is revoked only by rotating the secret, which follows from the stateless design in the spec.",
+        "Callers must load the secret from env/config and never log it. The module does not enforce entropy beyond length.",
+        "The vitest run printed a tsconfig `baseUrl` deprecation warning, which is unrelated to this change.",
+        "committed 8394831d3a on task branch"
+      ],
+      "nextTask": "Wire issueManageToken and verifyManageToken into the booking routes, checking the token against the tenant resolved from the request rather than from client input."
     }
   },
   "approvals": {},
@@ -547,6 +654,69 @@
       "at": "2026-10-14T15:36:15.319Z",
       "event": "done",
       "taskId": "T-p2-sched"
+    },
+    {
+      "at": "2026-10-14T15:44:30.264Z",
+      "event": "task_added",
+      "taskId": "T-p2-token"
+    },
+    {
+      "at": "2026-10-14T15:44:30.267Z",
+      "event": "task_added",
+      "taskId": "T-p2-manage"
+    },
+    {
+      "at": "2026-10-14T15:44:30.270Z",
+      "event": "transition",
+      "taskId": "T-p2-manage",
+      "detail": "ready"
+    },
+    {
+      "at": "2026-10-14T15:44:30.272Z",
+      "event": "transition",
+      "taskId": "T-p2-token",
+      "detail": "ready"
+    },
+    {
+      "at": "2026-10-14T15:44:30.282Z",
+      "event": "transition",
+      "taskId": "T-p2-manage",
+      "detail": "in_progress"
+    },
+    {
+      "at": "2026-10-14T15:44:30.284Z",
+      "event": "transition",
+      "taskId": "T-p2-token",
+      "detail": "in_progress"
+    },
+    {
+      "at": "2026-10-14T15:44:55.031Z",
+      "event": "result_submitted",
+      "taskId": "T-p2-token",
+      "detail": "completed -> needs_review"
+    },
+    {
+      "at": "2026-10-14T15:45:00.253Z",
+      "event": "evidence_recorded",
+      "taskId": "T-p2-token",
+      "detail": "tests exit=0"
+    },
+    {
+      "at": "2026-10-14T15:45:00.258Z",
+      "event": "evidence_recorded",
+      "taskId": "T-p2-token",
+      "detail": "types exit=0"
+    },
+    {
+      "at": "2026-10-14T15:45:00.260Z",
+      "event": "done",
+      "taskId": "T-p2-token"
+    },
+    {
+      "at": "2026-10-14T15:45:25.199Z",
+      "event": "result_submitted",
+      "taskId": "T-p2-manage",
+      "detail": "blocked -> blocked"
     }
   ]
 }

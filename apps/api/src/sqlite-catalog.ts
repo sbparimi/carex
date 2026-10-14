@@ -78,4 +78,12 @@ export class SqliteCatalog implements CatalogPort {
     const provider = this.providers(tenantId, clinicId, serviceId).find((p) => p.id === providerId);
     return clinic && visitType && provider ? { clinic, visitType, provider } : undefined;
   }
+
+  /** For an existing booking: names only, regardless of active/bookable flags, still scoped to the tenant. */
+  describe(tenantId: string, clinicId: string, serviceId: string, providerId: string) {
+    const c = this.db.prepare(`SELECT ${CLINIC_COLS} FROM clinics c WHERE c.tenant_id = ? AND c.id = ?`).get(tenantId, clinicId) as ClinicDbRow | undefined;
+    const v = this.db.prepare("SELECT v.id, v.canonical_type, v.label, v.description FROM visit_types v WHERE v.tenant_id = ? AND v.id = ?").get(tenantId, serviceId) as VisitTypeDbRow | undefined;
+    const p = this.db.prepare("SELECT p.id, p.display_name FROM providers p WHERE p.tenant_id = ? AND p.id = ?").get(tenantId, providerId) as ProviderDbRow | undefined;
+    return c && v && p ? { clinic: toClinic(c), visitType: toVisitType(v), provider: toProvider(p) } : undefined;
+  }
 }

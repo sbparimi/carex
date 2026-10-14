@@ -56,7 +56,7 @@ export type AppointmentSummary = z.infer<typeof AppointmentSummary>;
 
 /** BR-008: `confirmed` is only ever produced from an authoritative scheduling-source result. */
 export const BookingOutcome = z.discriminatedUnion("status", [
-  z.object({ status: z.literal("confirmed"), bookingId: z.string(), summary: AppointmentSummary }),
+  z.object({ status: z.literal("confirmed"), bookingId: z.string(), summary: AppointmentSummary, manageToken: z.string().optional() }),
   z.object({ status: z.literal("slot_unavailable"), message: z.string(), alternatives: z.array(Slot) }),
   z.object({ status: z.literal("pending"), correlationId: z.string(), message: z.string() }),
   z.object({ status: z.literal("failed"), code: z.string(), message: z.string(), retryable: z.boolean() }),
@@ -67,3 +67,19 @@ export const ErrorBody = z.object({ error: z.object({ code: z.string(), message:
 export type ErrorBody = z.infer<typeof ErrorBody>;
 
 export * from "./selection.js";
+
+/** What a patient sees when managing a booking. No patient details are ever returned here. */
+export const ManagedAppointment = z.object({
+  bookingId: z.string(), status: z.enum(["confirmed", "cancelled"]), summary: AppointmentSummary,
+  canChange: z.boolean(), changeNoticeMinutes: z.number().int(),
+});
+export type ManagedAppointment = z.infer<typeof ManagedAppointment>;
+
+export const RescheduleRequest = z.object({ slotId: Slot.shape.id });
+export type RescheduleRequest = z.infer<typeof RescheduleRequest>;
+
+export const RescheduleOutcome = z.discriminatedUnion("status", [
+  z.object({ status: z.literal("rescheduled"), appointment: ManagedAppointment }),
+  z.object({ status: z.literal("slot_unavailable"), message: z.string(), alternatives: z.array(Slot) }),
+]);
+export type RescheduleOutcome = z.infer<typeof RescheduleOutcome>;

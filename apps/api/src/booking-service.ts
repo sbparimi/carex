@@ -1,10 +1,10 @@
 import { createHash } from "node:crypto";
-import { BookingRequest, type BookingOutcome, type Slot } from "@carex/contracts";
+import { BookingRequest, type BookingOutcome, type ManagedAppointment, type RescheduleOutcome, type Slot } from "@carex/contracts";
 import type { CatalogPort } from "./catalog.js";
-import { SchedulingTimeoutError, SlotTakenError, type SchedulingSource } from "./scheduling.js";
+import { BookingNotFoundError, ChangeWindowClosedError, SchedulingTimeoutError, SchedulingUnavailableError, SlotTakenError, type ManagedBooking, type SchedulingSource } from "./scheduling.js";
 
 export class DomainError extends Error {
-  constructor(public code: "not_found" | "invalid_request" | "idempotency_conflict" | "payload_too_large", message: string) { super(message); }
+  constructor(public code: "not_found" | "invalid_request" | "idempotency_conflict" | "payload_too_large" | "change_window_closed" | "scheduling_unavailable", message: string) { super(message); }
 }
 
 const hash = (v: unknown) => createHash("sha256").update(JSON.stringify(v)).digest("hex");
@@ -19,7 +19,52 @@ export class BookingService {
   private inflight = new Map<string, { fingerprint: string; promise: Promise<BookingOutcome> }>();
   private settled = new Map<string, { fingerprint: string; outcome: BookingOutcome; req: BookingRequest }>();
 
-  constructor(private catalog: CatalogPort, private source: SchedulingSource) {}
+  private notice: number; private now: () => Date;
+  /** `changeNoticeMinutes` must match the scheduling engine's own rule; it only drives what the UI is told (the engine enforces it). */
+  constructor(private catalog: CatalogPort, private source: SchedulingSource, opts: { now?: () => Date; changeNoticeMinutes?: number } = {}) {
+    this.notice = opts.changeNoticeMinutes ?? 120; this.now = opts.now ?? (() => new Date());
+  }
+
+  // ---- managing an existing booking (view, cancel, reschedule). Authorisation (the manage token) is checked by the caller.
+  async managed(tenantId: string, bookingId: string): Promise<ManagedAppointment | undefined> {
+    const b = await this.source.getBooking(tenantId, bookingId);
+    return b && this.toManaged(tenantId, b);
+  }
+
+  async cancel(tenantId: string, bookingId: string): Promise<ManagedAppointment> {
+    try { return this.requireManaged(tenantId, await this.source.cancel(tenantId, bookingId)); }
+    catch (e) { throw this.mapManageError(e); }
+  }
+
+  async reschedule(tenantId: string, bookingId: string, slotId: string): Promise<RescheduleOutcome> {
+    try { return { status: "rescheduled", appointment: this.requireManaged(tenantId, await this.source.reschedule(tenantId, bookingId, slotId)) }; }
+    catch (e) {
+      if (e instanceof SlotTakenError) {
+        const b = await this.source.getBooking(tenantId, bookingId).catch(() => undefined);
+        const alternatives = b ? await this.source.listSlots({ tenantId, clinicId: b.clinicId, serviceId: b.serviceId, providerId: b.providerId }).catch(() => []) : [];
+        return { status: "slot_unavailable", message: "That time is no longer available. Your current appointment is unchanged; please pick another time.", alternatives: alternatives.slice(0, 5) };
+      }
+      throw this.mapManageError(e);
+    }
+  }
+
+  private toManaged(tenantId: string, b: ManagedBooking): ManagedAppointment | undefined {
+    const d = this.catalog.describe(tenantId, b.clinicId, b.serviceId, b.providerId);
+    if (!d) return undefined;
+    const canChange = b.status === "confirmed" && Date.parse(b.startsAt) - this.now().getTime() >= this.notice * 60_000;
+    return { bookingId: b.bookingId, status: b.status, summary: { ...d, startsAt: b.startsAt, endsAt: b.endsAt, timeZone: d.clinic.timeZone }, canChange, changeNoticeMinutes: this.notice };
+  }
+  private requireManaged(tenantId: string, b: ManagedBooking): ManagedAppointment {
+    const m = this.toManaged(tenantId, b);
+    if (!m) throw new DomainError("not_found", "not found");
+    return m;
+  }
+  private mapManageError(e: unknown): unknown {
+    if (e instanceof BookingNotFoundError) return new DomainError("not_found", "not found");
+    if (e instanceof ChangeWindowClosedError) return new DomainError("change_window_closed", `Appointments can only be changed at least ${this.notice} minutes before they start. Please contact the clinic.`);
+    if (e instanceof SchedulingUnavailableError || e instanceof SchedulingTimeoutError) return new DomainError("scheduling_unavailable", "Scheduling is temporarily unavailable. Nothing was changed.");
+    return e;
+  }
 
   async slots(tenantId: string, clinicId: string, serviceId: string, providerId: string): Promise<Slot[]> {
     if (!this.catalog.eligible(tenantId, clinicId, serviceId, providerId)) return [];
@@ -62,7 +107,7 @@ export class BookingService {
     if (!prior) return undefined;
     if (prior.outcome.status !== "pending") return prior.outcome;
     const rec = await this.source.lookupByKey(tenantId, idempotencyKey).catch(() => undefined);
-    if (!rec) return prior.outcome;                                           // still unknown: claim nothing
+    if (!rec || rec.status !== "confirmed") return prior.outcome;             // unknown or since cancelled: claim nothing
     const e = this.catalog.eligible(tenantId, prior.req.clinicId, prior.req.serviceId, prior.req.providerId);
     if (!e) return prior.outcome;
     const outcome: BookingOutcome = { status: "confirmed", bookingId: rec.bookingId, summary: { ...e, startsAt: rec.startsAt, endsAt: rec.endsAt, timeZone: e.clinic.timeZone } };
