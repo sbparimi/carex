@@ -1,5 +1,13 @@
 import type { State } from "./schemas.js";
 
+/** The informative lines of a failure: error/assertion lines first, then the tail. */
+function keyLines(out: string): string[] {
+  const lines = out.split("\n");
+  const key = lines.filter((l) => /not ok|Error|leaked|expected|FAIL|✗|×/.test(l)).slice(0, 10);
+  const tail = lines.filter((l) => /^# (tests|pass|fail)/.test(l));
+  return [...new Set([...key, ...tail])].slice(0, 16);
+}
+
 /** Evidence-based report generated only from recorded state: no model prose, no claims without a record. */
 export function renderReport(state: State, title = "Harness run report"): string {
   const tasks = Object.values(state.tasks).sort((a, b) => a.id.localeCompare(b.id));
@@ -15,7 +23,7 @@ export function renderReport(state: State, title = "Harness run report"): string
   const failures = attempts.filter((e) => { const c = state.tasks[e.taskId]?.requiredChecks.find((x) => x.id === e.checkId); return c && e.exitCode !== c.expectExit; });
   L.push("", "## Failed verifications (actual output)", "");
   if (!failures.length) L.push("None recorded.");
-  for (const e of failures) L.push(`- **${e.taskId}** check \`${e.checkId}\` exit ${e.exitCode} (\`${e.command}\`)`, "  ```", ...e.outputExcerpt.split("\n").slice(-12).map((l) => `  ${l}`), "  ```");
+  for (const e of failures) L.push(`- **${e.taskId}** check \`${e.checkId}\` exit ${e.exitCode} (\`${e.command}\`)`, "  ```", ...keyLines(e.outputExcerpt).map((l) => `  ${l}`), "  ```");
   const diag = tasks.filter((t) => t.lastFailure);
   L.push("", "## Diagnoses", "");
   if (!diag.length) L.push("None recorded.");
