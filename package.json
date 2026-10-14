@@ -12,6 +12,7 @@
     "build:web": "esbuild apps/web/src/main.ts --bundle --format=esm --target=es2022 --outfile=apps/web/public/app.js",
     "typecheck:web": "tsc -p apps/web/tsconfig.json",
     "build:e2e": "esbuild apps/api/src/e2e-server.ts --bundle --platform=node --format=esm --outfile=.e2e/server.mjs",
+    "harness:live": "esbuild harness/src/live.ts --bundle --platform=node --format=esm --outfile=.e2e/live.mjs && node .e2e/live.mjs . harness/state/phase2.json",
     "test:e2e": "npm run build:web && npm run build:e2e && playwright test"
   },
   "devDependencies": {
