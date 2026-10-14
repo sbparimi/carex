@@ -3,6 +3,8 @@ import { SqliteCatalog } from "./sqlite-catalog.js";
 import { SqliteScheduling } from "./sqlite-scheduling.js";
 import { BookingService } from "./booking-service.js";
 import { createServer, type Deps } from "./server.js";
+import { AdminKeys } from "./admin-keys.js";
+import { SqliteAdmin } from "./sqlite-admin.js";
 
 export { createServer, SqliteCatalog, SqliteScheduling, BookingService, openDb };
 
@@ -13,6 +15,7 @@ export function buildApp(opts: { dbPath: string; now?: () => Date; changeNoticeM
   const notice = opts.changeNoticeMinutes ?? 120;
   const scheduling = new SqliteScheduling(db, { minChangeNoticeMinutes: notice, ...(opts.now ? { now: opts.now } : {}) });
   const bookings = new BookingService(catalog, scheduling, { changeNoticeMinutes: notice, ...(opts.now ? { now: opts.now } : {}) });
+  const admin = { keys: new AdminKeys(db, opts.now), config: new SqliteAdmin(db, opts.now) };
   const { dbPath: _p, now: _n, changeNoticeMinutes: _c, ...rest } = opts;
-  return { db, catalog, scheduling, bookings, server: createServer({ catalog, bookings, ...rest }) };
+  return { db, catalog, scheduling, bookings, admin, server: createServer({ catalog, bookings, admin, ...rest }) };
 }

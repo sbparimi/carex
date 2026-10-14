@@ -61,4 +61,10 @@ export const MIGRATIONS: string[] = [
   ALTER TABLE appointments ADD COLUMN updated_at TEXT;
   ALTER TABLE appointments ADD COLUMN reschedule_count INTEGER NOT NULL DEFAULT 0;
   `,
+  `
+  CREATE TABLE admin_keys (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, tenant_id TEXT NOT NULL REFERENCES tenants(id),
+    key_hash TEXT NOT NULL UNIQUE, label TEXT NOT NULL, created_at TEXT NOT NULL, revoked_at TEXT
+  );
+  `,
 ];

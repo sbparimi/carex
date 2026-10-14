@@ -1,8 +1,8 @@
-# CareX booking: requirement traceability (MVP slice)
+# CareX booking: requirement traceability
 
-Status as of 2026-10-14. "Evidence" names the automated test that exercises the requirement. Not built through the harness workers (built directly in this session); the harness is validated separately in `docs/harness/`.
+Status as of 2026-10-14. The system of record is the CareX-native scheduling engine on SQLite (ADR-002); the mock source is gone from production code. "Evidence" names the automated test that exercises the requirement. Parts were built by live harness workers (`docs/harness/07-live-run.md`), the rest directly.
 
-Test runs: unit and API 34 tests (vitest, 3 files); browser 45 tests (Playwright + axe, Chromium at 1440, 768 and 390 px). The browser suite ran in the cloud workspace because the local shell has no browser.
+Test runs: 138 unit and API tests (vitest, 13 files), 67 harness tests, 63 browser runs (21 tests x Chromium at 1440, 768 and 390 px, axe WCAG A/AA, CSP-violation check). Browser suite runs in the cloud workspace only; the device has no browsers.
 
 | Requirement | Status | Evidence |
 |---|---|---|
@@ -11,27 +11,33 @@ Test runs: unit and API 34 tests (vitest, 3 files); browser 45 tests (Playwright
 | FR-003 clinic filtering by state and tenant | Done | api.test "lists only active clinics in the state for the tenant"; e2e "tenants are isolated and branded" |
 | FR-004 visit types from clinic config; reset on clinic change | Done | api.test "offers only visit types switched on at that clinic"; selection.test; e2e "changing an upstream choice invalidates downstream choices" |
 | FR-005 eligible providers only | Done | api.test "offers only active, eligible providers" |
-| FR-006 slots only from the source; time zone shown; stale slot blocked | Done (mock source) | api.test "returns provisional slots only for an eligible provider"; e2e happy path (time zone), "slot taken before confirmation" |
+| FR-006 slots only from the source; time zone shown; stale slot blocked | Done (real engine) | api.test "returns provisional slots only for an eligible provider"; e2e happy path (time zone), "slot taken before confirmation" |
 | FR-007 review and edit | Done | e2e happy path, "changing an upstream choice..." |
-| FR-008 confirm with idempotency, atomic revalidation, no false success | Done against the mock source | api.test "booking integrity" group (10 tests); e2e "double-clicking Confirm", "timeout after the booking was saved", "scheduling outage" |
+| FR-008 confirm with idempotency, atomic revalidation, no false success | Done against the real engine | api.test "booking integrity" group (10 tests); e2e "double-clicking Confirm", "timeout after the booking was saved", "scheduling outage" |
 | FR-009 refresh and session resilience | Partly | e2e "refresh resilience" (selection revalidated, forged slot dropped). Patient details are deliberately not persisted. Session expiry is not modelled. |
 | FR-010 telemetry without PHI, per-tenant switch | Server-side events done | api.test "privacy: logs and telemetry". Client-side step events (state_selected etc.) are defined in the allowlist but not yet emitted by the UI. |
 | BR-001 / BR-012 tenant isolation | Done at the data-access layer | api.test "tenant isolation and safe errors" |
 | BR-002 branding | Partly | brand colour, display name with contrast guardrail (theme.test, e2e). Logo, favicon, typography tokens not implemented. |
-| BR-006..BR-009 authoritative availability, explicit confirmation, no false success, recoverability | Done against the mock source | as FR-008 |
+| BR-006..BR-009 authoritative availability, explicit confirmation, no false success, recoverability | Done against the real engine | as FR-008 |
 | BR-011 accessibility | Automated checks pass | axe WCAG 2.0 to 2.2 A/AA on every screen, keyboard flow, 320 px and 200 % text reflow. Manual screen-reader and keyboard review still required; no formal target approved. |
 | §12 edge-state matrix | Mostly | no clinics, no providers, no slots, stale slot, timeout, integration outage, duplicate click, missing tenant, malformed tenant covered. "Clinic deactivated mid-flow" is handled by server revalidation but has no dedicated test. |
 
+| Persistence | Done | sqlite-catalog/sqlite-scheduling tests (WAL, transactions, partial unique index prevents double booking) |
+| Cancel and reschedule (guest) | Done | sqlite-manage.test, manage-api.test, manage-token.test, e2e manage flows |
+| Rate limiting and hardening | Done | ratelimit.test, manage-api.test (429, headers, body limit); e2e strict-CSP check |
+| Admin configuration | API done, no UI | admin-keys.test, sqlite-admin.test, admin-api.test |
+
 ## Not built yet (deliberately, or blocked on decisions)
-- Real scheduling/EHR integration (open PRD decision). Only `MockScheduling` exists; its fault injection is test-only.
-- Patient identity beyond guest details; authentication; confirmation delivery; cancellation and rescheduling.
-- AI assistant features (P1 list in PRD §20). Nothing in the UI calls an AI service; AI stays off until a provider and data-handling decision exists.
-- Persistent storage, admin configuration surface, rate limiting and abuse protection, production auth for tenant admin.
-- Figma deliverables (no connector, PRD §22).
-- HIPAA/legal applicability, privacy review, and formal accessibility target remain human decisions.
-- Cross-browser matrix (only Chromium was run).
+- Optional patient login (ADR-003): design only; needs your approval and an email provider.
+- Confirmation emails/SMS and calendar invites by delivery (link and .ics download exist).
+- Admin UI; creating providers and visit types through the API; admin audit log.
+- AI assistant features: excluded by owner decision.
+- Real EHR or PostgreSQL adapter (the `SchedulingSource` seam exists); `node:sqlite` is still experimental in Node.
+- Encryption at rest, retention policy, HIPAA/legal review, formal accessibility target: human decisions. Appointments store patient name and contact; use synthetic data only until these are settled.
+- Trusted-proxy handling for client IPs behind a load balancer (rate limiting uses the socket address).
+- Multilingual UI, Figma deliverables, cross-browser matrix (Chromium only).
 
 ## Run it
-- `npm install`, `npm run test` (API, contracts and theme tests), `npm run harness:test`
-- Browser suite: `npm run test:e2e` (needs Playwright browsers installed: `npx playwright install chromium`)
-- Dev server with synthetic data: build the web bundle (`npm run build:web`), then run `apps/api/src/e2e-server.ts` style entry; a production entry is not provided on purpose.
+- `npm install`, `npm run test`, `npm run harness:test`, `npm run test:e2e` (needs `npx playwright install chromium`)
+- Dev: `CAREX_SEED_SYNTHETIC=1 npm start` (synthetic tenants, ephemeral token secret). Production: set `CAREX_TOKEN_SECRET` (32+ chars) and `CAREX_DB`.
+- Admin key: `npm run admin:key -- <tenant-slug> "<label>"`

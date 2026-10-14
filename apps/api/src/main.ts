@@ -2,13 +2,12 @@
 //   CAREX_DB            path of the SQLite file (default ./data/carex.db)
 //   CAREX_SEED_SYNTHETIC=1  load the synthetic demo tenants if the database is empty (development only; never with real data)
 //   PORT, HOST          listen address (default 8080 on 127.0.0.1)
-//   STATIC_DIR          built web assets (default apps/web/public)
+//   STATIC_DIR          built web assets (default ./apps/web/public relative to the working directory; run from the repo root)
 //   CAREX_TOKEN_SECRET  >= 32 characters; signs guest "manage this appointment" links. Required unless CAREX_SEED_SYNTHETIC=1
 //                       (development), where a random per-process secret is used and links stop working after a restart.
 import { mkdirSync } from "node:fs";
 import { randomBytes } from "node:crypto";
-import { dirname } from "node:path";
-import { fileURLToPath } from "node:url";
+import { dirname, resolve } from "node:path";
 import { buildApp } from "./index.js";
 import { seedDb } from "./db.js";
 import { syntheticCatalog } from "./seed.js";
@@ -23,7 +22,7 @@ if (!manageSecret || manageSecret.length < 32) {
 }
 const app = buildApp({
   manageSecret,
-  dbPath, staticDir: process.env.STATIC_DIR ?? fileURLToPath(new URL("../../web/public", import.meta.url)),
+  dbPath, staticDir: process.env.STATIC_DIR ?? resolve(process.cwd(), "apps/web/public"),
   log: (e) => console.log(JSON.stringify(e)),
 });
 const empty = (app.db.prepare("SELECT COUNT(*) AS n FROM tenants").get() as { n: number }).n === 0;

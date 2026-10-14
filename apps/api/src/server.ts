@@ -8,6 +8,8 @@ import { BookingService, DomainError } from "./booking-service.js";
 import { emitTelemetry, redact, type TelemetrySink } from "./telemetry.js";
 import { createRateLimiter } from "./ratelimit.js";
 import { issueManageToken, verifyManageToken } from "./manage-token.js";
+import type { AdminKeys } from "./admin-keys.js";
+import { AdminNotFoundError, AdminValidationError, type SqliteAdmin } from "./sqlite-admin.js";
 
 export interface Deps {
   catalog: CatalogPort; bookings: BookingService;
@@ -18,6 +20,8 @@ export interface Deps {
   manageSecret?: string;
   /** Per-client request budgets per minute; the defaults suit a single small deployment. Clients are identified by socket address (no proxy headers are trusted). */
   limits?: Partial<Record<"read" | "write" | "manage", { limit: number; windowMs: number }>>;
+  /** Admin configuration API (ADR-004). Without it every /admin route answers 404. */
+  admin?: { keys: AdminKeys; config: SqliteAdmin };
   /** Registered ONLY by the e2e server entry; never by the dev or production entries. */
   testHooks?: { injectFault(fault: string): void; reset(): void };
 }
@@ -52,7 +56,7 @@ function readBody(req: IncomingMessage): Promise<unknown> {
 
 export function createServer(deps: Deps): Server {
   const L = { read: { limit: 300, windowMs: 60_000 }, write: { limit: 20, windowMs: 60_000 }, manage: { limit: 30, windowMs: 60_000 }, ...deps.limits };
-  const limiter = { read: createRateLimiter(L.read), write: createRateLimiter(L.write), manage: createRateLimiter(L.manage), manageId: createRateLimiter({ limit: 10, windowMs: 60_000 }) };
+  const limiter = { read: createRateLimiter(L.read), write: createRateLimiter(L.write), manage: createRateLimiter(L.manage), manageId: createRateLimiter({ limit: 10, windowMs: 60_000 }), admin: createRateLimiter({ limit: 60, windowMs: 60_000 }) };
   setInterval(() => Object.values(limiter).forEach((l) => l.sweep()), 60_000).unref();
   const withToken = (tenantId: string, o: BookingOutcome): BookingOutcome =>
     o.status === "confirmed" && deps.manageSecret ? { ...o, manageToken: issueManageToken(deps.manageSecret, tenantId, o.bookingId) } : o;
@@ -119,6 +123,34 @@ export function createServer(deps: Deps): Server {
           const o = await deps.bookings.reconcile(t, mm[1]!);
           return o ? reply(200, withToken(t, o)) : fail(404, "not_found", "Not found");
         }
+      }
+      // ---- admin configuration: Bearer key bound to exactly this tenant; any failure is the same generic 401
+      if (path === "admin" || path.startsWith("admin/")) {
+        route = "admin"; const adm = deps.admin;
+        if (!adm) return fail(404, "not_found", "Not found");
+        if (!allow(limiter.admin, client)) return fail(429, "rate_limited", "Too many requests. Please wait a moment and try again.");
+        const auth = req.headers["authorization"]; const bearer = typeof auth === "string" ? /^Bearer (\S+)$/.exec(auth)?.[1] : undefined;
+        if (adm.keys.verify(bearer) !== t) return fail(401, "unauthorized", "Unauthorized");
+        const sub = path.slice("admin".length).replace(/^\//, ""); const M = req.method;
+        const obj = async () => { const b = await readBody(req); if (typeof b !== "object" || b === null || Array.isArray(b)) throw new AdminValidationError("body must be an object"); return b as Record<string, any>; };
+        const idp = "([A-Za-z0-9_-]{1,64})"; let am: RegExpExecArray | null;
+        try {
+          if (M === "GET" && sub === "clinics") return reply(200, { clinics: adm.config.listClinics(t) });
+          if (M === "POST" && sub === "clinics") return reply(201, adm.config.createClinic(t, (await obj()) as any));
+          if (M === "PATCH" && (am = new RegExp(`^clinics/${idp}$`).exec(sub))) return reply(200, adm.config.updateClinic(t, am[1]!, (await obj()) as any));
+          if (M === "PUT" && (am = new RegExp(`^clinics/${idp}/visit-types/${idp}$`).exec(sub))) { const b = await obj(); if (typeof b.active !== "boolean") throw new AdminValidationError("active must be true or false"); adm.config.setClinicVisitType(t, am[1]!, am[2]!, b.active); return reply(204, {}); }
+          if (M === "GET" && (am = new RegExp(`^providers/${idp}/clinics/${idp}/availability$`).exec(sub))) return reply(200, { rules: adm.config.getAvailability(t, am[1]!, am[2]!) });
+          if (M === "PUT" && (am = new RegExp(`^providers/${idp}/clinics/${idp}/availability$`).exec(sub))) { const b = await obj(); adm.config.setAvailability(t, am[1]!, am[2]!, b.rules); return reply(200, { rules: adm.config.getAvailability(t, am[1]!, am[2]!) }); }
+          if (M === "POST" && (am = new RegExp(`^providers/${idp}/time-off$`).exec(sub))) { const b = await obj(); return reply(201, { id: adm.config.addTimeOff(t, am[1]!, String(b.startsAt), String(b.endsAt)) }); }
+          if (M === "DELETE" && (am = /^time-off\/(\d{1,12})$/.exec(sub))) { adm.config.removeTimeOff(t, Number(am[1])); return reply(204, {}); }
+          if (M === "PATCH" && sub === "brand") return reply(200, { brand: adm.config.updateBrand(t, (await obj()) as any) });
+          if (M === "PUT" && sub === "analytics") { const b = await obj(); if (typeof b.enabled !== "boolean") throw new AdminValidationError("enabled must be true or false"); adm.config.setAnalytics(t, b.enabled); return reply(204, {}); }
+        } catch (e) {
+          if (e instanceof AdminNotFoundError) return fail(404, "not_found", "Not found");
+          if (e instanceof AdminValidationError) return fail(400, "invalid_request", e.message);
+          throw e;
+        }
+        return fail(404, "not_found", "Not found");
       }
       // ---- manage an existing booking: authorised by the guest's manage token (header, never the URL), answered with a generic 404 otherwise
       const mg = /^bookings\/([A-Za-z0-9-]{6,32})(?:\/(cancel|reschedule))?$/.exec(path);

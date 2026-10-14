@@ -15,6 +15,7 @@
     "harness:live": "esbuild harness/src/live.ts --bundle --platform=node --format=esm --outfile=.e2e/live.mjs && node .e2e/live.mjs . harness/state/phase2.json",
     "test:e2e": "npm run build:web && npm run build:e2e && playwright test",
     "build:api": "esbuild apps/api/src/main.ts --bundle --platform=node --format=esm --external:node:sqlite --outfile=dist/main.mjs",
+    "admin:key": "esbuild apps/api/src/admin-key-cli.ts --bundle --platform=node --format=esm --external:node:sqlite --outfile=dist/admin-key.mjs --log-level=error && node dist/admin-key.mjs",
     "start": "npm run -s build:web && npm run -s build:api && node dist/main.mjs"
   },
   "devDependencies": {
