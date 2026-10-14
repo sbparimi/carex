@@ -9,7 +9,7 @@ import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { buildApp } from "./index.js";
 import { seedDb } from "./db.js";
-import { syntheticCatalog } from "./seed.js";
+import { demoCatalog, seedDemoPatients, DEMO_PASSWORD, DEMO_PATIENTS } from "./seed-demo.js";
 import type { Mailer } from "./accounts.js";
 
 const url = process.env.DATABASE_URL;
@@ -29,7 +29,7 @@ const app = await buildApp({
   log: (e) => console.log(JSON.stringify(e)),
 });
 const empty = (await app.db.get<{ n: number }>("SELECT COUNT(*)::int AS n FROM tenants"))!.n === 0;
-if (empty && dev) { await seedDb(app.db, syntheticCatalog()); console.log(JSON.stringify({ event: "seeded_synthetic_data" })); }
+if (empty && dev) { await seedDb(app.db, demoCatalog()); await seedDemoPatients(app.db); console.log(JSON.stringify({ event: "seeded_synthetic_data", demoLogins: DEMO_PATIENTS.map((p) => `/t/${p.tenant}/login  ${p.email}`), demoPassword: DEMO_PASSWORD })); }
 else if (empty) console.log(JSON.stringify({ event: "database_has_no_tenants", hint: "set CAREX_SEED_SYNTHETIC=1 for development" }));
 console.log(JSON.stringify({ event: "database", kind: url ? "postgres" : "pglite-local" }));
 const port = Number(process.env.PORT ?? 8080);

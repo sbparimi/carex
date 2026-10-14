@@ -17,3 +17,11 @@ See [docs/product-traceability.md](docs/product-traceability.md) for what the bo
 - Local (no database server): `CAREX_SEED_SYNTHETIC=1 npm start`, open `http://127.0.0.1:8080/t/northwind-health/`, sign up. Password reset links print in the server console in this mode.
 - Neon: put your Neon connection string in a local `.env` as `DATABASE_URL` (never commit or share it), set `CAREX_SECURE_COOKIES=1` behind HTTPS, then `npm start`.
 - Admin key for a tenant: `npm run admin:key -- <tenant-slug> "<label>"`.
+
+## Demo data (development only)
+`CAREX_SEED_SYNTHETIC=1` on an empty database loads invented demo data: 3 Northwind clinics' worth of states (CA, TX, WA, CO), more visit types and providers, 15 employers and 8 insurers per big tenant, and demo patients with appointments. All log in with password `Demo-Passw0rd-2026` (a demo-only password; never reuse it):
+- `alex.demo@example.test` (Northwind; one upcoming and one cancelled appointment)
+- `maria.demo@example.test` (Northwind; two upcoming)
+- `new.demo@example.test` (Northwind; none)
+- `sam.demo@example.test` (Bayview Care; one upcoming)
+To reload: stop the server, delete `./data/pglite`, start again. Do not set the flag on a production database.
