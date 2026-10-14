@@ -5,7 +5,10 @@
   "description": "CareX white-label booking platform + autonomous engineering harness",
   "scripts": {
     "harness:test": "vitest run --root harness",
-    "harness:typecheck": "tsc -p harness/tsconfig.json --noEmit"
+    "harness:typecheck": "tsc -p harness/tsconfig.json --noEmit",
+    "test": "vitest run apps packages",
+    "typecheck": "tsc -p tsconfig.json",
+    "test:all": "npm run harness:test && npm run test"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
