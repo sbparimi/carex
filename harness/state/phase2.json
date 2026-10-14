@@ -231,6 +231,53 @@
         "E-37a1186b-fca6-48bb-93d3-55bb462e78d9"
       ],
       "updatedAt": "2026-10-14T15:45:00.260Z"
+    },
+    "T-p2-manage": {
+      "id": "T-p2-manage",
+      "title": "View, cancel and reschedule in the scheduling engine",
+      "objective": "Extend apps/api/src/sqlite-scheduling.ts so SqliteScheduling fully implements the updated SchedulingSource in apps/api/src/scheduling.ts (read it: BookingRecord now has status; new getBooking, cancel, reschedule; new errors BookingNotFoundError and ChangeWindowClosedError). Add constructor option minChangeNoticeMinutes (default 120; a change is allowed when start - now >= notice, inclusive). Migration 2 already added appointments.updated_at and reschedule_count. cancel/reschedule must run in inTransaction, be tenant-scoped, use bound parameters, set cancelled_at/updated_at, and increment reschedule_count; reschedule keeps the booking id (reference), provider, clinic and visit type, validates the new slot against the currently offered slots for that provider (treating the booking's own current slot as free), and leaves the booking unchanged on any error. lookupByKey must return cancelled bookings with status 'cancelled'. getBooking must never expose patient details. Both apps/api/test/sqlite-manage.test.ts (new) and apps/api/test/sqlite-scheduling.test.ts (existing, must still pass) are the spec; read them first and do not edit them. Only edit apps/api/src/sqlite-scheduling.ts.",
+      "role": "backend",
+      "requirementIds": [
+        "ADR-002"
+      ],
+      "dependsOn": [],
+      "scope": {
+        "write": [
+          "apps/api/src/sqlite-scheduling.ts"
+        ],
+        "read": [
+          "apps/api/**",
+          "packages/**",
+          "tsconfig.json",
+          "docs/product/**"
+        ]
+      },
+      "requiredChecks": [
+        {
+          "id": "tests",
+          "description": "npx vitest run apps/api/test/sqlite-manage.test.ts apps/api/test/sqlite-scheduling.test.ts",
+          "command": "npx vitest run apps/api/test/sqlite-manage.test.ts apps/api/test/sqlite-scheduling.test.ts",
+          "expectExit": 0
+        },
+        {
+          "id": "types",
+          "description": "node harness/tools/tsc-scope.mjs apps/api/src/sqlite-scheduling.ts",
+          "command": "node harness/tools/tsc-scope.mjs apps/api/src/sqlite-scheduling.ts",
+          "expectExit": 0
+        }
+      ],
+      "budget": {
+        "maxRetries": 1,
+        "maxMinutes": 12
+      },
+      "highRisk": false,
+      "status": "done",
+      "retries": 0,
+      "evidenceIds": [
+        "E-25c10ec4-d66e-46cc-bd5d-9fa054f21daa",
+        "E-26155ff9-9c4b-4486-9993-2964a98b810b"
+      ],
+      "updatedAt": "2026-10-14T15:48:27.517Z"
     }
   },
   "evidence": {
@@ -243,7 +290,7 @@
       "startedAt": "2026-10-14T15:27:06.318Z",
       "finishedAt": "2026-10-14T15:27:07.473Z",
       "outputSha256": "86f56fd7904b11221e469dfe8cf07f2d08c7b9b5c3cfaf9272e3f933c04ff528",
-      "outputExcerpt": "\u25b2 [WARNING] Expected the \"baseUrl\" option to be nested inside a \"compilerOptions\" object [tsconfig.json]\n\n    ../../tsconfig.json:21:2:\n      21 \u2502   \"baseUrl\": \".\",\n         \u2575   ~~~~~~~~~\n\n\u25b2 [WARNING] Expected the \"baseUrl\" option to be nested inside a \"compilerOptions\" object [tsconfig.json]\n\n    tsconfig.json:21:2:\n      21 \u2502   \"baseUrl\": \".\",\n         \u2575   ~~~~~~~~~\n\n\n\u001b[1m\u001b[7m\u001b[36m RUN \u001b[39m\u001b[27m\u001b[22m \u001b[36mv2.1.9 \u001b[39m\u001b[90m/home/claude/work/carex/.worktrees/T-p2-ratelimit\u001b[39m\n\n \u001b[32m\u2713\u001b[39m apps/api/test/ratelimit.test.ts \u001b[2m(\u001b[22m\u001b[2m8 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 12\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m1 passed\u001b[39m\u001b[22m\u001b[90m (1)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m8 passed\u001b[39m\u001b[22m\u001b[90m (8)\u001b[39m\n\u001b[2m   Start at \u001b[22m 15:27:07\n\u001b[2m   Duration \u001b[22m 398ms\u001b[2m (transform 70ms, setup 0ms, collect 60ms, tests 12ms, environment 0ms, prepare 63ms)\u001b[22m\n\n",
+      "outputExcerpt": "▲ [WARNING] Expected the \"baseUrl\" option to be nested inside a \"compilerOptions\" object [tsconfig.json]\n\n    ../../tsconfig.json:21:2:\n      21 │   \"baseUrl\": \".\",\n         ╵   ~~~~~~~~~\n\n▲ [WARNING] Expected the \"baseUrl\" option to be nested inside a \"compilerOptions\" object [tsconfig.json]\n\n    tsconfig.json:21:2:\n      21 │   \"baseUrl\": \".\",\n         ╵   ~~~~~~~~~\n\n\n\u001b[1m\u001b[7m\u001b[36m RUN \u001b[39m\u001b[27m\u001b[22m \u001b[36mv2.1.9 \u001b[39m\u001b[90m/home/claude/work/carex/.worktrees/T-p2-ratelimit\u001b[39m\n\n \u001b[32m✓\u001b[39m apps/api/test/ratelimit.test.ts \u001b[2m(\u001b[22m\u001b[2m8 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 12\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m1 passed\u001b[39m\u001b[22m\u001b[90m (1)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m8 passed\u001b[39m\u001b[22m\u001b[90m (8)\u001b[39m\n\u001b[2m   Start at \u001b[22m 15:27:07\n\u001b[2m   Duration \u001b[22m 398ms\u001b[2m (transform 70ms, setup 0ms, collect 60ms, tests 12ms, environment 0ms, prepare 63ms)\u001b[22m\n\n",
       "recordedBy": "runner"
     },
     "E-0436cb43-31b6-4037-9b29-912befaf7574": {
@@ -267,7 +314,7 @@
       "startedAt": "2026-10-14T15:32:59.115Z",
       "finishedAt": "2026-10-14T15:33:00.352Z",
       "outputSha256": "c18d0ec75567ab488e929c78af958ff7ef9eda319f5b8b0d0c02d31f5c8ca71e",
-      "outputExcerpt": "\u25b2 [WARNING] Expected the \"baseUrl\" option to be nested inside a \"compilerOptions\" object [tsconfig.json]\n\n    ../../tsconfig.json:21:2:\n      21 \u2502   \"baseUrl\": \".\",\n         \u2575   ~~~~~~~~~\n\n\u25b2 [WARNING] Expected the \"baseUrl\" option to be nested inside a \"compilerOptions\" object [tsconfig.json]\n\n    tsconfig.json:21:2:\n      21 \u2502   \"baseUrl\": \".\",\n         \u2575   ~~~~~~~~~\n\n\n\u001b[1m\u001b[7m\u001b[36m RUN \u001b[39m\u001b[27m\u001b[22m \u001b[36mv2.1.9 \u001b[39m\u001b[90m/home/claude/work/carex/.worktrees/T-p2-zoned\u001b[39m\n\n \u001b[32m\u2713\u001b[39m apps/api/test/zoned.test.ts \u001b[2m(\u001b[22m\u001b[2m8 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 41\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m1 passed\u001b[39m\u001b[22m\u001b[90m (1)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m8 passed\u001b[39m\u001b[22m\u001b[90m (8)\u001b[39m\n\u001b[2m   Start at \u001b[22m 15:32:59\n\u001b[2m   Duration \u001b[22m 443ms\u001b[2m (transform 88ms, setup 0ms, collect 83ms, tests 41ms, environment 0ms, prepare 64ms)\u001b[22m\n\n",
+      "outputExcerpt": "▲ [WARNING] Expected the \"baseUrl\" option to be nested inside a \"compilerOptions\" object [tsconfig.json]\n\n    ../../tsconfig.json:21:2:\n      21 │   \"baseUrl\": \".\",\n         ╵   ~~~~~~~~~\n\n▲ [WARNING] Expected the \"baseUrl\" option to be nested inside a \"compilerOptions\" object [tsconfig.json]\n\n    tsconfig.json:21:2:\n      21 │   \"baseUrl\": \".\",\n         ╵   ~~~~~~~~~\n\n\n\u001b[1m\u001b[7m\u001b[36m RUN \u001b[39m\u001b[27m\u001b[22m \u001b[36mv2.1.9 \u001b[39m\u001b[90m/home/claude/work/carex/.worktrees/T-p2-zoned\u001b[39m\n\n \u001b[32m✓\u001b[39m apps/api/test/zoned.test.ts \u001b[2m(\u001b[22m\u001b[2m8 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 41\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m1 passed\u001b[39m\u001b[22m\u001b[90m (1)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m8 passed\u001b[39m\u001b[22m\u001b[90m (8)\u001b[39m\n\u001b[2m   Start at \u001b[22m 15:32:59\n\u001b[2m   Duration \u001b[22m 443ms\u001b[2m (transform 88ms, setup 0ms, collect 83ms, tests 41ms, environment 0ms, prepare 64ms)\u001b[22m\n\n",
       "recordedBy": "runner"
     },
     "E-2dbd8d43-5e04-42cd-b2e5-ff2af32a6901": {
@@ -291,7 +338,7 @@
       "startedAt": "2026-10-14T15:36:09.805Z",
       "finishedAt": "2026-10-14T15:36:11.509Z",
       "outputSha256": "8645256e03b57449566ec4ded8781873b3073c72d6afd091c10f5b06f1ff362f",
-      "outputExcerpt": "\u25b2 [WARNING] Expected the \"baseUrl\" option to be nested inside a \"compilerOptions\" object [tsconfig.json]\n\n    ../../tsconfig.json:21:2:\n      21 \u2502   \"baseUrl\": \".\",\n         \u2575   ~~~~~~~~~\n\n\u25b2 [WARNING] Expected the \"baseUrl\" option to be nested inside a \"compilerOptions\" object [tsconfig.json]\n\n    tsconfig.json:21:2:\n      21 \u2502   \"baseUrl\": \".\",\n         \u2575   ~~~~~~~~~\n\n\n\u001b[1m\u001b[7m\u001b[36m RUN \u001b[39m\u001b[27m\u001b[22m \u001b[36mv2.1.9 \u001b[39m\u001b[90m/home/claude/work/carex/.worktrees/T-p2-sched\u001b[39m\n\n(node:6485) ExperimentalWarning: SQLite is an experimental feature and might change at any time\n(Use `node --trace-warnings ...` to show where the warning was created)\n \u001b[32m\u2713\u001b[39m apps/api/test/sqlite-scheduling.test.ts \u001b[2m(\u001b[22m\u001b[2m16 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 259\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m1 passed\u001b[39m\u001b[22m\u001b[90m (1)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m16 passed\u001b[39m\u001b[22m\u001b[90m (16)\u001b[39m\n\u001b[2m   Start at \u001b[22m 15:36:10\n\u001b[2m   Duration \u001b[22m 819ms\u001b[2m (transform 143ms, setup 0ms, collect 199ms, tests 259ms, environment 0ms, prepare 83ms)\u001b[22m\n\n",
+      "outputExcerpt": "▲ [WARNING] Expected the \"baseUrl\" option to be nested inside a \"compilerOptions\" object [tsconfig.json]\n\n    ../../tsconfig.json:21:2:\n      21 │   \"baseUrl\": \".\",\n         ╵   ~~~~~~~~~\n\n▲ [WARNING] Expected the \"baseUrl\" option to be nested inside a \"compilerOptions\" object [tsconfig.json]\n\n    tsconfig.json:21:2:\n      21 │   \"baseUrl\": \".\",\n         ╵   ~~~~~~~~~\n\n\n\u001b[1m\u001b[7m\u001b[36m RUN \u001b[39m\u001b[27m\u001b[22m \u001b[36mv2.1.9 \u001b[39m\u001b[90m/home/claude/work/carex/.worktrees/T-p2-sched\u001b[39m\n\n(node:6485) ExperimentalWarning: SQLite is an experimental feature and might change at any time\n(Use `node --trace-warnings ...` to show where the warning was created)\n \u001b[32m✓\u001b[39m apps/api/test/sqlite-scheduling.test.ts \u001b[2m(\u001b[22m\u001b[2m16 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 259\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m1 passed\u001b[39m\u001b[22m\u001b[90m (1)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m16 passed\u001b[39m\u001b[22m\u001b[90m (16)\u001b[39m\n\u001b[2m   Start at \u001b[22m 15:36:10\n\u001b[2m   Duration \u001b[22m 819ms\u001b[2m (transform 143ms, setup 0ms, collect 199ms, tests 259ms, environment 0ms, prepare 83ms)\u001b[22m\n\n",
       "recordedBy": "runner"
     },
     "E-cb8fc31b-8a13-4e64-84ca-47596e9566cf": {
@@ -315,7 +362,7 @@
       "startedAt": "2026-10-14T15:44:55.048Z",
       "finishedAt": "2026-10-14T15:44:56.333Z",
       "outputSha256": "739994bd4417d2461a9d9b85d6fac390358c6f7ebe5391f9049478658c8fc21e",
-      "outputExcerpt": "\u25b2 [WARNING] Expected the \"baseUrl\" option to be nested inside a \"compilerOptions\" object [tsconfig.json]\n\n    ../../tsconfig.json:21:2:\n      21 \u2502   \"baseUrl\": \".\",\n         \u2575   ~~~~~~~~~\n\n\u25b2 [WARNING] Expected the \"baseUrl\" option to be nested inside a \"compilerOptions\" object [tsconfig.json]\n\n    tsconfig.json:21:2:\n      21 \u2502   \"baseUrl\": \".\",\n         \u2575   ~~~~~~~~~\n\n\n\u001b[1m\u001b[7m\u001b[36m RUN \u001b[39m\u001b[27m\u001b[22m \u001b[36mv2.1.9 \u001b[39m\u001b[90m/home/claude/work/carex/.worktrees/T-p2-token\u001b[39m\n\n \u001b[32m\u2713\u001b[39m apps/api/test/manage-token.test.ts \u001b[2m(\u001b[22m\u001b[2m6 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 10\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m1 passed\u001b[39m\u001b[22m\u001b[90m (1)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m6 passed\u001b[39m\u001b[22m\u001b[90m (6)\u001b[39m\n\u001b[2m   Start at \u001b[22m 15:44:55\n\u001b[2m   Duration \u001b[22m 404ms\u001b[2m (transform 61ms, setup 0ms, collect 55ms, tests 10ms, environment 0ms, prepare 73ms)\u001b[22m\n\n",
+      "outputExcerpt": "▲ [WARNING] Expected the \"baseUrl\" option to be nested inside a \"compilerOptions\" object [tsconfig.json]\n\n    ../../tsconfig.json:21:2:\n      21 │   \"baseUrl\": \".\",\n         ╵   ~~~~~~~~~\n\n▲ [WARNING] Expected the \"baseUrl\" option to be nested inside a \"compilerOptions\" object [tsconfig.json]\n\n    tsconfig.json:21:2:\n      21 │   \"baseUrl\": \".\",\n         ╵   ~~~~~~~~~\n\n\n\u001b[1m\u001b[7m\u001b[36m RUN \u001b[39m\u001b[27m\u001b[22m \u001b[36mv2.1.9 \u001b[39m\u001b[90m/home/claude/work/carex/.worktrees/T-p2-token\u001b[39m\n\n \u001b[32m✓\u001b[39m apps/api/test/manage-token.test.ts \u001b[2m(\u001b[22m\u001b[2m6 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 10\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m1 passed\u001b[39m\u001b[22m\u001b[90m (1)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m6 passed\u001b[39m\u001b[22m\u001b[90m (6)\u001b[39m\n\u001b[2m   Start at \u001b[22m 15:44:55\n\u001b[2m   Duration \u001b[22m 404ms\u001b[2m (transform 61ms, setup 0ms, collect 55ms, tests 10ms, environment 0ms, prepare 73ms)\u001b[22m\n\n",
       "recordedBy": "runner"
     },
     "E-37a1186b-fca6-48bb-93d3-55bb462e78d9": {
@@ -328,6 +375,30 @@
       "finishedAt": "2026-10-14T15:45:00.253Z",
       "outputSha256": "e1b583a3a6ed351ed813bcce87d19c2bba3c99adbccda58054b631dfcefddcb2",
       "outputExcerpt": "no type errors in: apps/api/src/manage-token.ts\n",
+      "recordedBy": "runner"
+    },
+    "E-25c10ec4-d66e-46cc-bd5d-9fa054f21daa": {
+      "id": "E-25c10ec4-d66e-46cc-bd5d-9fa054f21daa",
+      "taskId": "T-p2-manage",
+      "checkId": "tests",
+      "command": "npx vitest run apps/api/test/sqlite-manage.test.ts apps/api/test/sqlite-scheduling.test.ts",
+      "exitCode": 0,
+      "startedAt": "2026-10-14T15:48:21.312Z",
+      "finishedAt": "2026-10-14T15:48:23.571Z",
+      "outputSha256": "1ee1fc0624dd45c0391350e1b2bb1218854bed68024d8828ca4a3c401f72b4de",
+      "outputExcerpt": "▲ [WARNING] Expected the \"baseUrl\" option to be nested inside a \"compilerOptions\" object [tsconfig.json]\n\n    ../../tsconfig.json:21:2:\n      21 │   \"baseUrl\": \".\",\n         ╵   ~~~~~~~~~\n\n▲ [WARNING] Expected the \"baseUrl\" option to be nested inside a \"compilerOptions\" object [tsconfig.json]\n\n    tsconfig.json:21:2:\n      21 │   \"baseUrl\": \".\",\n         ╵   ~~~~~~~~~\n\n\n\u001b[1m\u001b[7m\u001b[36m RUN \u001b[39m\u001b[27m\u001b[22m \u001b[36mv2.1.9 \u001b[39m\u001b[90m/home/claude/work/carex/.worktrees/T-p2-manage\u001b[39m\n\n(node:12906) ExperimentalWarning: SQLite is an experimental feature and might change at any time\n(Use `node --trace-warnings ...` to show where the warning was created)\n \u001b[32m✓\u001b[39m apps/api/test/sqlite-scheduling.test.ts \u001b[2m(\u001b[22m\u001b[2m16 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 269\u001b[2mms\u001b[22m\u001b[39m\n(node:12926) ExperimentalWarning: SQLite is an experimental feature and might change at any time\n(Use `node --trace-warnings ...` to show where the warning was created)\n \u001b[32m✓\u001b[39m apps/api/test/sqlite-manage.test.ts \u001b[2m(\u001b[22m\u001b[2m12 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 301\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m2 passed\u001b[39m\u001b[22m\u001b[90m (2)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m28 passed\u001b[39m\u001b[22m\u001b[90m (28)\u001b[39m\n\u001b[2m   Start at \u001b[22m 15:48:22\n\u001b[2m   Duration \u001b[22m 1.44s\u001b[2m (transform 167ms, setup 0ms, collect 228ms, tests 570ms, environment 0ms, prepare 162ms)\u001b[22m\n\n",
+      "recordedBy": "runner"
+    },
+    "E-26155ff9-9c4b-4486-9993-2964a98b810b": {
+      "id": "E-26155ff9-9c4b-4486-9993-2964a98b810b",
+      "taskId": "T-p2-manage",
+      "checkId": "types",
+      "command": "node harness/tools/tsc-scope.mjs apps/api/src/sqlite-scheduling.ts",
+      "exitCode": 0,
+      "startedAt": "2026-10-14T15:48:23.571Z",
+      "finishedAt": "2026-10-14T15:48:27.512Z",
+      "outputSha256": "3e61423ea78f0cef88d7c7b05e08b76d5803320e6ca4edfa7f1f4ca55487ff8d",
+      "outputExcerpt": "no type errors in: apps/api/src/sqlite-scheduling.ts\n",
       "recordedBy": "runner"
     }
   },
@@ -507,6 +578,42 @@
         "committed 8394831d3a on task branch"
       ],
       "nextTask": "Wire issueManageToken and verifyManageToken into the booking routes, checking the token against the tenant resolved from the request rather than from client input."
+    },
+    "T-p2-manage": {
+      "taskId": "T-p2-manage",
+      "status": "completed",
+      "summary": "SqliteScheduling now fully implements the updated SchedulingSource. It adds getBooking, cancel and reschedule, and the minChangeNoticeMinutes option (default 120, inclusive boundary). cancel and reschedule run in inTransaction, are tenant-scoped, and use bound parameters. A cancelled booking is returned as cancelled by lookupByKey, and BookingRecord now carries status. getBooking returns only ManagedBooking fields, so no patient details leave the store. A reschedule validates the new slot against the provider's currently offered slots, with the booking's own slot treated as free. Any error leaves the booking unchanged.",
+      "changedFiles": [
+        "apps/api/src/sqlite-scheduling.ts"
+      ],
+      "testsExecuted": [
+        {
+          "command": "npx vitest run apps/api/test/sqlite-manage.test.ts apps/api/test/sqlite-scheduling.test.ts",
+          "result": "2 files passed, 28 tests passed"
+        },
+        {
+          "command": "node harness/tools/tsc-scope.mjs apps/api/src/sqlite-scheduling.ts",
+          "result": "no type errors in: apps/api/src/sqlite-scheduling.ts"
+        }
+      ],
+      "criteriaSatisfied": [
+        "getBooking, cancel and reschedule implemented with the specified errors",
+        "minChangeNoticeMinutes option, default 120, inclusive at the boundary",
+        "cancel and reschedule run in a transaction, are tenant-scoped, and use bound parameters",
+        "cancel sets cancelled_at and updated_at; reschedule sets updated_at and increments reschedule_count",
+        "reschedule keeps the booking id, provider, clinic and visit type",
+        "a failed reschedule leaves the booking unchanged",
+        "lookupByKey returns cancelled bookings with status 'cancelled'",
+        "getBooking never exposes patient details",
+        "both test files pass unedited, and only the allowed file was changed"
+      ],
+      "criteriaUnsatisfied": [],
+      "risks": [
+        "The brief says cancel/reschedule increment reschedule_count, but I read that as reschedule only. cancel leaves the count alone, and the tests only check reschedule. Say if cancel should increment it too.",
+        "Rescheduling to the slot the booking already holds is a no-op. It returns the booking without bumping updated_at or reschedule_count.",
+        "Cancelling an already cancelled booking returns it before the notice-window check, so repeat cancels succeed even inside the window.",
+        "committed 620f75115b on task branch"
+      ]
     }
   },
   "approvals": {},
@@ -717,6 +824,46 @@
       "event": "result_submitted",
       "taskId": "T-p2-manage",
       "detail": "blocked -> blocked"
+    },
+    {
+      "at": "2026-10-14T15:46:58.981Z",
+      "event": "task_added",
+      "taskId": "T-p2-manage"
+    },
+    {
+      "at": "2026-10-14T15:46:58.985Z",
+      "event": "transition",
+      "taskId": "T-p2-manage",
+      "detail": "ready"
+    },
+    {
+      "at": "2026-10-14T15:46:58.987Z",
+      "event": "transition",
+      "taskId": "T-p2-manage",
+      "detail": "in_progress"
+    },
+    {
+      "at": "2026-10-14T15:48:21.288Z",
+      "event": "result_submitted",
+      "taskId": "T-p2-manage",
+      "detail": "completed -> needs_review"
+    },
+    {
+      "at": "2026-10-14T15:48:27.513Z",
+      "event": "evidence_recorded",
+      "taskId": "T-p2-manage",
+      "detail": "tests exit=0"
+    },
+    {
+      "at": "2026-10-14T15:48:27.515Z",
+      "event": "evidence_recorded",
+      "taskId": "T-p2-manage",
+      "detail": "types exit=0"
+    },
+    {
+      "at": "2026-10-14T15:48:27.517Z",
+      "event": "done",
+      "taskId": "T-p2-manage"
     }
   ]
 }

@@ -22,7 +22,7 @@ export interface Deps {
   testHooks?: { injectFault(fault: string): void; reset(): void };
 }
 
-const ASSETS: Record<string, string> = { "app.js": "text/javascript; charset=utf-8", "app.css": "text/css; charset=utf-8" };
+const ASSETS: Record<string, string> = { "app.js": "text/javascript; charset=utf-8", "manage.js": "text/javascript; charset=utf-8", "app.css": "text/css; charset=utf-8" };
 
 const MAX_BODY = 10_000;
 const SLUG = /^[a-z0-9][a-z0-9-]{0,62}$/;
@@ -68,14 +68,14 @@ export function createServer(deps: Deps): Server {
       }
       if (deps.testHooks && req.method === "POST" && url.pathname === "/__test/reset") { deps.testHooks.reset(); return reply(204, {}); }
       if (deps.staticDir && req.method === "GET") {
-        const asset = /^\/assets\/(app\.js|app\.css)$/.exec(url.pathname);
+        const asset = /^\/assets\/(app\.js|manage\.js|app\.css)$/.exec(url.pathname);
         if (asset) {
           route = "asset"; const body = await readFile(join(deps.staticDir, asset[1]!));
           status = 200; res.writeHead(200, { ...SECURITY_HEADERS, "content-type": ASSETS[asset[1]!]!, "cache-control": "no-store" }); return void res.end(body);
         }
         // The page shell is generic and contains no tenant data; the app shows a safe error if the tenant does not resolve.
         if (/^\/t\/[^/]*\/(manage\/?)?$/.test(url.pathname)) {
-          route = "page"; const html = await readFile(join(deps.staticDir, "index.html"));
+          route = "page"; const html = await readFile(join(deps.staticDir, /\/manage\/?$/.test(url.pathname) ? "manage.html" : "index.html"));
           status = 200; res.writeHead(200, { ...SECURITY_HEADERS, "content-security-policy": CSP_PAGE, "content-type": "text/html; charset=utf-8", "cache-control": "no-store" }); return void res.end(html);
         }
       }

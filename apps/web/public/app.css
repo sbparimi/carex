@@ -51,3 +51,11 @@ dl.summary dt { font-weight: 700; } dl.summary dd { margin: 0; overflow-wrap: an
 h1, h2, legend, dt, dd, label, .card, .hint, .lead, .banner .text, .err { overflow-wrap: anywhere; }
 button { max-width: 100%; overflow-wrap: anywhere; }
 @media (max-width: 30rem) { button { padding-inline: .75rem; } }
+
+/* classes that replace inline styles so the CSP can forbid them */
+.pad { padding: 1rem; }
+.h2-md { font-size: 1.125rem; }
+.btn-inline { min-height: 0; padding: .25rem .5rem; }
+.mb-sm { margin-bottom: .75rem; }
+.mb-md { margin-bottom: 1rem; }
+.linkbox { word-break: break-all; font-family: ui-monospace, monospace; font-size: .875rem; padding: .75rem; border: 1px solid var(--line, #c9ced6); border-radius: .5rem; }
