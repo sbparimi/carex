@@ -25,7 +25,8 @@
     ]
   },
   "include": [
-    "apps",
+    "apps/api",
+    "apps/web/test",
     "packages"
   ]
 }

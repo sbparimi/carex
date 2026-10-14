@@ -5,3 +5,8 @@ node_modules/
 *.log
 .DS_Store
 .worktrees/
+apps/web/public/app.js
+_to_delete/
+.e2e/
+test-results/
+playwright-report/

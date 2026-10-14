@@ -8,12 +8,19 @@
     "harness:typecheck": "tsc -p harness/tsconfig.json --noEmit",
     "test": "vitest run apps packages",
     "typecheck": "tsc -p tsconfig.json",
-    "test:all": "npm run harness:test && npm run test"
+    "test:all": "npm run harness:test && npm run test",
+    "build:web": "esbuild apps/web/src/main.ts --bundle --format=esm --target=es2022 --outfile=apps/web/public/app.js",
+    "typecheck:web": "tsc -p apps/web/tsconfig.json",
+    "build:e2e": "esbuild apps/api/src/e2e-server.ts --bundle --platform=node --format=esm --outfile=.e2e/server.mjs",
+    "test:e2e": "npm run build:web && npm run build:e2e && playwright test"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
     "typescript": "^5.6.0",
-    "vitest": "^2.1.0"
+    "vitest": "^2.1.0",
+    "esbuild": "^0.24.0",
+    "@playwright/test": "1.56.0",
+    "@axe-core/playwright": "^4.10.0"
   },
   "dependencies": {
     "zod": "^3.23.8"

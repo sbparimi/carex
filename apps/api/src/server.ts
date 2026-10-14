@@ -1,5 +1,7 @@
 import { createServer as httpServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { randomUUID } from "node:crypto";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import { Id, StateCode } from "@carex/contracts";
 import type { Catalog } from "./catalog.js";
 import { BookingService, DomainError } from "./booking-service.js";
@@ -8,7 +10,13 @@ import { emitTelemetry, redact, type TelemetrySink } from "./telemetry.js";
 export interface Deps {
   catalog: Catalog; bookings: BookingService;
   log?: (entry: unknown) => void; telemetry?: TelemetrySink;
+  /** Directory holding index.html, app.js, app.css for the patient UI. */
+  staticDir?: string;
+  /** Registered ONLY by the e2e server entry; never by the dev or production entries. */
+  testHooks?: { injectFault(fault: string): void; reset(): void };
 }
+
+const ASSETS: Record<string, string> = { "app.js": "text/javascript; charset=utf-8", "app.css": "text/css; charset=utf-8" };
 
 const MAX_BODY = 10_000;
 const SLUG = /^[a-z0-9][a-z0-9-]{0,62}$/;
@@ -39,6 +47,22 @@ export function createServer(deps: Deps): Server {
     const fail = (s: number, code: string, msg: string) => { status = s; err(res, s, code, msg, cid); };
     try {
       const url = new URL(req.url ?? "/", "http://x");
+      if (deps.testHooks && req.method === "POST" && url.pathname === "/__test/fault") {
+        deps.testHooks.injectFault(String(url.searchParams.get("fault"))); return reply(204, {});
+      }
+      if (deps.testHooks && req.method === "POST" && url.pathname === "/__test/reset") { deps.testHooks.reset(); return reply(204, {}); }
+      if (deps.staticDir && req.method === "GET") {
+        const asset = /^\/assets\/(app\.js|app\.css)$/.exec(url.pathname);
+        if (asset) {
+          route = "asset"; const body = await readFile(join(deps.staticDir, asset[1]!));
+          status = 200; res.writeHead(200, { "content-type": ASSETS[asset[1]!]!, "cache-control": "no-store", "x-content-type-options": "nosniff" }); return void res.end(body);
+        }
+        // The page shell is generic and contains no tenant data; the app shows a safe error if the tenant does not resolve.
+        if (/^\/t\/[^/]*\/?$/.test(url.pathname)) {
+          route = "page"; const html = await readFile(join(deps.staticDir, "index.html"));
+          status = 200; res.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "x-content-type-options": "nosniff" }); return void res.end(html);
+        }
+      }
       const m = /^\/t\/([^/]+)\/api\/(.+)$/.exec(url.pathname);
       if (!m) return fail(404, "not_found", "Not found");
       tenantSlug = m[1]!;
