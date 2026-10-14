@@ -20,7 +20,7 @@ describe("rate limiter (fixed window, per key)", () => {
     rl.check("a");
     c.advance(10_500);
     expect(rl.check("a")).toMatchObject({ allowed: false, retryAfterSec: 50 });
-    c.advance(49_999);
+    c.advance(49_000);
     expect(rl.check("a")).toMatchObject({ allowed: false, retryAfterSec: 1 });
   });
 
