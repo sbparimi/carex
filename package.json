@@ -1,0 +1,18 @@
+{
+  "name": "carex",
+  "private": true,
+  "type": "module",
+  "description": "CareX white-label booking platform + autonomous engineering harness",
+  "scripts": {
+    "harness:test": "vitest run --root harness",
+    "harness:typecheck": "tsc -p harness/tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  },
+  "dependencies": {
+    "zod": "^3.23.8"
+  }
+}
