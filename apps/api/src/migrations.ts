@@ -57,4 +57,8 @@ export const MIGRATIONS: string[] = [
   CREATE UNIQUE INDEX appointments_slot ON appointments(provider_id, starts_at) WHERE status = 'confirmed';
   CREATE INDEX appointments_provider_time ON appointments(provider_id, starts_at);
   `,
+  `
+  ALTER TABLE appointments ADD COLUMN updated_at TEXT;
+  ALTER TABLE appointments ADD COLUMN reschedule_count INTEGER NOT NULL DEFAULT 0;
+  `,
 ];
