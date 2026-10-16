@@ -71,7 +71,7 @@ export * from "./selection.js";
 
 /** What a patient sees when managing a booking. No patient details are ever returned here. */
 export const ManagedAppointment = z.object({
-  bookingId: z.string(), status: z.enum(["confirmed", "cancelled"]), summary: AppointmentSummary,
+  bookingId: z.string(), status: z.enum(["confirmed", "cancelled", "arrived", "completed", "no_show"]), summary: AppointmentSummary,
   canChange: z.boolean(), changeNoticeMinutes: z.number().int(),
 });
 export type ManagedAppointment = z.infer<typeof ManagedAppointment>;

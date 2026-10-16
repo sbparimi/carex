@@ -12,10 +12,13 @@ import { isUniqueViolation, type Db } from "./db.js";
 import { BookingNotFoundError, ChangeWindowClosedError, IdempotencyConflictError, SlotTakenError, type BookingRecord, type ManagedBooking, type ReserveInput, type SchedulingSource } from "./scheduling.js";
 import { localParts, zonedTimeToUtc } from "./zoned.js";
 
-type Query = { tenantId: string; clinicId: string; serviceId: string; providerId: string };
+type Query = { tenantId: string; clinicId: string; serviceId: string; providerId: string; userId?: string };
+type ApptStatus = "confirmed" | "cancelled" | "arrived" | "completed" | "no_show";
+interface Candidate { slot: Slot; resourceId: string | null }
+interface VisitRules { duration_min: number; min_lead_minutes: number | null; horizon_days: number | null; buffer_before_min: number; buffer_after_min: number; min_age: number | null; max_age: number | null; new_patients: "any" | "new_only" | "established_only"; resource_kind: string | null }
 type Range = { start: number; end: number };
-interface ApptRow { id: string; tenant_id: string; provider_id: string; starts_at: string; ends_at: string; idempotency_key: string; request_hash: string; status: "confirmed" | "cancelled" }
-interface ManageRow { user_id?: string | null; id: string; tenant_id: string; clinic_id: string; visit_type_id: string; provider_id: string; starts_at: string; ends_at: string; status: "confirmed" | "cancelled" }
+interface ApptRow { id: string; tenant_id: string; provider_id: string; starts_at: string; ends_at: string; idempotency_key: string; request_hash: string; status: ApptStatus }
+interface ManageRow { user_id?: string | null; id: string; tenant_id: string; clinic_id: string; visit_type_id: string; provider_id: string; starts_at: string; ends_at: string; status: ApptStatus }
 
 const MINUTE_MS = 60_000;
 const DAY_MS = 86_400_000;
@@ -41,7 +44,7 @@ export class DbScheduling implements SchedulingSource {
   }
 
   async listSlots(q: Query): Promise<Slot[]> {
-    return this.derive(this.db, q);
+    return (await this.candidates(this.db, q)).map((c) => c.slot);
   }
 
   async reserve(input: ReserveInput): Promise<BookingRecord> {
@@ -65,19 +68,22 @@ export class DbScheduling implements SchedulingSource {
         if (existing.request_hash !== hash) throw new IdempotencyConflictError("Idempotency-Key was reused for a different request");
         return toRecord(existing);
       }
-      const slot = (await this.derive(tx, input)).find((s) => s.id === input.slotId);
-      if (!slot) throw new SlotTakenError("Slot is not available");
+      // Serialise writers per provider so overlapping (not just identical) slots can never both commit.
+      await tx.get("SELECT pg_advisory_xact_lock(hashtext(?))", `${input.tenantId}:${input.providerId}`);
+      const cand = (await this.candidates(tx, { ...input, requireUser: true })).find((c) => c.slot.id === input.slotId);
+      if (!cand) throw new SlotTakenError("Slot is not available");
+      const slot = cand.slot;
       const id = bookingReference();
       const p = input.patient;
       try {
         await tx.run(
           `INSERT INTO appointments (id, tenant_id, clinic_id, visit_type_id, provider_id, starts_at, ends_at, status, idempotency_key, request_hash,
-             patient_first_name, patient_last_name, patient_email, patient_phone, created_at, user_id)
-           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+             patient_first_name, patient_last_name, patient_email, patient_phone, created_at, user_id, resource_id)
+           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
           id, input.tenantId, input.clinicId, input.serviceId, input.providerId, slot.startsAt, slot.endsAt, "confirmed",
-          input.idempotencyKey, hash, p.firstName, p.lastName, p.email ?? null, p.phone ?? null, this.now().toISOString(), input.userId ?? null);
+          input.idempotencyKey, hash, p.firstName, p.lastName, p.email ?? null, p.phone ?? null, this.now().toISOString(), input.userId ?? null, cand.resourceId);
       } catch (e) {
-        if (isUniqueViolation(e, "appointments_slot")) throw new SlotTakenError("Slot is not available");
+        if (isUniqueViolation(e, "appointments_slot") || isUniqueViolation(e, "appointments_resource_slot")) throw new SlotTakenError("Slot is not available");
         throw e;
       }
       return { bookingId: id, tenantId: input.tenantId, slotId: input.slotId, idempotencyKey: input.idempotencyKey, startsAt: slot.startsAt, endsAt: slot.endsAt, status: "confirmed" };
@@ -119,14 +125,16 @@ export class DbScheduling implements SchedulingSource {
       const row = await this.findManaged(tx, tenantId, bookingId, true);
       if (!row || row.status !== "confirmed") throw new BookingNotFoundError("Booking not found");
       this.assertChangeAllowed(row);
-      const slot = (await this.derive(tx, { tenantId, clinicId: row.clinic_id, serviceId: row.visit_type_id, providerId: row.provider_id }, row.id)).find((s) => s.id === newSlotId);
-      if (!slot) throw new SlotTakenError("Slot is not available");
+      await tx.get("SELECT pg_advisory_xact_lock(hashtext(?))", `${tenantId}:${row.provider_id}`);
+      const cand = (await this.candidates(tx, { tenantId, clinicId: row.clinic_id, serviceId: row.visit_type_id, providerId: row.provider_id, ...(row.user_id ? { userId: row.user_id } : {}), requireUser: false }, row.id)).find((c) => c.slot.id === newSlotId);
+      if (!cand) throw new SlotTakenError("Slot is not available");
+      const slot = cand.slot;
       if (slot.startsAt === row.starts_at) return toManaged(row);
       try {
-        await tx.run("UPDATE appointments SET starts_at = ?, ends_at = ?, updated_at = ?, reschedule_count = reschedule_count + 1 WHERE id = ? AND tenant_id = ?",
-          slot.startsAt, slot.endsAt, this.now().toISOString(), bookingId, tenantId);
+        await tx.run("UPDATE appointments SET starts_at = ?, ends_at = ?, resource_id = ?, updated_at = ?, reschedule_count = reschedule_count + 1 WHERE id = ? AND tenant_id = ?",
+          slot.startsAt, slot.endsAt, cand.resourceId, this.now().toISOString(), bookingId, tenantId);
       } catch (e) {
-        if (isUniqueViolation(e, "appointments_slot")) throw new SlotTakenError("Slot is not available");
+        if (isUniqueViolation(e, "appointments_slot") || isUniqueViolation(e, "appointments_resource_slot")) throw new SlotTakenError("Slot is not available");
         throw e;
       }
       return toManaged({ ...row, starts_at: slot.startsAt, ends_at: slot.endsAt });
@@ -149,36 +157,61 @@ export class DbScheduling implements SchedulingSource {
       tenantId, key);
   }
 
-  /** The slots currently offered for (tenant, clinic, service, provider). */
-  private async derive(db: Db, q: Query, excludeBookingId?: string): Promise<Slot[]> {
+  /**
+   * The bookable candidates for (tenant, clinic, service, provider), each with the room/resource it would hold.
+   * Rules: per-visit lead and horizon, working hours minus time off, clinic closures, other appointments and
+   * visit buffers, resource availability, and (when a signed-in user is known) age and new/established limits.
+   */
+  private async candidates(db: Db, q: Query & { requireUser?: boolean }, excludeBookingId?: string): Promise<Candidate[]> {
     const clinic = await db.get<{ time_zone: string }>("SELECT time_zone FROM clinics WHERE id = ? AND tenant_id = ? AND status = 'active' AND bookable = 1", q.clinicId, q.tenantId);
-    const visit = await db.get<{ duration_min: number }>("SELECT duration_min FROM visit_types WHERE id = ? AND tenant_id = ? AND status = 'active'", q.serviceId, q.tenantId);
+    const visit = await db.get<VisitRules>(
+      `SELECT duration_min, min_lead_minutes, horizon_days, buffer_before_min, buffer_after_min, min_age, max_age, new_patients, resource_kind
+         FROM visit_types WHERE id = ? AND tenant_id = ? AND status = 'active'`, q.serviceId, q.tenantId);
     if (!clinic || !visit) return [];
     const provider = await db.get("SELECT 1 AS ok FROM providers WHERE id = ? AND tenant_id = ? AND status = 'active'", q.providerId, q.tenantId);
     const offered = await db.get("SELECT 1 AS ok FROM clinic_visit_types WHERE tenant_id = ? AND clinic_id = ? AND visit_type_id = ? AND active = 1", q.tenantId, q.clinicId, q.serviceId);
     const eligible = await db.get("SELECT 1 AS ok FROM provider_eligibility WHERE tenant_id = ? AND clinic_id = ? AND visit_type_id = ? AND provider_id = ? AND active = 1", q.tenantId, q.clinicId, q.serviceId, q.providerId);
     if (!provider || !offered || !eligible) return [];
+    if (!(await this.patientMayBook(db, q, visit))) return [];
 
     const rules = await db.all<{ weekday: number; start_minute: number; end_minute: number }>("SELECT weekday, start_minute, end_minute FROM availability_rules WHERE tenant_id = ? AND provider_id = ? AND clinic_id = ?",
       q.tenantId, q.providerId, q.clinicId);
     if (rules.length === 0) return [];
 
+    const horizon = visit.horizon_days ?? this.horizonDays;
     const nowMs = this.now().getTime();
-    const earliest = nowMs + this.minLeadMinutes * MINUTE_MS;
-    const latest = nowMs + this.horizonDays * DAY_MS;
+    const earliest = nowMs + (visit.min_lead_minutes ?? this.minLeadMinutes) * MINUTE_MS;
+    const latest = nowMs + horizon * DAY_MS;
     const durMs = visit.duration_min * MINUTE_MS;
+    const before = visit.buffer_before_min * MINUTE_MS;
+    const after = visit.buffer_after_min * MINUTE_MS;
 
-    const busy: Range[] = [];
-    for (const r of await db.all<{ starts_at: string; ends_at: string }>("SELECT starts_at, ends_at FROM appointments WHERE tenant_id = ? AND provider_id = ? AND status = 'confirmed' AND id <> ?", q.tenantId, q.providerId, excludeBookingId ?? "")) {
-      busy.push({ start: Date.parse(r.starts_at), end: Date.parse(r.ends_at) });
+    // Provider obstacles: [start, end] raw interval plus the buffered interval a neighbour needs around it.
+    const obstacles: { raw: Range; padded: Range }[] = [];
+    for (const r of await db.all<{ starts_at: string; ends_at: string; bb: number; ba: number }>(
+      `SELECT a.starts_at, a.ends_at, v.buffer_before_min AS bb, v.buffer_after_min AS ba FROM appointments a JOIN visit_types v ON v.id = a.visit_type_id
+        WHERE a.tenant_id = ? AND a.provider_id = ? AND a.status <> 'cancelled' AND a.id <> ?`, q.tenantId, q.providerId, excludeBookingId ?? "")) {
+      const raw = { start: Date.parse(r.starts_at), end: Date.parse(r.ends_at) };
+      obstacles.push({ raw, padded: { start: raw.start - r.bb * MINUTE_MS, end: raw.end + r.ba * MINUTE_MS } });
     }
-    for (const r of await db.all<{ starts_at: string; ends_at: string }>("SELECT starts_at, ends_at FROM time_off WHERE tenant_id = ? AND provider_id = ?", q.tenantId, q.providerId)) {
-      busy.push({ start: Date.parse(r.starts_at), end: Date.parse(r.ends_at) });
+    const blocks: Range[] = [];
+    for (const r of await db.all<{ starts_at: string; ends_at: string }>("SELECT starts_at, ends_at FROM time_off WHERE tenant_id = ? AND provider_id = ?", q.tenantId, q.providerId)) blocks.push({ start: Date.parse(r.starts_at), end: Date.parse(r.ends_at) });
+    for (const r of await db.all<{ starts_at: string; ends_at: string }>("SELECT starts_at, ends_at FROM clinic_closures WHERE tenant_id = ? AND clinic_id = ?", q.tenantId, q.clinicId)) blocks.push({ start: Date.parse(r.starts_at), end: Date.parse(r.ends_at) });
+
+    // Resources of the required kind, each with its own busy list.
+    const resources: { id: string; busy: Range[] }[] = [];
+    if (visit.resource_kind) {
+      for (const r of await db.all<{ id: string }>("SELECT id FROM clinic_resources WHERE tenant_id = ? AND clinic_id = ? AND kind = ? AND active = 1 ORDER BY id", q.tenantId, q.clinicId, visit.resource_kind)) {
+        const busy = (await db.all<{ starts_at: string; ends_at: string }>("SELECT starts_at, ends_at FROM appointments WHERE tenant_id = ? AND resource_id = ? AND status <> 'cancelled' AND id <> ?", q.tenantId, r.id, excludeBookingId ?? ""))
+          .map((b) => ({ start: Date.parse(b.starts_at), end: Date.parse(b.ends_at) }));
+        resources.push({ id: r.id, busy });
+      }
+      if (resources.length === 0) return [];
     }
 
     const today = localParts(new Date(nowMs), clinic.time_zone);
-    const byStart = new Map<number, Slot>();
-    for (let i = 0; i <= this.horizonDays + 1; i++) {
+    const byStart = new Map<number, Candidate>();
+    for (let i = 0; i <= horizon + 1; i++) {
       const day = new Date(Date.UTC(today.year, today.month - 1, today.day + i));
       const weekday = day.getUTCDay();
       for (const rule of rules) {
@@ -189,16 +222,52 @@ export class DbScheduling implements SchedulingSource {
           const s = start.getTime();
           const e = s + durMs;
           if (s < earliest || s >= latest || byStart.has(s)) continue;
-          if (busy.some((b) => s < b.end && e > b.start)) continue;
-          byStart.set(s, {
+          if (blocks.some((b) => s < b.end && e > b.start)) continue;
+          const padded = { start: s - before, end: e + after };
+          if (obstacles.some((o) => (s < o.padded.end && e > o.padded.start) || (padded.start < o.raw.end && padded.end > o.raw.start))) continue;
+          let resourceId: string | null = null;
+          if (visit.resource_kind) {
+            const free = resources.find((r) => !r.busy.some((b) => s < b.end && e > b.start));
+            if (!free) continue;
+            resourceId = free.id;
+          }
+          byStart.set(s, { resourceId, slot: {
             id: slotIdFor(q.tenantId, q.providerId, s), providerId: q.providerId, clinicId: q.clinicId, serviceId: q.serviceId,
             startsAt: new Date(s).toISOString(), endsAt: new Date(e).toISOString(), timeZone: clinic.time_zone,
-          });
+          } });
         }
       }
     }
-    return [...byStart.entries()].sort((a, b) => a[0] - b[0]).map(([, s]) => s);
+    return [...byStart.entries()].sort((a, b) => a[0] - b[0]).map(([, c]) => c);
   }
+
+  /** Age and new/established limits. With no signed-in user the listing is shown unfiltered, but a booking (requireUser) is refused. */
+  private async patientMayBook(db: Db, q: Query & { requireUser?: boolean }, v: VisitRules): Promise<boolean> {
+    const restricted = v.min_age !== null || v.max_age !== null || v.new_patients !== "any";
+    if (!restricted) return true;
+    if (!q.userId) return !q.requireUser;
+    const u = await db.get<{ date_of_birth: string }>("SELECT date_of_birth FROM users WHERE id = ? AND tenant_id = ?", q.userId, q.tenantId);
+    if (!u) return false;
+    if (v.min_age !== null || v.max_age !== null) {
+      const age = ageOn(u.date_of_birth, this.now());
+      if (v.min_age !== null && age < v.min_age) return false;
+      if (v.max_age !== null && age > v.max_age) return false;
+    }
+    if (v.new_patients !== "any") {
+      const seen = await db.get("SELECT 1 AS ok FROM appointments WHERE tenant_id = ? AND user_id = ? AND status IN ('arrived','completed') LIMIT 1", q.tenantId, q.userId);
+      if (v.new_patients === "new_only" && seen) return false;
+      if (v.new_patients === "established_only" && !seen) return false;
+    }
+    return true;
+  }
+}
+
+/** Whole years between an ISO date of birth and `now`. */
+export function ageOn(dob: string, now: Date): number {
+  const [y, m, d] = dob.slice(0, 10).split("-").map(Number) as [number, number, number];
+  let age = now.getUTCFullYear() - y;
+  if (now.getUTCMonth() + 1 < m || (now.getUTCMonth() + 1 === m && now.getUTCDate() < d)) age--;
+  return age;
 }
 
 function toRecord(r: ApptRow): BookingRecord {

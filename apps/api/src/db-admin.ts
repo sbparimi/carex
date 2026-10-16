@@ -80,7 +80,7 @@ export class DbAdmin {
     if (p.bookable !== undefined) { if (typeof p.bookable !== "boolean") bad("bookable must be true or false"); sets.push("bookable = ?"); args.push(p.bookable ? 1 : 0); }
     if (sets.length) await this.db.run(`UPDATE clinics SET ${sets.join(", ")} WHERE tenant_id = ? AND id = ?`, ...args, tenantId, clinicId);
     const clinic = (await this.listClinics(tenantId)).find((c) => c.id === clinicId)!;
-    const n = (await this.db.get<{ n: number }>("SELECT COUNT(*)::int AS n FROM appointments WHERE tenant_id = ? AND clinic_id = ? AND status = 'confirmed' AND starts_at > ?", tenantId, clinicId, this.now().toISOString()))!;
+    const n = (await this.db.get<{ n: number }>("SELECT COUNT(*)::int AS n FROM appointments WHERE tenant_id = ? AND clinic_id = ? AND status IN ('confirmed') AND starts_at > ?", tenantId, clinicId, this.now().toISOString()))!;
     return { ...clinic, affectedFutureAppointments: n.n };
   }
 
