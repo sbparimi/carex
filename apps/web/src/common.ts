@@ -30,7 +30,7 @@ export function download(filename: string, mime: string, content: string) {
 }
 
 // ---- accounts (ADR-005): who is signed in, redirect to login, shared header
-export interface Me { id: string; email: string; firstName: string; lastName: string; dateOfBirth: string; phone: string; access: { type: "employer" | "insurer"; id: string; name: string } }
+export interface Me { id: string; email: string; firstName: string; lastName: string; dateOfBirth: string; phone: string; access: { type: "employer" | "insurer"; id: string; name: string }; notify?: { email: boolean; sms: boolean } }
 export const tenantSlug = () => /^\/t\/([^/]+)/.exec(location.pathname)?.[1] ?? "";
 
 /** Sends the visitor to the login page and brings them back to where they were. Only same-tenant paths are accepted as `next`. */

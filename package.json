@@ -9,7 +9,7 @@
     "test": "vitest run apps packages",
     "typecheck": "tsc -p tsconfig.json",
     "test:all": "npm run harness:test && npm run test",
-    "build:web": "esbuild apps/web/src/main.ts --bundle --format=esm --target=es2022 --outfile=apps/web/public/app.js && esbuild apps/web/src/manage.ts --bundle --format=esm --target=es2022 --outfile=apps/web/public/manage.js && esbuild apps/web/src/auth.ts --bundle --format=esm --target=es2022 --outfile=apps/web/public/auth.js",
+    "build:web": "esbuild apps/web/src/main.ts --bundle --format=esm --target=es2022 --outfile=apps/web/public/app.js && esbuild apps/web/src/manage.ts --bundle --format=esm --target=es2022 --outfile=apps/web/public/manage.js && esbuild apps/web/src/auth.ts --bundle --format=esm --target=es2022 --outfile=apps/web/public/auth.js && esbuild apps/web/src/staff.ts --bundle --format=esm --target=es2022 --outfile=apps/web/public/staff.js",
     "typecheck:web": "tsc -p apps/web/tsconfig.json",
     "build:e2e": "esbuild apps/api/src/e2e-server.ts --bundle --platform=node --format=esm --external:pg --external:@electric-sql/pglite --outfile=.e2e/server.mjs",
     "harness:live": "esbuild harness/src/live.ts --bundle --platform=node --format=esm --outfile=.e2e/live.mjs && node .e2e/live.mjs . harness/state/phase2.json",

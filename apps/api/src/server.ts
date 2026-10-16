@@ -48,9 +48,9 @@ export interface Deps {
   testHooks?: { injectFault(fault: string): void; reset(): void | Promise<void>; lastResetToken(): string };
 }
 
-const ASSETS: Record<string, string> = { "app.js": "text/javascript; charset=utf-8", "manage.js": "text/javascript; charset=utf-8", "auth.js": "text/javascript; charset=utf-8", "app.css": "text/css; charset=utf-8" };
+const ASSETS: Record<string, string> = { "app.js": "text/javascript; charset=utf-8", "manage.js": "text/javascript; charset=utf-8", "auth.js": "text/javascript; charset=utf-8", "staff.js": "text/javascript; charset=utf-8", "app.css": "text/css; charset=utf-8" };
 /** Page shells served under /t/<slug>/<page>. Each is generic and contains no tenant or user data. */
-const PAGES: Record<string, string> = { "": "index.html", appointments: "manage.html", login: "login.html", signup: "signup.html", forgot: "forgot.html", reset: "reset.html" };
+const PAGES: Record<string, string> = { "": "index.html", appointments: "manage.html", login: "login.html", signup: "signup.html", forgot: "forgot.html", reset: "reset.html", staff: "staff.html" };
 const COOKIE = "carex_session";
 const STAFF_COOKIE = "carex_staff";
 const STAFF_SECONDS = 12 * 3600;
@@ -103,13 +103,13 @@ export function createServer(deps: Deps): Server {
       if (deps.testHooks && req.method === "POST" && url.pathname === "/__test/reset") { await deps.testHooks.reset(); return reply(204, {}); }
       if (deps.testHooks && req.method === "GET" && url.pathname === "/__test/reset-token") return reply(200, { token: deps.testHooks.lastResetToken() });
       if (deps.staticDir && req.method === "GET") {
-        const asset = /^\/assets\/(app\.js|manage\.js|auth\.js|app\.css)$/.exec(url.pathname);
+        const asset = /^\/assets\/(app\.js|manage\.js|auth\.js|staff\.js|app\.css)$/.exec(url.pathname);
         if (asset) {
           route = "asset"; const body = await readFile(join(deps.staticDir, asset[1]!));
           status = 200; res.writeHead(200, { ...SECURITY_HEADERS, "content-type": ASSETS[asset[1]!]!, "cache-control": "no-store" }); return void res.end(body);
         }
         // Page shells are generic and contain no tenant or user data; each page asks the API who is signed in.
-        const pg = /^\/t\/[^/]*\/(appointments|login|signup|forgot|reset)?\/?$/.exec(url.pathname);
+        const pg = /^\/t\/[^/]*\/(appointments|login|signup|forgot|reset|staff)?\/?$/.exec(url.pathname);
         if (pg) {
           route = "page"; const html = await readFile(join(deps.staticDir, PAGES[pg[1] ?? ""]!));
           status = 200; res.writeHead(200, { ...SECURITY_HEADERS, "content-security-policy": CSP_PAGE, "content-type": "text/html; charset=utf-8", "cache-control": "no-store" }); return void res.end(html);

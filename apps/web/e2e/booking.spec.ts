@@ -27,6 +27,7 @@ async function pickProviderAndSlot(page: Page, provider = "Dr. Alex Example", sl
   await page.getByRole("radio", { name: provider }).check();
   const slots = page.locator('input[name="slot"]'); await expect(slots.first()).toBeAttached();
   await slots.nth(slotIndex).check(); await next(page);
+  await heading(page, "Your details"); await next(page);
 }
 async function toReview(page: Page, slotIndex = 0) { await pickState(page); await pickClinic(page); await pickVisit(page); await pickProviderAndSlot(page, "Dr. Alex Example", slotIndex); await heading(page, "Review your appointment"); }
 const REF = /CX-[0-9A-Z]{4}-[0-9A-Z]{4}/;   // patient-facing booking reference
@@ -71,12 +72,16 @@ test("keyboard-only: every step is operable without a mouse", async ({ page, isM
   await expect(page.locator('input[name="slot"]').first()).toBeAttached();
   await page.locator('input[name="slot"]').first().focus(); await page.keyboard.press("Space");
   await page.getByRole("button", { name: "Continue" }).focus(); await page.keyboard.press("Enter");
+  await heading(page, "Your details");
+  await expect(page.getByRole("button", { name: "Continue" })).toBeEnabled();
+  await page.getByRole("button", { name: "Continue" }).focus(); await page.keyboard.press("Enter");
   await heading(page, "Review your appointment");
   await expect(page.locator("input:focus, button:focus, select:focus").first()).toBeDefined();
 });
 
 test("changing an upstream choice invalidates downstream choices", async ({ page }) => {
   await toReview(page);
+  await page.getByRole("button", { name: "Back" }).click();                           // your details
   await page.getByRole("button", { name: "Back" }).click();                           // provider & time
   await page.getByRole("button", { name: "Back" }).click();                           // visit type
   await page.getByRole("button", { name: "Back" }).click();                           // clinic
@@ -115,7 +120,7 @@ test("slot taken before confirmation: refused, selections preserved, alternative
   await expect(page.getByRole("radio", { name: "Dr. Alex Example" })).toBeChecked();   // valid selections kept
   await expect(page.locator('input[name="slot"]:checked')).toHaveCount(0);            // the lost slot is cleared
   await expect(page.locator(`input[name="slot"][value="${first}"]`)).toHaveCount(0);   // and no longer offered
-  await page.locator('input[name="slot"]').first().check(); await next(page); await confirm(page).click();
+  await page.locator('input[name="slot"]').first().check(); await next(page); await heading(page, "Your details"); await next(page); await confirm(page).click();
   await heading(page, "Appointment confirmed");
 });
 
@@ -206,7 +211,7 @@ test.describe("accessibility (axe: WCAG 2.0/2.1/2.2 A and AA rules)", () => {
     await pickVisit(page); await heading(page, "Choose a provider and time");
     await page.getByRole("radio", { name: "Dr. Alex Example" }).check(); await expect(page.locator('input[name="slot"]').first()).toBeAttached();
     await page.locator('input[name="slot"]').first().check(); await scan(page, "slot");
-    await next(page); await heading(page, "Review your appointment"); await scan(page, "review");
+    await next(page); await heading(page, "Your details"); await scan(page, "details"); await next(page); await heading(page, "Review your appointment"); await scan(page, "review");
     await confirm(page).click(); await heading(page, "Appointment confirmed"); await scan(page, "confirmed");
   });
   test("failure and pending screens have no violations", async ({ page }) => {
@@ -374,6 +379,52 @@ async function bookOne(page: Page): Promise<string> {
   return (await page.locator("strong").filter({ hasText: REF }).first().innerText()).trim();
 }
 
+test.describe("details step", () => {
+  test("safety answer 'yes' shows the emergency message and blocks the booking", async ({ page }) => {
+    await pickState(page); await pickClinic(page); await pickVisit(page);
+    await page.getByRole("radio", { name: "Dr. Alex Example" }).check();
+    await page.locator('input[name="slot"]').first().check(); await next(page);
+    await heading(page, "Your details");
+    await page.getByRole("radio", { name: /Yes, one or more apply/ }).check();
+    await expect(page.getByRole("alert").filter({ hasText: "911" })).toBeVisible();
+    await next(page);
+    await expect(page.getByRole("alert").filter({ hasText: "Please fix" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Review your appointment" })).toHaveCount(0);
+    await page.getByRole("radio", { name: /No, none of these apply/ }).check(); await next(page);
+    await heading(page, "Review your appointment");
+  });
+  test("adds a family member and books for them; the confirmation names the patient", async ({ page }) => {
+    await pickState(page); await pickClinic(page); await pickVisit(page);
+    await page.getByRole("radio", { name: "Dr. Alex Example" }).check();
+    await page.locator('input[name="slot"]').nth(14).check(); await next(page);
+    await heading(page, "Your details");
+    await page.getByRole("button", { name: "Add a family member" }).click();
+    await page.getByLabel("First name").fill("Sam"); await page.getByLabel("Last name").fill("Example"); await page.getByLabel("Date of birth").fill("2015-04-02");
+    await page.getByRole("button", { name: "Save family member" }).click();
+    await expect(page.getByRole("radio", { name: /Sam Example/ })).toBeChecked();
+    await page.getByLabel("What is the visit for?").fill("Cough for two days");
+    await next(page); await heading(page, "Review your appointment");
+    await expect(page.getByText("Sam Example").first()).toBeVisible();
+    await confirm(page).click(); await heading(page, "Appointment confirmed");
+    await expect(page.getByText("Sam Example").first()).toBeVisible();
+  });
+  test("first available lists times across providers and selecting one sets the provider", async ({ page }) => {
+    await pickState(page); await pickClinic(page); await pickVisit(page);
+    await page.getByRole("button", { name: /first available/i }).click();
+    const any = page.locator('input[name="anyslot"]'); await expect(any.first()).toBeAttached();
+    await any.first().check();
+    await expect(page.locator('input[name="provider"]:checked')).toHaveCount(1);
+    await expect(page.getByRole("button", { name: "Continue" })).toBeEnabled();
+  });
+  test("waitlist button confirms", async ({ page }) => {
+    await pickState(page); await pickClinic(page); await pickVisit(page);
+    await page.getByRole("radio", { name: "Dr. Alex Example" }).check();
+    await expect(page.locator('input[name="slot"]').first()).toBeAttached();
+    await page.getByRole("button", { name: /earlier time opens/ }).click();
+    await expect(page.getByText(/on the waitlist/)).toBeVisible();
+  });
+});
+
 test.describe("my appointments", () => {
   test("lists the booking; details, cancel (keep first) release the time", async ({ page }) => {
     const ref = await bookOne(page);
@@ -396,14 +447,15 @@ test.describe("my appointments", () => {
   test("change time moves the same booking", async ({ page }) => {
     const ref = await bookOne(page);
     await page.goto(`${NW}appointments`); await page.getByRole("button", { name: /View|Manage|Details/ }).first().click(); await heading(page, "Your appointment");
-    const oldTime = await page.locator("dl.summary dd").nth(4).innerText();
+    const when = async () => (await page.locator("dl.summary dd").nth(4).innerText()) + (await page.locator("dl.summary dd").nth(5).innerText());
+    const oldTime = await when();
     await page.getByRole("button", { name: "Change time" }).click(); await heading(page, "Choose a new time"); await scanOf(page, "appt-pick");
     await expect(page.getByRole("button", { name: "Continue" })).toBeDisabled();
     await page.locator('input[name="slot"]').nth(4).check(); await page.getByRole("button", { name: "Continue" }).click();
     await heading(page, "Confirm the new time"); await page.getByRole("button", { name: "Confirm new time" }).click();
     await heading(page, "Your appointment");
     await expect(page.locator("dl.summary dd").first()).toHaveText(ref);
-    expect(await page.locator("dl.summary dd").nth(4).innerText()).not.toBe(oldTime);
+    expect(await when()).not.toBe(oldTime);
   });
 
   test("another patient's appointment is never visible", async ({ page }) => {

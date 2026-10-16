@@ -43,3 +43,13 @@ Test runs: 138 unit and API tests (vitest, 13 files), 67 harness tests, 63 brows
 - `npm install`, `npm run test`, `npm run harness:test`, `npm run test:e2e` (needs `npx playwright install chromium`)
 - Dev: `CAREX_SEED_SYNTHETIC=1 npm start` (synthetic tenants, ephemeral token secret). Production: set `CAREX_TOKEN_SECRET` (32+ chars) and `CAREX_DB`.
 - Admin key: `npm run admin:key -- <tenant-slug> "<label>"`
+
+## Clinical intake, notifications and staff (ADR-008)
+| Capability | Code | Tests |
+|---|---|---|
+| Engine rules (closures, buffers, rooms, lead time, age, new/established) | `db-scheduling.ts` | `engine-rules.test.ts` |
+| Dependents, screening, consent, referral, telehealth, coverage | `intake.ts`, `triage.ts` | `intake-api.test.ts` |
+| Outbox notifications, reminders, waitlist, cancel reasons | `notify.ts`, `waitlist.ts` | `notifications.test.ts` |
+| Sessions, MFA, audit | `accounts.ts`, `audit.ts` | `security.test.ts` |
+| Staff console, CSV, FHIR | `staff.ts` | `staff-api.test.ts` |
+| Patient screens (details step, any provider, waitlist, MFA step, manage page) and staff screen | `apps/web/src/*` | `apps/web/e2e/booking.spec.ts` |

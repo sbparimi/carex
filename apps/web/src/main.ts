@@ -1,10 +1,12 @@
 import { applySelection } from "../../../packages/contracts/src/selection.js";
 import { safeBrand } from "./theme.js";
 import { download, icsFor, fetchMe, headerHtml, logout, toLogin, type Me } from "./common.js";
+import { newForm, detailsHtml, problems, emergencyHtml, effectiveModality, money, type Form, type Cfg, type Patient, type Coverage } from "./details.js";
 import type { Selection, Step, BookingOutcome, PublicClinic, VisitType, PublicProvider, Slot, BrandConfig } from "@carex/contracts";
 
-type Screen = "entry" | "state" | "clinic" | "visit" | "slot" | "review" | "result";
+type Screen = "entry" | "state" | "clinic" | "visit" | "slot" | "details" | "review" | "result";
 interface Data { states: string[]; clinics: PublicClinic[]; visitTypes: VisitType[]; providers: PublicProvider[]; slots: Slot[] }
+type AnySlot = Slot & { providerName: string };
 
 const root = document.getElementById("app")!;
 const slug = /^\/t\/([^/]+)/.exec(location.pathname)?.[1] ?? "";
@@ -16,6 +18,7 @@ const S = {
   brand: undefined as BrandConfig | undefined, me: undefined as Me | undefined,
   outcome: undefined as BookingOutcome | undefined, idemKey: "", busy: false,
   banner: undefined as { kind: "error" | "warning" | "info"; text: string } | undefined, loading: false,
+  form: newForm(), cfg: undefined as Cfg | undefined, patients: [] as Patient[], coverage: undefined as Coverage | undefined, any: undefined as AnySlot[] | undefined, noIntake: false, waitMsg: "", problemList: [] as string[],
 };
 
 const esc = (s: unknown) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
@@ -45,8 +48,8 @@ const fmtTime = (iso: string, zone: string) => new Intl.DateTimeFormat("en-US", 
 const stateName = (c: string) => `${STATES[c] ?? c} (${c})`;
 const save = () => { try { sessionStorage.setItem(KEY, JSON.stringify({ sel: S.sel, screen: S.screen })); } catch { /* storage may be unavailable */ } };
 
-const STEPS = ["Location", "Visit type", "Provider & time", "Confirm"];
-const stepIndex: Record<Screen, number> = { entry: -1, state: 0, clinic: 0, visit: 1, slot: 2, review: 3, result: 3 };
+const STEPS = ["Location", "Visit type", "Provider & time", "Your details", "Confirm"];
+const stepIndex: Record<Screen, number> = { entry: -1, state: 0, clinic: 0, visit: 1, slot: 2, details: 3, review: 4, result: 4 };
 
 function banner() {
   if (!S.banner) return "";
@@ -65,6 +68,15 @@ function radios(name: string, items: { id: string; title: string; sub?: string }
   return items.map((i) => `<label class="choice"><input type="radio" name="${name}" value="${esc(i.id)}"${i.id === selected ? " checked" : ""}><span class="card"><span>${esc(i.title)}${i.sub ? `<small>${esc(i.sub)}</small>` : ""}</span><span class="badge" aria-hidden="true">Selected</span></span></label>`).join("");
 }
 
+function anyHtml() {
+  if (!S.any) return "";
+  if (S.any.length === 0) return `<div class="banner info" role="status"><span class="icon" aria-hidden="true">i</span><span class="text">No times are open with any provider right now. You can join the waitlist after choosing a provider.</span></div>`;
+  return `<fieldset><legend>First available times</legend><div class="slots">${radios("anyslot", S.any.map((s) => ({ id: s.id, title: `${fmtDay(s.startsAt, tz())}, ${fmtTime(s.startsAt, tz())}`, sub: s.providerName })), S.sel.slotId)}</div></fieldset>`;
+}
+const whoName = () => { const p = S.patients.find((x) => x.id === S.form.patientId); return p ? `${p.firstName} ${p.lastName}` : S.me ? `${S.me.firstName} ${S.me.lastName}` : ""; };
+const detailsCtx = () => ({ f: S.form, cfg: S.cfg, patients: S.patients, coverage: S.coverage, visit: visit() });
+const REL_LABEL = (m: string) => (m === "telehealth" ? "Video visit" : "In person");
+
 const appointmentsBlock = () => `<h2 class="h2-md">Change or cancel</h2><p class="hint">You can view, change or cancel this appointment any time from your account.</p><div class="actions"><a class="button" href="/t/${slug}/appointments">My appointments</a></div>`;
 
 function view(): string {
@@ -76,17 +88,22 @@ function view(): string {
     case "visit": return `<h1 tabindex="-1" id="h">What type of visit do you need?</h1><p class="lead">${esc(clinic()?.name ?? "")}</p>${S.loading ? skeleton() : S.data.visitTypes.length === 0 ? empty("No visit types are available at this clinic.", "Change clinic") : `<fieldset><legend class="sr-only">Visit types</legend>${radios("visit", S.data.visitTypes.map((v) => ({ id: v.id, title: v.label, sub: v.description })), S.sel.serviceId)}</fieldset>${actions("serviceId", { id: "next", label: "Continue", disabled: !S.sel.serviceId })}`}`;
     case "slot": {
       const byDay = new Map<string, Slot[]>(); for (const s of S.data.slots) { const d = fmtDay(s.startsAt, tz()); byDay.set(d, [...(byDay.get(d) ?? []), s]); }
-      return `<h1 tabindex="-1" id="h">Choose a provider and time</h1><p class="lead">${esc(clinic()?.name ?? "")} · ${esc(visit()?.label ?? "")}</p>${banner()}${S.loading ? skeleton() : S.data.providers.length === 0 ? empty("No providers are currently available for this selection.", "Change visit type") : `<fieldset><legend>Provider</legend>${radios("provider", S.data.providers.map((p) => ({ id: p.id, title: p.displayName })), S.sel.providerId)}</fieldset>${S.sel.providerId ? (S.data.slots.length === 0 ? `<div class="banner info" role="status"><span class="icon" aria-hidden="true">i</span><span class="text">No times are currently available for this provider. Try refreshing or choose another provider.</span></div>` : `<p class="hint">Times are shown in ${esc(tz())}. Availability is provisional until you confirm.</p>${[...byDay].slice(0, Math.max(S.daysShown, dayIndexOf(byDay))).map(([d, ss]) => `<fieldset><legend>${esc(d)}</legend><div class="slots">${radios("slot", ss.map((s) => ({ id: s.id, title: fmtTime(s.startsAt, tz()) })), S.sel.slotId)}</div></fieldset>`).join("")}${byDay.size > Math.max(S.daysShown, dayIndexOf(byDay)) ? `<div class="actions"><button type="button" data-act="moreDays">Show more dates</button></div>` : ""}`) + `<div class="actions"><button type="button" data-act="refresh">Refresh availability</button></div>` : ""}${actions("providerId", { id: "next", label: "Continue", disabled: !S.sel.slotId })}`}`;
+      return `<h1 tabindex="-1" id="h">Choose a provider and time</h1><p class="lead">${esc(clinic()?.name ?? "")} · ${esc(visit()?.label ?? "")}</p>${banner()}${S.loading ? skeleton() : S.data.providers.length === 0 ? empty("No providers are currently available for this selection.", "Change visit type") : `<fieldset><legend>Provider</legend>${radios("provider", S.data.providers.map((p) => ({ id: p.id, title: p.displayName, sub: [p.specialty, p.languages?.length ? "Speaks " + p.languages.join(", ") : "", p.acceptingNew === false ? "Not accepting new patients" : ""].filter(Boolean).join(" · ") })), S.sel.providerId)}<div class="actions"><button type="button" data-act="anyProvider">Show first available with any provider</button></div></fieldset>${anyHtml()}${S.sel.providerId ? (S.data.slots.length === 0 ? `<div class="banner info" role="status"><span class="icon" aria-hidden="true">i</span><span class="text">No times are currently available for this provider. Try refreshing or choose another provider.</span></div>` : `<p class="hint">Times are shown in ${esc(tz())}. Availability is provisional until you confirm.</p>${[...byDay].slice(0, Math.max(S.daysShown, dayIndexOf(byDay))).map(([d, ss]) => `<fieldset><legend>${esc(d)}</legend><div class="slots">${radios("slot", ss.map((s) => ({ id: s.id, title: fmtTime(s.startsAt, tz()) })), S.sel.slotId)}</div></fieldset>`).join("")}${byDay.size > Math.max(S.daysShown, dayIndexOf(byDay)) ? `<div class="actions"><button type="button" data-act="moreDays">Show more dates</button></div>` : ""}`) + `<div class="actions"><button type="button" data-act="refresh">Refresh availability</button><button type="button" data-act="waitlist">Notify me if an earlier time opens</button></div>${S.waitMsg ? `<p class="hint" role="status">${esc(S.waitMsg)}</p>` : ""}` : ""}${actions("providerId", { id: "next", label: "Continue", disabled: !S.sel.slotId })}`}`;
+    }
+    case "details": {
+      const pl = S.problemList.length ? `<div class="banner error" role="alert" id="problems"><span class="icon" aria-hidden="true">✕</span><span class="text">Please fix: ${S.problemList.map(esc).join("; ")}.</span></div>` : "";
+      return `<h1 tabindex="-1" id="h">Your details</h1><p class="lead">${esc(clinic()?.name ?? "")} · ${esc(visit()?.label ?? "")}</p>${pl}${S.loading ? skeleton() : detailsHtml(detailsCtx())}<div class="actions"><button type="button" data-act="back">Back</button><button type="button" class="primary" data-act="detailsNext"${S.loading || !S.cfg ? " disabled" : ""}>Continue</button></div>`;
     }
     case "review": {
       const u = S.me;
-      return `<h1 tabindex="-1" id="h">Review your appointment</h1>${banner()}<dl class="summary"><dt>Clinic</dt><dd>${esc(clinic()?.name ?? "")}<br>${esc(clinic()?.address ?? "")}</dd><dt>Visit type</dt><dd>${esc(visit()?.label ?? "")}</dd><dt>Provider</dt><dd>${esc(provider()?.displayName ?? "")}</dd><dt>Date</dt><dd>${esc(slot() ? fmtDay(slot()!.startsAt, tz()) : "")}</dd><dt>Time</dt><dd>${esc(slot() ? fmtTime(slot()!.startsAt, tz()) : "")}</dd></dl><p class="hint"><button type="button" class="btn-inline" data-act="edit">Change choices</button></p><h2 class="h2-md">Booking for</h2><dl class="summary"><dt>Name</dt><dd>${esc(u ? `${u.firstName} ${u.lastName}` : "")}</dd><dt>Email</dt><dd>${esc(u?.email ?? "")}</dd><dt>Phone</dt><dd>${esc(u?.phone ?? "")}</dd></dl><p class="hint">These details come from your account.</p><div class="actions"><button type="button" data-act="back">Back</button><button type="button" class="primary" data-act="confirm"${S.busy ? " disabled" : ""}>${S.busy ? "Confirming…" : "Confirm appointment"}</button></div>`;
+      return `<h1 tabindex="-1" id="h">Review your appointment</h1>${banner()}<dl class="summary"><dt>Clinic</dt><dd>${esc(clinic()?.name ?? "")}<br>${esc(clinic()?.address ?? "")}</dd><dt>Visit type</dt><dd>${esc(visit()?.label ?? "")}</dd><dt>Provider</dt><dd>${esc(provider()?.displayName ?? "")}</dd><dt>Date</dt><dd>${esc(slot() ? fmtDay(slot()!.startsAt, tz()) : "")}</dd><dt>Time</dt><dd>${esc(slot() ? fmtTime(slot()!.startsAt, tz()) : "")}</dd>${S.noIntake ? "" : `<dt>Format</dt><dd>${REL_LABEL(effectiveModality(visit(), S.form))}</dd>${S.coverage?.copayCents ? `<dt>Expected copay</dt><dd>${money(S.coverage.copayCents)}, due at the visit</dd>` : ""}`}</dl><p class="hint"><button type="button" class="btn-inline" data-act="edit">Change choices</button></p><h2 class="h2-md">Booking for</h2><dl class="summary"><dt>Patient</dt><dd>${esc(whoName())}</dd>${S.noIntake || !S.form.reason ? "" : `<dt>Reason</dt><dd>${esc(S.form.reason)}</dd>`}<dt>Account</dt><dd>${esc(u ? `${u.firstName} ${u.lastName}` : "")}</dd><dt>Email</dt><dd>${esc(u?.email ?? "")}</dd><dt>Phone</dt><dd>${esc(u?.phone ?? "")}</dd></dl><p class="hint">These details come from your account.</p><div class="actions"><button type="button" data-act="back">Back</button><button type="button" class="primary" data-act="confirm"${S.busy ? " disabled" : ""}>${S.busy ? "Confirming…" : "Confirm appointment"}</button></div>`;
     }
     case "result": {
       const o = S.outcome!;
-      if (o.status === "confirmed") return `<h1 tabindex="-1" id="h">Appointment confirmed</h1><div class="banner success" role="status"><span class="icon" aria-hidden="true">✓</span><span class="text">Your booking reference is <strong>${esc(o.bookingId)}</strong>.</span></div><dl class="summary"><dt>Clinic</dt><dd>${esc(o.summary.clinic.name)}<br>${esc(o.summary.clinic.address)}</dd><dt>Visit type</dt><dd>${esc(o.summary.visitType.label)}</dd><dt>Provider</dt><dd>${esc(o.summary.provider.displayName)}</dd><dt>Date</dt><dd>${esc(fmtDay(o.summary.startsAt, o.summary.timeZone))}</dd><dt>Time</dt><dd>${esc(fmtTime(o.summary.startsAt, o.summary.timeZone))}</dd></dl>${appointmentsBlock()}<div class="actions"><button type="button" data-act="ics">Add to calendar</button><button type="button" data-act="restart">Book another appointment</button></div>`;
+      if (o.status === "confirmed") return `<h1 tabindex="-1" id="h">Appointment confirmed</h1><div class="banner success" role="status"><span class="icon" aria-hidden="true">✓</span><span class="text">Your booking reference is <strong>${esc(o.bookingId)}</strong>.</span></div><dl class="summary"><dt>Clinic</dt><dd>${esc(o.summary.clinic.name)}<br>${esc(o.summary.clinic.address)}</dd><dt>Visit type</dt><dd>${esc(o.summary.visitType.label)}</dd><dt>Provider</dt><dd>${esc(o.summary.provider.displayName)}</dd><dt>Date</dt><dd>${esc(fmtDay(o.summary.startsAt, o.summary.timeZone))}</dd><dt>Time</dt><dd>${esc(fmtTime(o.summary.startsAt, o.summary.timeZone))}</dd>${o.summary.patientName ? `<dt>Patient</dt><dd>${esc(o.summary.patientName)}</dd>` : ""}${o.summary.modality === "telehealth" ? `<dt>Format</dt><dd>Video visit${o.summary.joinUrl ? ` — <a href="${esc(o.summary.joinUrl)}" rel="noopener">Join link</a>` : ""}</dd>` : ""}${o.summary.copayCents ? `<dt>Expected copay</dt><dd>${money(o.summary.copayCents)}, due at the visit</dd>` : ""}</dl>${appointmentsBlock()}<div class="actions"><button type="button" data-act="ics">Add to calendar</button><button type="button" data-act="restart">Book another appointment</button></div>`;
       if (o.status === "pending") return `<h1 tabindex="-1" id="h">We're checking your booking</h1><div class="banner warning" role="status"><span class="icon" aria-hidden="true">!</span><span class="text">${esc(o.message)}</span></div><div class="actions"><button type="button" class="primary" data-act="check">Check status</button></div>`;
       if (o.status === "slot_unavailable") return `<h1 tabindex="-1" id="h">That time is no longer available</h1><div class="banner warning" role="alert"><span class="icon" aria-hidden="true">!</span><span class="text">${esc(o.message)}</span></div><div class="actions"><button type="button" class="primary" data-act="pickAnother">Choose another time</button></div>`;
+      if (o.code === "emergency_redirect") return `<h1 tabindex="-1" id="h">Please get urgent help</h1>${emergencyHtml()}<div class="actions"><button type="button" data-act="back">Back</button></div>`;
       return `<h1 tabindex="-1" id="h">We couldn't complete your booking</h1><div class="banner error" role="alert"><span class="icon" aria-hidden="true">✕</span><span class="text">${esc(o.message)}</span></div><div class="actions"><button type="button" data-act="back">Back to review</button>${o.retryable ? `<button type="button" class="primary" data-act="confirm">Try again</button>` : ""}</div>`;
     }
   }
@@ -122,9 +139,44 @@ async function goSlot() {
   void r; render();
 }
 
+async function goDetails() {
+  S.screen = "details"; S.banner = undefined; S.problemList = []; S.any = undefined;
+  const r = await load(async () => {
+    const [c, p, cov] = await Promise.all([
+      api<Cfg>("/intake-config"), api<{ patients: Patient[] }>("/patients"),
+      api<Coverage>(`/coverage?clinicId=${encodeURIComponent(S.sel.clinicId!)}&serviceId=${encodeURIComponent(S.sel.serviceId!)}`),
+    ]);
+    return { c, p, cov };
+  });
+  if (!r || r.c.status !== 200) { S.noIntake = true; S.screen = "review"; return render(); }   // intake is not enabled for this deployment
+  S.noIntake = false; S.cfg = r.c.body; S.patients = r.p.body.patients ?? []; S.coverage = r.cov.status === 200 ? r.cov.body : undefined;
+  if (!S.patients.some((x) => x.id === S.form.patientId)) S.form.patientId = (S.patients.find((x) => x.relationship === "self") ?? S.patients[0])?.id ?? "";
+  if (!S.cfg.telehealth && S.form.modality === "telehealth") S.form.modality = "in_person";
+  render();
+}
+async function saveFamily() {
+  const f = S.form.family;
+  if (!f.firstName.trim() || !f.lastName.trim() || !f.dateOfBirth) { S.form.familyError = "Enter first name, last name and date of birth."; render(false); return; }
+  const r = await api<{ patient?: Patient; error?: { message: string } }>("/patients", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(f) });
+  if (r.status === 201 && r.body.patient) { S.patients.push(r.body.patient); S.form.patientId = r.body.patient.id; S.form.addingFamily = false; S.form.family = newForm().family; S.form.familyError = ""; }
+  else S.form.familyError = r.body.error?.message ?? "We couldn't add that person.";
+  render(false);
+}
+async function anyProvider() {
+  S.waitMsg = "";
+  const q = `clinicId=${encodeURIComponent(S.sel.clinicId!)}&serviceId=${encodeURIComponent(S.sel.serviceId!)}${S.form.patientId ? `&patientId=${encodeURIComponent(S.form.patientId)}` : ""}`;
+  const r = await load(() => api<{ slots: AnySlot[] }>(`/first-available?${q}`));
+  S.any = r?.body.slots ?? []; render(false);
+}
+async function joinWaitlist() {
+  const r = await api<{ error?: { message: string } }>("/waitlist", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ clinicId: S.sel.clinicId, serviceId: S.sel.serviceId, ...(S.sel.providerId ? { providerId: S.sel.providerId } : {}), ...(S.form.patientId ? { patientId: S.form.patientId } : {}) }) });
+  S.waitMsg = r.status === 201 ? "You're on the waitlist. We'll email you if an earlier time opens." : r.body.error?.message ?? "We couldn't add you to the waitlist.";
+  render(false); (document.querySelector('[data-act="waitlist"]') as HTMLElement | null)?.focus();
+}
+
 const back: Record<Screen, () => void> = {
   entry: () => {}, state: () => { S.screen = "entry"; render(); }, clinic: () => void goState(), visit: () => void goClinic(), slot: () => void goVisit(),
-  review: () => void goSlot(), result: () => { S.screen = "review"; render(); },
+  details: () => void goSlot(), review: () => { if (S.noIntake) void goSlot(); else { S.screen = "details"; render(); } }, result: () => { S.screen = "review"; render(); },
 };
 
 async function onAct(act: string) {
@@ -135,7 +187,7 @@ async function onAct(act: string) {
       if (S.screen === "state" && S.sel.stateCode) return goClinic();
       if (S.screen === "clinic" && S.sel.clinicId) return goVisit();
       if (S.screen === "visit" && S.sel.serviceId) return goSlot();
-      if (S.screen === "slot" && S.sel.slotId) { S.screen = "review"; S.banner = undefined; return render(); }
+      if (S.screen === "slot" && S.sel.slotId) return goDetails();
       return;
     case "refresh": { S.banner = undefined; await load(loadSlots); render(false); S.banner = { kind: "info", text: "Availability refreshed." }; render(false); (document.querySelector('[data-act="refresh"]') as HTMLElement | null)?.focus(); return; }
     case "moreDays": { const before = new Set(S.data.slots.map((x) => fmtDay(x.startsAt, tz()))); const had = S.daysShown; S.daysShown += 3; render(false);
@@ -146,9 +198,19 @@ async function onAct(act: string) {
       return;
     }
     case "edit": return goSlot();
-    case "restart": S.sel = {}; S.outcome = undefined; S.idemKey = ""; return goState();
+    case "restart": S.sel = {}; S.outcome = undefined; S.idemKey = ""; S.form = newForm(); S.any = undefined; return goState();
     case "pickAnother": S.sel = applySelection(S.sel, "slotId", undefined); S.idemKey = ""; S.banner = { kind: "warning", text: "That time was taken. Your other choices are kept; please pick another time." }; return goSlot();
     case "check": return check();
+    case "anyProvider": return anyProvider();
+    case "waitlist": return joinWaitlist();
+    case "addFamily": S.form.addingFamily = true; S.form.familyError = ""; render(false); (document.getElementById("fam-first") as HTMLElement | null)?.focus(); return;
+    case "cancelFamily": S.form.addingFamily = false; render(false); return;
+    case "saveFamily": return saveFamily();
+    case "detailsNext": {
+      S.problemList = problems(detailsCtx());
+      if (S.problemList.length) { render(false); (document.getElementById("problems") as HTMLElement | null)?.scrollIntoView?.(); return; }
+      S.screen = "review"; S.banner = undefined; return render();
+    }
     case "confirm": return confirm();
   }
 }
@@ -158,7 +220,7 @@ async function confirm() {
   S.busy = true; S.banner = undefined; render(false);
   if (!S.idemKey) S.idemKey = crypto.randomUUID();
   try {
-    const body = { clinicId: S.sel.clinicId, serviceId: S.sel.serviceId, providerId: S.sel.providerId, slotId: S.sel.slotId, confirmed: true };
+    const body = { clinicId: S.sel.clinicId, serviceId: S.sel.serviceId, providerId: S.sel.providerId, slotId: S.sel.slotId, confirmed: true, ...(S.noIntake ? {} : { patientId: S.form.patientId, reason: S.form.reason.trim(), redFlags: S.form.screen === "yes" ? S.form.flags : [], modality: effectiveModality(visit(), S.form), ...(effectiveModality(visit(), S.form) === "telehealth" ? { patientState: S.form.patientState } : {}), ...(S.form.interpreter ? { interpreterLanguage: S.form.interpreter } : {}), ...(S.form.accommodations.trim() ? { accommodations: S.form.accommodations.trim() } : {}), ...(S.form.referral.trim() ? { referralRef: S.form.referral.trim() } : {}), consentVersion: S.cfg?.consentVersion }) };
     const r = await api<BookingOutcome | { error: { code: string } }>("/bookings", { method: "POST", headers: { "content-type": "application/json", "idempotency-key": S.idemKey }, body: JSON.stringify(body) });
     if ("status" in r.body) S.outcome = r.body;
     else S.outcome = { status: "failed", code: r.body.error.code, message: r.status === 404 ? "This selection is no longer available. Please start again." : "We couldn't complete your booking. No appointment was created.", retryable: r.status >= 500 };
@@ -186,8 +248,24 @@ root.addEventListener("change", async (e) => {
   else if (t.name === "clinic") { set("clinicId", t.value); S.idemKey = ""; render(false); focusRadio("clinic", t.value); }
   else if (t.name === "visit") { set("serviceId", t.value); S.idemKey = ""; render(false); focusRadio("visit", t.value); }
   else if (t.name === "provider") { set("providerId", t.value); S.idemKey = ""; S.daysShown = 3; S.data.slots = []; await load(loadSlots); render(false); focusRadio("provider", t.value); }
+  else if (t.name === "anyslot") { const a = S.any?.find((x) => x.id === t.value); if (a) { const pv = S.data.providers.find((p) => p.id === a.providerId) ? a.providerId : undefined; if (pv) { set("providerId", pv); await load(loadSlots); S.sel = applySelection(S.sel, "slotId", a.id); S.idemKey = ""; render(false); focusRadio("anyslot", a.id); } } }
+  else if (S.screen === "details") {
+    const F = S.form;
+    if (t.name === "patient") { F.patientId = t.value; render(false); focusRadio("patient", t.value); }
+    else if (t.name === "screen") { F.screen = t.value as Form["screen"]; if (t.value === "no") F.flags = []; render(false); focusRadio("screen", t.value); }
+    else if (t.name === "flag") { const c = t as HTMLInputElement; F.flags = c.checked ? [...new Set([...F.flags, t.value])] : F.flags.filter((x) => x !== t.value); }
+    else if (t.name === "modality") { F.modality = t.value as Form["modality"]; render(false); focusRadio("modality", t.value); }
+    else if (t.name === "consent") { F.consent = (t as HTMLInputElement).checked; }
+    else if (t.dataset.f) { setField(t.dataset.f, t.value); if (t.dataset.f === "patientState") { render(false); document.getElementById("pstate")?.focus(); } }
+  }
   else if (t.name === "slot") { set("slotId", t.value); S.idemKey = ""; render(false); focusRadio("slot", t.value); }
 });
+function setField(path: string, v: string) {
+  const F = S.form;
+  if (path.startsWith("fam.")) (F.family as Record<string, string>)[path.slice(4)] = v;
+  else (F as unknown as Record<string, unknown>)[path] = v;
+}
+root.addEventListener("input", (e) => { const t = e.target as HTMLInputElement; if (S.screen === "details" && t.dataset?.f) setField(t.dataset.f, t.value); });   // no re-render: typing must never lose focus
 function focusRadio(name: string, value: string) { (document.querySelector(`input[name="${name}"][value="${CSS.escape(value)}"]`) as HTMLElement | null)?.focus(); }
 
 // ---- boot: tenant config, then revalidate any saved selection against the server (FR-009)

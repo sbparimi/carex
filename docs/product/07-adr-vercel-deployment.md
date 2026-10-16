@@ -14,9 +14,9 @@ Status: accepted, built, **not yet deployed** (needs your GitHub repo, Vercel pr
 1. **Rate limits are per serverless instance** (in memory). Account lockout and password-reset limits that matter most are in the database, but request-rate limiting needs a shared store (for example Upstash Redis) before public launch.
 2. **Concurrency is proven on PGlite only.** Run the double-booking and concurrent-reschedule tests against a real Neon branch before launch.
 3. **Tenant onboarding is operator-driven** (ops command plus admin API); there is no self-service signup, billing or admin UI yet.
-4. **Email:** only password reset is sent. Booking confirmations and reminders are not built.
+4. **Email/SMS:** confirmations, reminders and cancellations are built (ADR-008) but need `RESEND_API_KEY`/`EMAIL_FROM` (email) and `TWILIO_*` (SMS), plus a scheduler hitting `/internal/dispatch` (GitHub Actions workflow `dispatch.yml`, needs repo secrets `APP_URL` and `CRON_SECRET`; Vercel Hobby cannot run frequent crons).
 5. **Health data.** Appointment and patient details are personal data and may be regulated (HIPAA, GDPR). Confirm with counsel which plans and agreements your hosting and database vendors provide, and decide retention, deletion, audit logging and encryption policy first. This ADR does not make the product compliant.
-6. No email verification, MFA, or account deletion yet.
+6. Optional emailed MFA code exists (tenant setting `mfa_required`). No email-address verification at sign-up or self-service account deletion yet.
 
 ## Deploy (owner steps, one at a time)
 1. Create a Neon project; copy the **pooled** connection string.

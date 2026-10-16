@@ -11,6 +11,10 @@ import { BookingService } from "./booking-service.js";
 import { AdminKeys } from "./admin-keys.js";
 import { DbAdmin } from "./db-admin.js";
 import { Accounts, type Mailer } from "./accounts.js";
+import { Audit } from "./audit.js";
+import { StaffAccounts, StaffDesk } from "./staff.js";
+import { DbWaitlist } from "./waitlist.js";
+import { Notifier } from "./notify.js";
 import { createServer, type Deps } from "./server.js";
 
 let lastResetToken = "";
@@ -20,16 +24,17 @@ async function fresh() {
   const db = await openTestDb(); await seedDb(db, syntheticCatalog());
   const catalog = new DbCatalog(db);
   const source = new FaultInjectingScheduling(new DbScheduling(db));
-  return { db, catalog, source, intake: new DbIntake(db), bookings: new BookingService(catalog, source, { intake: new DbIntake(db) }), accounts: new Accounts(db, undefined, mailer), admin: { keys: new AdminKeys(db), config: new DbAdmin(db) } };
+  const intake = new DbIntake(db);
+  return { waitlist: new DbWaitlist(db), audit: new Audit(db), notifier: new Notifier(db, { baseUrl: "http://localhost:4173" }), staff: { accounts: new StaffAccounts(db), desk: new StaffDesk(db, source, intake) }, db, catalog, source, intake: new DbIntake(db), bookings: new BookingService(catalog, source, { intake: new DbIntake(db) }), accounts: new Accounts(db, undefined, mailer), admin: { keys: new AdminKeys(db), config: new DbAdmin(db) } };
 }
 let state = await fresh();
 const deps: Deps = {
-  catalog: state.catalog, bookings: state.bookings, intake: state.intake, accounts: state.accounts, admin: state.admin,
+  catalog: state.catalog, bookings: state.bookings, intake: state.intake, accounts: state.accounts, admin: state.admin, waitlist: state.waitlist, audit: state.audit, notifier: state.notifier, staff: state.staff,
   limits: { read: { limit: 100_000, windowMs: 60_000 }, write: { limit: 100_000, windowMs: 60_000 }, auth: { limit: 100_000, windowMs: 60_000 } },   // tests hit the API far faster than a patient would
   staticDir: process.env.STATIC_DIR ?? fileURLToPath(new URL("../../web/public", import.meta.url)),
   testHooks: {
     injectFault: (f) => state.source.injectFault(f as Fault),
-    reset: async () => { const s = await fresh(); state = s; deps.catalog = s.catalog; deps.bookings = s.bookings; deps.accounts = s.accounts; deps.admin = s.admin; },
+    reset: async () => { const s = await fresh(); state = s; deps.catalog = s.catalog; deps.bookings = s.bookings; deps.accounts = s.accounts; deps.admin = s.admin; deps.waitlist = s.waitlist; deps.audit = s.audit; deps.notifier = s.notifier; deps.staff = s.staff; },
     lastResetToken: () => lastResetToken,
   },
 };

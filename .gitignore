@@ -15,3 +15,4 @@ vitest.config.ts.timestamp-*
 dist/
 data/
 apps/web/public/auth.js
+apps/web/public/staff.js

@@ -17,7 +17,7 @@ const S = {
   v: {} as Record<string, string>, errors: {} as Record<string, string>,
   access: "" as "" | "employer" | "insurer", employer: undefined as { id: string; name: string } | undefined,
   employerResults: [] as { id: string; name: string }[], employerSearched: false, insurers: [] as { id: string; name: string }[], insurerId: "",
-  done: false,
+  done: false, challenge: "",
 };
 
 async function call<T = any>(method: string, path: string, body?: unknown): Promise<{ status: number; body: T }> {
@@ -44,7 +44,12 @@ const brandName = () => S.brand?.displayName ?? "";
 const support = () => { const b = S.brand; const m = b?.supportEmail ? `mailto:${b.supportEmail}` : b?.supportPhone ? `tel:${b.supportPhone}` : ""; return m ? `<a href="${esc(m)}">Tech support?</a>` : ""; };
 
 // ---- pages
+function codeView(): string {
+  return `<h1 tabindex="-1" id="h">Check your email</h1><p class="lead">We sent a 6-digit code to your email. It expires in 10 minutes.</p>${bannerHtml(S.banner)}
+<form id="f" novalidate>${field("code", "6-digit code", "text", "one-time-code", { hint: "Enter the code exactly as shown in the email." }).replace('type="text"', 'type="text" inputmode="numeric" maxlength="6" pattern="[0-9]*"')}${busyBtn("Verify", "Verifying…")}</form><p class="alt"><a href="/t/${slug}/login${location.search}">Start over</a></p>`;
+}
 function loginView(): string {
+  if (S.challenge) return codeView();
   return `<h1 tabindex="-1" id="h">Welcome</h1><p class="lead">Please log in to your ${esc(brandName())} account</p>${bannerHtml(S.banner)}
 <form id="f" novalidate>${field("email", "Email address", "email", "username")}${field("password", "Password", "password", "current-password")}
 <p class="links"><a href="/t/${slug}/forgot">Forgot password?</a> ${support()}</p>${busyBtn("Continue", "Logging in…")}</form>
@@ -109,11 +114,19 @@ async function submit() {
   if (S.busy) return;
   S.errors = {}; S.banner = undefined;
   try {
+    if (page === "login" && S.challenge) {
+      if (!/^\d{6}$/.test(val("code").trim())) { S.errors.code = "Enter the 6-digit code"; return render(); }
+      S.busy = true; render(false);
+      const r = await call("POST", "/auth/verify-login", { challenge: S.challenge, code: val("code").trim() }); S.busy = false;
+      if (r.status === 200) return void location.assign(nextUrl());
+      S.v.code = ""; serverError(r, "That code isn't right or has expired."); return render();
+    }
     if (page === "login") {
       if (!emailOk(val("email"))) S.errors.email = "Enter your email address"; if (!val("password")) S.errors.password = "Enter your password";
       if (Object.keys(S.errors).length) return render();
       S.busy = true; render(false);
       const r = await call("POST", "/auth/login", { email: val("email").trim(), password: val("password") }); S.busy = false;
+      if (r.status === 200 && r.body?.mfa?.challenge) { S.challenge = r.body.mfa.challenge; S.v.code = ""; S.v.password = ""; return render(); }
       if (r.status === 200) return void location.assign(nextUrl());
       S.errors = {}; S.v.password = ""; serverError(r, "Invalid email or password"); return render();
     }
