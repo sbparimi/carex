@@ -14,22 +14,24 @@ const MAX_ATTEMPTS = 5;
 const LEASE_MS = 5 * 60_000;
 
 /** Queue messages inside the booking transaction (so a booking and its messages commit or roll back together). */
-export async function enqueue(tx: Db, now: Date, m: { tenantId: string; kind: Kind; appointmentId?: string; userId: string; waitlistId?: number; sendAfter?: Date; dedupe: string }): Promise<void> {
+export interface Direct { email?: string; phone?: string; name?: string; smsOk?: boolean }
+export async function enqueue(tx: Db, now: Date, m: { tenantId: string; kind: Kind; appointmentId?: string; userId?: string; waitlistId?: number; sendAfter?: Date; dedupe: string; direct?: Direct }): Promise<void> {
   for (const channel of ["email", "sms"] as const) {
     await tx.run(
-      `INSERT INTO outbox (tenant_id, kind, channel, appointment_id, user_id, waitlist_id, send_after, created_at, dedupe_key)
-       VALUES (?,?,?,?,?,?,?,?,?) ON CONFLICT DO NOTHING`,
-      m.tenantId, m.kind, channel, m.appointmentId ?? null, m.userId, m.waitlistId ?? null, (m.sendAfter ?? now).toISOString(), now.toISOString(), `${m.dedupe}:${channel}`);
+      `INSERT INTO outbox (tenant_id, kind, channel, appointment_id, user_id, waitlist_id, send_after, created_at, dedupe_key, to_email, to_phone, to_name, to_sms_ok)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT DO NOTHING`,
+      m.tenantId, m.kind, channel, m.appointmentId ?? null, m.userId ?? null, m.waitlistId ?? null, (m.sendAfter ?? now).toISOString(), now.toISOString(), `${m.dedupe}:${channel}`,
+      m.direct?.email ?? null, m.direct?.phone ?? null, m.direct?.name ?? null, m.direct?.smsOk ? 1 : 0);
   }
 }
 
 /** Reminders 24 h and 2 h before the start, for the CURRENT start time (a reschedule skips the old ones and queues new ones). */
-export async function enqueueReminders(tx: Db, now: Date, a: { tenantId: string; appointmentId: string; userId: string; startsAt: string }): Promise<void> {
+export async function enqueueReminders(tx: Db, now: Date, a: { tenantId: string; appointmentId: string; userId?: string; startsAt: string; direct?: Direct }): Promise<void> {
   const start = Date.parse(a.startsAt);
   for (const [kind, lead] of [["reminder_24h", 24 * HOUR], ["reminder_2h", 2 * HOUR]] as const) {
     const at = start - lead;
     if (at <= now.getTime()) continue;                       // booked too close to the visit for this reminder
-    await enqueue(tx, now, { tenantId: a.tenantId, kind, appointmentId: a.appointmentId, userId: a.userId, sendAfter: new Date(at), dedupe: `${kind}:${a.appointmentId}:${a.startsAt}` });
+    await enqueue(tx, now, { tenantId: a.tenantId, kind, appointmentId: a.appointmentId, ...(a.userId ? { userId: a.userId } : {}), ...(a.direct ? { direct: a.direct } : {}), sendAfter: new Date(at), dedupe: `${kind}:${a.appointmentId}:${a.startsAt}` });
   }
 }
 
@@ -51,10 +53,11 @@ const SELECT = `
          t.display_name AS tenant_name, t.slug, t.support_email, t.support_phone, t.policy_text, t.late_cancel_hours,
          COALESCE(c.name, wc.name) AS clinic_name, COALESCE(c.address, wc.address) AS address, COALESCE(c.time_zone, wc.time_zone) AS time_zone,
          COALESCE(v.label, wv.label) AS visit_label, COALESCE(p.display_name, wp.display_name) AS provider_name,
-         u.email, u.phone, u.first_name, u.notify_email, u.notify_sms
+         COALESCE(u.email, o.to_email) AS email, COALESCE(u.phone, o.to_phone) AS phone, COALESCE(u.first_name, o.to_name) AS first_name,
+         COALESCE(u.notify_email, 1) AS notify_email, COALESCE(u.notify_sms, o.to_sms_ok) AS notify_sms
     FROM outbox o
     JOIN tenants t ON t.id = o.tenant_id
-    JOIN users u ON u.id = o.user_id
+    LEFT JOIN users u ON u.id = o.user_id
     LEFT JOIN appointments a ON a.id = o.appointment_id
     LEFT JOIN clinics c ON c.id = a.clinic_id LEFT JOIN visit_types v ON v.id = a.visit_type_id LEFT JOIN providers p ON p.id = a.provider_id
     LEFT JOIN waitlist w ON w.id = o.waitlist_id

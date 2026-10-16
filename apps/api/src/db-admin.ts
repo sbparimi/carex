@@ -127,4 +127,31 @@ export class DbAdmin {
     const r = await this.db.run("DELETE FROM time_off WHERE tenant_id = ? AND id = ?", tenantId, id);
     if (r.changes === 0) throw new AdminNotFoundError();
   }
+
+  async listTimeOff(tenantId: string, providerId: string): Promise<{ id: number; startsAt: string; endsAt: string }[]> {
+    await this.requireProvider(tenantId, providerId);
+    const rows = await this.db.all<{ id: number; starts_at: string; ends_at: string }>("SELECT id, starts_at, ends_at FROM time_off WHERE tenant_id = ? AND provider_id = ? AND ends_at > ? ORDER BY starts_at", tenantId, providerId, this.now().toISOString());
+    return rows.map((r) => ({ id: Number(r.id), startsAt: r.starts_at, endsAt: r.ends_at }));
+  }
+
+  /** Closes a clinic for a period (holiday, weather, maintenance): no provider is bookable there in that window. Existing appointments are untouched; staff move them. */
+  async addClosure(tenantId: string, clinicId: string, startsAt: string, endsAt: string, reason: string): Promise<{ id: number; affectedAppointments: number }> {
+    await this.requireClinic(tenantId, clinicId);
+    const s = Date.parse(startsAt), e = Date.parse(endsAt);
+    if (!Number.isFinite(s) || !Number.isFinite(e) || e <= s) bad("a closure must end after it starts");
+    const r = await this.db.run("INSERT INTO clinic_closures (tenant_id, clinic_id, starts_at, ends_at, reason) VALUES (?,?,?,?,?) RETURNING id", tenantId, clinicId, new Date(s).toISOString(), new Date(e).toISOString(), String(reason ?? "").slice(0, 120));
+    const n = await this.db.get<{ n: number }>("SELECT COUNT(*)::int AS n FROM appointments WHERE tenant_id = ? AND clinic_id = ? AND status = 'confirmed' AND starts_at < ? AND ends_at > ?", tenantId, clinicId, new Date(e).toISOString(), new Date(s).toISOString());
+    return { id: Number(r.rows[0].id), affectedAppointments: n?.n ?? 0 };
+  }
+
+  async listClosures(tenantId: string, clinicId: string): Promise<{ id: number; startsAt: string; endsAt: string; reason: string }[]> {
+    await this.requireClinic(tenantId, clinicId);
+    const rows = await this.db.all<{ id: number; starts_at: string; ends_at: string; reason: string }>("SELECT id, starts_at, ends_at, reason FROM clinic_closures WHERE tenant_id = ? AND clinic_id = ? AND ends_at > ? ORDER BY starts_at", tenantId, clinicId, this.now().toISOString());
+    return rows.map((r) => ({ id: Number(r.id), startsAt: r.starts_at, endsAt: r.ends_at, reason: r.reason }));
+  }
+
+  async removeClosure(tenantId: string, id: number): Promise<void> {
+    const r = await this.db.run("DELETE FROM clinic_closures WHERE tenant_id = ? AND id = ?", tenantId, id);
+    if (r.changes === 0) throw new AdminNotFoundError();
+  }
 }

@@ -24,5 +24,5 @@ export class FaultInjectingScheduling implements SchedulingSource {
   getBooking(tenantId: string, bookingId: string) { return this.inner.getBooking(tenantId, bookingId); }
   listForUser(tenantId: string, userId: string) { return this.inner.listForUser(tenantId, userId); }
   cancel(tenantId: string, bookingId: string, opts?: { reason?: string; by?: "patient" | "staff" }) { return this.inner.cancel(tenantId, bookingId, opts); }
-  reschedule(tenantId: string, bookingId: string, newSlotId: string) { return this.inner.reschedule(tenantId, bookingId, newSlotId); }
+  reschedule(tenantId: string, bookingId: string, newSlotId: string, opts?: { by?: "patient" | "staff" }) { return this.inner.reschedule(tenantId, bookingId, newSlotId, opts); }
 }

@@ -216,4 +216,26 @@ export const MIGRATIONS: string[] = [
     code_hash TEXT NOT NULL, expires_at TEXT NOT NULL, attempts INTEGER NOT NULL DEFAULT 0, used_at TEXT
   );
   `,
+  `
+  -- P5 staff console: staff accounts and sessions, walk-in/phone patients without an account, direct notification recipients.
+  CREATE TABLE staff_users (
+    id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL REFERENCES tenants(id), email TEXT NOT NULL, password_hash TEXT NOT NULL, name TEXT NOT NULL,
+    role TEXT NOT NULL CHECK (role IN ('front_desk','provider','admin')), provider_id TEXT REFERENCES providers(id),
+    active INTEGER NOT NULL DEFAULT 1 CHECK (active IN (0,1)), failed_logins INTEGER NOT NULL DEFAULT 0, locked_until TEXT, created_at TEXT NOT NULL,
+    UNIQUE (tenant_id, email), CHECK (role <> 'provider' OR provider_id IS NOT NULL)
+  );
+  CREATE TABLE staff_sessions (
+    token_hash TEXT PRIMARY KEY, staff_id TEXT NOT NULL REFERENCES staff_users(id), tenant_id TEXT NOT NULL, created_at TEXT NOT NULL, expires_at TEXT NOT NULL, last_seen_at TEXT NOT NULL
+  );
+  CREATE INDEX staff_sessions_staff ON staff_sessions(staff_id);
+  ALTER TABLE outbox ADD COLUMN to_email TEXT;
+  ALTER TABLE outbox ADD COLUMN to_phone TEXT;
+  ALTER TABLE outbox ADD COLUMN to_name TEXT;
+  ALTER TABLE outbox ADD COLUMN to_sms_ok INTEGER NOT NULL DEFAULT 0;
+  ALTER TABLE consent_records ALTER COLUMN user_id DROP NOT NULL;
+  ALTER TABLE consent_records ADD COLUMN recorded_by TEXT;
+  ALTER TABLE appointments ADD COLUMN patient_dob TEXT;
+  ALTER TABLE appointments ADD COLUMN booked_by_staff_id TEXT;
+  ALTER TABLE appointments ADD COLUMN contact_sms_ok INTEGER NOT NULL DEFAULT 0;
+  `,
 ];

@@ -14,13 +14,13 @@ import { enqueue, enqueueReminders, skipPendingReminders } from "./notify.js";
 import { markBooked, notifyOpening } from "./waitlist.js";
 import { localParts, zonedTimeToUtc } from "./zoned.js";
 
-type Query = { tenantId: string; clinicId: string; serviceId: string; providerId: string; userId?: string; patientId?: string };
+type Query = { tenantId: string; clinicId: string; serviceId: string; providerId: string; userId?: string; patientId?: string; dob?: string };
 type ApptStatus = "confirmed" | "cancelled" | "arrived" | "completed" | "no_show";
 interface Candidate { slot: Slot; resourceId: string | null }
 interface VisitRules { duration_min: number; min_lead_minutes: number | null; horizon_days: number | null; buffer_before_min: number; buffer_after_min: number; min_age: number | null; max_age: number | null; new_patients: "any" | "new_only" | "established_only"; resource_kind: string | null }
 type Range = { start: number; end: number };
 interface ApptRow { id: string; tenant_id: string; provider_id: string; starts_at: string; ends_at: string; idempotency_key: string; request_hash: string; status: ApptStatus }
-interface ManageRow { modality?: "in_person" | "telehealth"; join_url?: string | null; copay_cents?: number; patient_first_name?: string; patient_last_name?: string; reason?: string | null; user_id?: string | null; id: string; tenant_id: string; clinic_id: string; visit_type_id: string; provider_id: string; starts_at: string; ends_at: string; status: ApptStatus }
+interface ManageRow { patient_email?: string | null; patient_phone?: string | null; contact_sms_ok?: number; modality?: "in_person" | "telehealth"; join_url?: string | null; copay_cents?: number; patient_first_name?: string; patient_last_name?: string; reason?: string | null; user_id?: string | null; id: string; tenant_id: string; clinic_id: string; visit_type_id: string; provider_id: string; starts_at: string; ends_at: string; status: ApptStatus }
 
 const MINUTE_MS = 60_000;
 const DAY_MS = 86_400_000;
@@ -72,7 +72,7 @@ export class DbScheduling implements SchedulingSource {
       }
       // Serialise writers per provider so overlapping (not just identical) slots can never both commit.
       await tx.get("SELECT pg_advisory_xact_lock(hashtext(?))", `${input.tenantId}:${input.providerId}`);
-      const cand = (await this.candidates(tx, { ...input, ...(input.intake ? { patientId: input.intake.patientId } : {}), requireUser: true })).find((c) => c.slot.id === input.slotId);
+      const cand = (await this.candidates(tx, { ...input, ...(input.intake ? { patientId: input.intake.patientId } : {}), ...(input.patientDob ? { dob: input.patientDob } : {}), requireUser: !input.staffId })).find((c) => c.slot.id === input.slotId);
       if (!cand) throw new SlotTakenError("Slot is not available");
       const slot = cand.slot;
       const id = bookingReference();
@@ -81,26 +81,30 @@ export class DbScheduling implements SchedulingSource {
         await tx.run(
           `INSERT INTO appointments (id, tenant_id, clinic_id, visit_type_id, provider_id, starts_at, ends_at, status, idempotency_key, request_hash,
              patient_first_name, patient_last_name, patient_email, patient_phone, created_at, user_id, resource_id,
-             patient_id, reason, modality, patient_state, interpreter_language, accommodations, referral_ref, copay_cents, join_url)
-           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+             patient_id, reason, modality, patient_state, interpreter_language, accommodations, referral_ref, copay_cents, join_url,
+             booked_by, booked_by_staff_id, patient_dob, contact_sms_ok)
+           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
           id, input.tenantId, input.clinicId, input.serviceId, input.providerId, slot.startsAt, slot.endsAt, "confirmed",
           input.idempotencyKey, hash, p.firstName, p.lastName, p.email ?? null, p.phone ?? null, this.now().toISOString(), input.userId ?? null, cand.resourceId,
-          it?.patientId ?? null, it?.reason ?? null, it?.modality ?? "in_person", it?.patientState ?? null, it?.interpreterLanguage ?? null, it?.accommodations ?? null, it?.referralRef ?? null, it?.copayCents ?? 0,
-          it && it.modality === "telehealth" && it.videoJoinBase ? `${it.videoJoinBase.replace(/\/+$/, "")}/${id}` : null);
-        if (it?.consentVersion && input.userId) {
-          await tx.run("INSERT INTO consent_records (tenant_id, user_id, patient_id, kind, version, accepted_at, appointment_id) VALUES (?,?,?,?,?,?,?)",
-            input.tenantId, input.userId, it.patientId, "treatment", it.consentVersion, this.now().toISOString(), id);
+          it?.patientId || null, it?.reason ?? null, it?.modality ?? "in_person", it?.patientState ?? null, it?.interpreterLanguage ?? null, it?.accommodations ?? null, it?.referralRef ?? null, it?.copayCents ?? 0,
+          it && it.modality === "telehealth" && it.videoJoinBase ? `${it.videoJoinBase.replace(/\/+$/, "")}/${id}` : null,
+          input.bookedBy ?? "patient", input.staffId ?? null, input.patientDob ?? null, input.smsOk ? 1 : 0);
+        if (it?.consentVersion && (input.userId || input.staffId)) {
+          await tx.run("INSERT INTO consent_records (tenant_id, user_id, patient_id, kind, version, accepted_at, appointment_id, recorded_by) VALUES (?,?,?,?,?,?,?,?)",
+            input.tenantId, input.userId ?? null, it.patientId || null, input.staffId ? "treatment_verbal" : "treatment", it.consentVersion, this.now().toISOString(), id, input.staffId ?? null);
         }
       } catch (e) {
         if (isUniqueViolation(e, "appointments_slot") || isUniqueViolation(e, "appointments_resource_slot")) throw new SlotTakenError("Slot is not available");
         throw e;
       }
-      if (input.userId) {
-        const now = this.now();
-        await enqueue(tx, now, { tenantId: input.tenantId, kind: "confirmation", appointmentId: id, userId: input.userId, dedupe: `confirmation:${id}` });
-        await enqueueReminders(tx, now, { tenantId: input.tenantId, appointmentId: id, userId: input.userId, startsAt: slot.startsAt });
-        await markBooked(tx, input.tenantId, input.userId, input.clinicId, input.serviceId);
+      const nowD = this.now();
+      const direct = !input.userId && (p.email || p.phone) ? { ...(p.email ? { email: p.email } : {}), ...(p.phone ? { phone: p.phone } : {}), name: p.firstName, smsOk: !!input.smsOk } : undefined;
+      if (input.userId || direct) {
+        const who = { ...(input.userId ? { userId: input.userId } : {}), ...(direct ? { direct } : {}) };
+        await enqueue(tx, nowD, { tenantId: input.tenantId, kind: "confirmation", appointmentId: id, dedupe: `confirmation:${id}`, ...who });
+        await enqueueReminders(tx, nowD, { tenantId: input.tenantId, appointmentId: id, startsAt: slot.startsAt, ...who });
       }
+      if (input.userId) await markBooked(tx, input.tenantId, input.userId, input.clinicId, input.serviceId);
       return { bookingId: id, tenantId: input.tenantId, slotId: input.slotId, idempotencyKey: input.idempotencyKey, startsAt: slot.startsAt, endsAt: slot.endsAt, status: "confirmed" };
     });
   }
@@ -118,7 +122,7 @@ export class DbScheduling implements SchedulingSource {
   /** The bookings of one account, soonest first. Never returns another user's rows. */
   async listForUser(tenantId: string, userId: string): Promise<ManagedBooking[]> {
     const rows = await this.db.all<ManageRow>(
-      "SELECT id, tenant_id, clinic_id, visit_type_id, provider_id, starts_at, ends_at, status, user_id, modality, join_url, copay_cents, patient_first_name, patient_last_name, reason FROM appointments WHERE tenant_id = ? AND user_id = ? ORDER BY starts_at, id",
+      "SELECT id, tenant_id, clinic_id, visit_type_id, provider_id, starts_at, ends_at, status, user_id, modality, join_url, copay_cents, patient_first_name, patient_last_name, reason, patient_email, patient_phone, contact_sms_ok FROM appointments WHERE tenant_id = ? AND user_id = ? ORDER BY starts_at, id",
       tenantId, userId);
     return rows.map(toManaged);
   }
@@ -135,17 +139,18 @@ export class DbScheduling implements SchedulingSource {
       await tx.run("UPDATE appointments SET status = 'cancelled', cancelled_at = ?, updated_at = ?, cancel_reason = ?, cancelled_by = ?, late_cancel = ? WHERE id = ? AND tenant_id = ?",
         ts, ts, (opts.reason ?? "").slice(0, 200) || null, opts.by ?? "patient", late, bookingId, tenantId);
       await skipPendingReminders(tx, bookingId);
-      if (row.user_id) await enqueue(tx, nowD, { tenantId, kind: "cancellation", appointmentId: bookingId, userId: row.user_id, dedupe: `cancellation:${bookingId}` });
+      const who = whoOf(row);
+      if (who) await enqueue(tx, nowD, { tenantId, kind: "cancellation", appointmentId: bookingId, dedupe: `cancellation:${bookingId}`, ...who });
       await notifyOpening(tx, nowD, { tenantId, clinicId: row.clinic_id, serviceId: row.visit_type_id, providerId: row.provider_id, startsAt: row.starts_at });
       return toManaged({ ...row, status: "cancelled" });
     });
   }
 
-  async reschedule(tenantId: string, bookingId: string, newSlotId: string): Promise<ManagedBooking> {
+  async reschedule(tenantId: string, bookingId: string, newSlotId: string, opts: { by?: "patient" | "staff" } = {}): Promise<ManagedBooking> {
     return this.db.tx(async (tx) => {
       const row = await this.findManaged(tx, tenantId, bookingId, true);
       if (!row || row.status !== "confirmed") throw new BookingNotFoundError("Booking not found");
-      this.assertChangeAllowed(row);
+      if (opts.by !== "staff") this.assertChangeAllowed(row);
       await tx.get("SELECT pg_advisory_xact_lock(hashtext(?))", `${tenantId}:${row.provider_id}`);
       const cand = (await this.candidates(tx, { tenantId, clinicId: row.clinic_id, serviceId: row.visit_type_id, providerId: row.provider_id, ...(row.user_id ? { userId: row.user_id } : {}), requireUser: false }, row.id)).find((c) => c.slot.id === newSlotId);
       if (!cand) throw new SlotTakenError("Slot is not available");
@@ -160,9 +165,10 @@ export class DbScheduling implements SchedulingSource {
       }
       const nowD = this.now();
       await skipPendingReminders(tx, bookingId);
-      if (row.user_id) {
-        await enqueue(tx, nowD, { tenantId, kind: "rescheduled", appointmentId: bookingId, userId: row.user_id, dedupe: `rescheduled:${bookingId}:${slot.startsAt}` });
-        await enqueueReminders(tx, nowD, { tenantId, appointmentId: bookingId, userId: row.user_id, startsAt: slot.startsAt });
+      const who = whoOf(row);
+      if (who) {
+        await enqueue(tx, nowD, { tenantId, kind: "rescheduled", appointmentId: bookingId, dedupe: `rescheduled:${bookingId}:${slot.startsAt}`, ...who });
+        await enqueueReminders(tx, nowD, { tenantId, appointmentId: bookingId, startsAt: slot.startsAt, ...who });
       }
       await notifyOpening(tx, nowD, { tenantId, clinicId: row.clinic_id, serviceId: row.visit_type_id, providerId: row.provider_id, startsAt: row.starts_at });
       return toManaged({ ...row, starts_at: slot.startsAt, ends_at: slot.endsAt });
@@ -175,7 +181,7 @@ export class DbScheduling implements SchedulingSource {
 
   private findManaged(db: Db, tenantId: string, bookingId: string, lock = false): Promise<ManageRow | undefined> {
     return db.get<ManageRow>(
-      `SELECT id, tenant_id, clinic_id, visit_type_id, provider_id, starts_at, ends_at, status, user_id, modality, join_url, copay_cents, patient_first_name, patient_last_name, reason FROM appointments WHERE tenant_id = ? AND id = ?${lock ? " FOR UPDATE" : ""}`,
+      `SELECT id, tenant_id, clinic_id, visit_type_id, provider_id, starts_at, ends_at, status, user_id, modality, join_url, copay_cents, patient_first_name, patient_last_name, reason, patient_email, patient_phone, contact_sms_ok FROM appointments WHERE tenant_id = ? AND id = ?${lock ? " FOR UPDATE" : ""}`,
       tenantId, bookingId);
   }
 
@@ -273,6 +279,10 @@ export class DbScheduling implements SchedulingSource {
   private async patientMayBook(db: Db, q: Query & { requireUser?: boolean }, v: VisitRules): Promise<boolean> {
     const restricted = v.min_age !== null || v.max_age !== null || v.new_patients !== "any";
     if (!restricted) return true;
+    if (!q.userId && q.dob) {                                 // staff booking: age rules apply to the stated date of birth; new/established is the staff member's call
+      const age = ageOn(q.dob, this.now());
+      return !((v.min_age !== null && age < v.min_age) || (v.max_age !== null && age > v.max_age));
+    }
     if (!q.userId) return !q.requireUser;
     const u = q.patientId
       ? await db.get<{ date_of_birth: string }>("SELECT date_of_birth FROM patients WHERE id = ? AND tenant_id = ? AND user_id = ?", q.patientId, q.tenantId, q.userId)
@@ -300,6 +310,13 @@ export function ageOn(dob: string, now: Date): number {
   let age = now.getUTCFullYear() - y;
   if (now.getUTCMonth() + 1 < m || (now.getUTCMonth() + 1 === m && now.getUTCDate() < d)) age--;
   return age;
+}
+
+/** Who gets messages about an appointment: the account, or the contact details staff recorded for a phone/walk-in patient. */
+function whoOf(r: ManageRow): { userId: string } | { direct: { email?: string; phone?: string; name: string; smsOk: boolean } } | undefined {
+  if (r.user_id) return { userId: r.user_id };
+  if (!r.patient_email && !r.patient_phone) return undefined;
+  return { direct: { ...(r.patient_email ? { email: r.patient_email } : {}), ...(r.patient_phone ? { phone: r.patient_phone } : {}), name: r.patient_first_name ?? "", smsOk: r.contact_sms_ok === 1 } };
 }
 
 function toRecord(r: ApptRow): BookingRecord {

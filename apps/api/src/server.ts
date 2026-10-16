@@ -11,6 +11,7 @@ import { Accounts, AccountError } from "./accounts.js";
 import type { AdminKeys } from "./admin-keys.js";
 import { createHash, timingSafeEqual } from "node:crypto";
 import type { Audit, Actor } from "./audit.js";
+import { StaffError, toCsv, toFhir, type StaffAccounts, type StaffDesk, type StaffPrincipal } from "./staff.js";
 import type { Notifier } from "./notify.js";
 import { DbWaitlist, WaitlistError } from "./waitlist.js";
 import { IntakeError, type DbIntake } from "./intake.js";
@@ -30,6 +31,8 @@ export interface Deps {
   waitlist?: DbWaitlist;
   /** Append-only access trail (P4). */
   audit?: Audit;
+  /** Staff console (P5). */
+  staff?: { accounts: StaffAccounts; desk: StaffDesk };
   /** Outbound messages (P3). With `cronSecret`, GET/POST /internal/dispatch sends what is due. */
   notifier?: Notifier;
   cronSecret?: string;
@@ -49,6 +52,8 @@ const ASSETS: Record<string, string> = { "app.js": "text/javascript; charset=utf
 /** Page shells served under /t/<slug>/<page>. Each is generic and contains no tenant or user data. */
 const PAGES: Record<string, string> = { "": "index.html", appointments: "manage.html", login: "login.html", signup: "signup.html", forgot: "forgot.html", reset: "reset.html" };
 const COOKIE = "carex_session";
+const STAFF_COOKIE = "carex_staff";
+const STAFF_SECONDS = 12 * 3600;
 const SESSION_SECONDS = 24 * 3600;
 
 const MAX_BODY = 10_000;
@@ -208,9 +213,107 @@ export function createServer(deps: Deps): Server {
           if (M === "PUT" && (am = new RegExp(`^providers/${idp}/clinics/${idp}/availability$`).exec(sub))) { const b = await aobj(); await adm.config.setAvailability(t, am[1]!, am[2]!, b.rules); return reply(200, { rules: await adm.config.getAvailability(t, am[1]!, am[2]!) }); }
           if (M === "POST" && (am = new RegExp(`^providers/${idp}/time-off$`).exec(sub))) { const b = await aobj(); return reply(201, { id: await adm.config.addTimeOff(t, am[1]!, String(b.startsAt), String(b.endsAt)) }); }
           if (M === "DELETE" && (am = /^time-off\/(\d{1,12})$/.exec(sub))) { await adm.config.removeTimeOff(t, Number(am[1])); return reply(204, {}); }
+          if (deps.staff && M === "POST" && sub === "staff") { const c = await deps.staff.accounts.create(t, (await aobj()) as any); await deps.audit?.record({ tenantId: t, actor: { type: "admin" }, action: "admin.staff_create", targetType: "staff", targetId: c.id }); return reply(201, { staff: c }); }
+          if (deps.staff && M === "GET" && sub === "staff") return reply(200, { staff: await deps.staff.accounts.list(t) });
+          if (deps.staff && M === "PATCH" && (am = new RegExp(`^staff/${idp}$`).exec(sub))) { const b = await aobj(); if (typeof b.active !== "boolean") throw new AdminValidationError("active must be true or false"); await deps.staff.accounts.setActive(t, am[1]!, b.active); await deps.audit?.record({ tenantId: t, actor: { type: "admin" }, action: b.active ? "admin.staff_activate" : "admin.staff_deactivate", targetType: "staff", targetId: am[1]! }); return reply(204, {}); }
+          if (deps.staff && M === "PUT" && (am = new RegExp(`^staff/${idp}/password$`).exec(sub))) { const b = await aobj(); await deps.staff.accounts.setPassword(t, am[1]!, String(b.password ?? "")); await deps.audit?.record({ tenantId: t, actor: { type: "admin" }, action: "admin.staff_password_set", targetType: "staff", targetId: am[1]! }); return reply(204, {}); }
+          if (deps.staff && M === "GET" && sub === "fhir/Appointment") {
+            const rows = await deps.staff.desk.range(t, { id: "admin", name: "admin", email: "", role: "admin", providerId: null }, q.get("from") ?? "", q.get("to") ?? "");
+            await deps.audit?.record({ tenantId: t, actor: { type: "admin" }, action: "export.fhir", detail: { count: rows.length } });
+            status = 200; res.writeHead(200, { ...SECURITY_HEADERS, "content-security-policy": CSP_API, "content-type": "application/fhir+json", "cache-control": "no-store", "x-correlation-id": cid });
+            return void res.end(JSON.stringify(toFhir(rows, `${req.headers["x-forwarded-proto"] ?? "https"}://${req.headers.host}/t/${tenantSlug}/api/admin/fhir`)));
+          }
+          if (deps.audit && M === "GET" && sub === "audit") return reply(200, { entries: await deps.audit.list(t, { limit: Number(q.get("limit") ?? 100), ...(q.get("before") ? { before: Number(q.get("before")) } : {}), ...(q.get("action") ? { action: q.get("action")! } : {}), ...(q.get("targetId") ? { targetId: q.get("targetId")! } : {}) }) });
+          if (M === "GET" && (am = new RegExp(`^clinics/${idp}/closures$`).exec(sub))) return reply(200, { closures: await adm.config.listClosures(t, am[1]!) });
+          if (M === "POST" && (am = new RegExp(`^clinics/${idp}/closures$`).exec(sub))) { const b = await aobj(); return reply(201, await adm.config.addClosure(t, am[1]!, String(b.startsAt), String(b.endsAt), String(b.reason ?? ""))); }
+          if (M === "DELETE" && (am = /^closures\/(\d{1,12})$/.exec(sub))) { await adm.config.removeClosure(t, Number(am[1])); return reply(204, {}); }
           if (M === "PATCH" && sub === "brand") return reply(200, { brand: await adm.config.updateBrand(t, (await aobj()) as any) });
           if (M === "PUT" && sub === "analytics") { const b = await aobj(); if (typeof b.enabled !== "boolean") throw new AdminValidationError("enabled must be true or false"); await adm.config.setAnalytics(t, b.enabled); return reply(204, {}); }
         } catch (e) {
+          if (e instanceof StaffError) return fail({ invalid_input: 400, invalid_credentials: 401, locked: 423, forbidden: 403, not_found: 404, conflict: 409 }[e.code], e.code, e.message);
+          if (e instanceof AdminNotFoundError) return fail(404, "not_found", "Not found");
+          if (e instanceof AdminValidationError) return fail(400, "invalid_request", e.message);
+          throw e;
+        }
+        return fail(404, "not_found", "Not found");
+      }
+
+      // ---- staff console: separate cookie and accounts from patients; role-checked on every route
+      if (path.startsWith("staff/") && deps.staff) {
+        route = "staff"; const { accounts: sa, desk } = deps.staff; const sub = path.slice(6);
+        if (!allow(limiter.auth, client)) return tooMany();
+        const setStaff = (token: string | undefined) => {
+          const attrs = [`${STAFF_COOKIE}=${token ?? ""}`, `Path=/t/${tenantSlug}`, "HttpOnly", "SameSite=Strict", token ? `Max-Age=${STAFF_SECONDS}` : "Max-Age=0"];
+          if (deps.secureCookies) attrs.push("Secure");
+          res.setHeader("set-cookie", attrs.join("; "));
+        };
+        try {
+          if (req.method === "POST" && sub === "login") {
+            const b = await obj(); if (!allow(limiter.loginId, `staff:${t}:${String(b.email).toLowerCase()}`)) return tooMany();
+            try { const r = await sa.login(t, String(b.email ?? ""), String(b.password ?? "")); setStaff(r.token); await aud({ type: "staff", id: r.staff.id }, "staff.login"); return reply(200, { staff: r.staff }); }
+            catch (e) { if (e instanceof StaffError) await aud({ type: "anonymous" }, "staff.login_failed", { detail: { email: createHash("sha256").update(String(b.email ?? "").toLowerCase()).digest("hex").slice(0, 12) } }); throw e; }
+          }
+          const me = await sa.authenticate(t, cookieOf(req, STAFF_COOKIE));
+          if (sub === "logout" && req.method === "POST") { await sa.logout(t, cookieOf(req, STAFF_COOKIE)); if (me) await aud({ type: "staff", id: me.id }, "staff.logout"); setStaff(undefined); return reply(204, {}); }
+          if (!me) return fail(401, "unauthorized", "Please log in");
+          const actor: Actor = { type: "staff", id: me.id };
+          const need = (...roles: StaffPrincipal["role"][]) => { if (!roles.includes(me.role)) throw new StaffError("forbidden", "You don't have access to this"); };
+          const idm = (v: string | undefined) => { const r = Id.safeParse(v); if (!r.success) throw new StaffError("invalid_input", "Invalid request"); return r.data; };
+          const apptId = "([A-Za-z0-9-]{6,32})"; let sm: RegExpExecArray | null;
+          if (req.method === "GET" && sub === "me") return reply(200, { staff: me });
+          if (req.method === "GET" && sub === "catalog") return reply(200, await desk.catalog(t, me));
+          if (req.method === "GET" && sub === "schedule") {
+            const rows = await desk.schedule(t, me, { date: q.get("date") ?? "", ...(q.get("clinicId") ? { clinicId: idm(q.get("clinicId")!) } : {}), ...(q.get("providerId") ? { providerId: idm(q.get("providerId")!) } : {}) });
+            await aud(actor, "schedule.view", { detail: { date: q.get("date"), count: rows.length } }); return reply(200, { appointments: rows });
+          }
+          if (req.method === "GET" && sub === "slots") return reply(200, { slots: await desk.slots(t, me, { clinicId: idm(q.get("clinicId") ?? ""), serviceId: idm(q.get("serviceId") ?? ""), providerId: idm(q.get("providerId") ?? "") }) });
+          if (req.method === "POST" && sub === "appointments") {
+            need("front_desk", "admin"); const row = await desk.book(t, me, await obj());
+            await aud(actor, "staff.booking_create", { targetType: "appointment", targetId: row.id }); void deps.notifier?.dispatch({ appointmentId: row.id }).catch(() => {}); return reply(201, { appointment: row });
+          }
+          if ((sm = new RegExp(`^appointments/${apptId}$`).exec(sub)) && req.method === "GET") { const row = await desk.get(t, me, sm[1]!); await aud(actor, "appointment.view", { targetType: "appointment", targetId: row.id }); return reply(200, { appointment: row }); }
+          if ((sm = new RegExp(`^appointments/${apptId}/(status|cancel|reschedule)$`).exec(sub)) && req.method === "POST") {
+            const b = await obj(); const id = sm[1]!; const act = sm[2]!;
+            if (act === "status") {
+              if (me.role === "provider" && !["arrived", "completed"].includes(String(b.status))) throw new StaffError("forbidden", "Providers can mark visits arrived or completed");
+              const row = await desk.setStatus(t, me, id, String(b.status ?? "")); await aud(actor, "appointment.status", { targetType: "appointment", targetId: id, detail: { status: row.status } }); return reply(200, { appointment: row });
+            }
+            need("front_desk", "admin");
+            if (act === "cancel") { const row = await desk.cancel(t, me, id, String(b.reason ?? "")); await aud(actor, "staff.booking_cancel", { targetType: "appointment", targetId: id }); void deps.notifier?.dispatch({ appointmentId: id }).catch(() => {}); return reply(200, { appointment: row }); }
+            const row = await desk.reschedule(t, me, id, String(b.slotId ?? "")); await aud(actor, "staff.booking_reschedule", { targetType: "appointment", targetId: id }); void deps.notifier?.dispatch({ appointmentId: id }).catch(() => {}); return reply(200, { appointment: row });
+          }
+          if (req.method === "GET" && sub === "export.csv") {
+            need("front_desk", "admin"); const from = q.get("from") ?? "", to = q.get("to") ?? "";
+            const rows = await desk.range(t, me, from, to); await aud(actor, "export.csv", { detail: { from, to, count: rows.length } });
+            status = 200; res.writeHead(200, { ...SECURITY_HEADERS, "content-security-policy": CSP_API, "content-type": "text/csv; charset=utf-8", "content-disposition": `attachment; filename="appointments-${from}-to-${to}.csv"`, "cache-control": "no-store", "x-correlation-id": cid });
+            return void res.end(toCsv(rows));
+          }
+          // hours, time off and closures
+          const adm = deps.admin?.config; if (!adm) return fail(404, "not_found", "Not found");
+          const idp = "([A-Za-z0-9_-]{1,64})";
+          const own = (providerId: string) => { if (me.role === "provider" && me.providerId !== providerId) throw new StaffError("forbidden", "You can only change your own schedule"); };
+          if ((sm = new RegExp(`^providers/${idp}/clinics/${idp}/availability$`).exec(sub))) {
+            own(sm[1]!);
+            if (req.method === "GET") return reply(200, { rules: await adm.getAvailability(t, sm[1]!, sm[2]!) });
+            if (req.method === "PUT") { need("front_desk", "admin"); const b = await obj(); await adm.setAvailability(t, sm[1]!, sm[2]!, b.rules); await aud(actor, "schedule.hours_change", { targetType: "provider", targetId: sm[1]! }); return reply(200, { rules: await adm.getAvailability(t, sm[1]!, sm[2]!) }); }
+          }
+          if ((sm = new RegExp(`^providers/${idp}/time-off$`).exec(sub))) {
+            own(sm[1]!);
+            if (req.method === "GET") return reply(200, { timeOff: await adm.listTimeOff(t, sm[1]!) });
+            if (req.method === "POST") { const b = await obj(); const id = await adm.addTimeOff(t, sm[1]!, String(b.startsAt), String(b.endsAt)); await aud(actor, "schedule.time_off_add", { targetType: "provider", targetId: sm[1]! }); return reply(201, { id }); }
+          }
+          if (req.method === "DELETE" && (sm = /^time-off\/(\d{1,12})$/.exec(sub))) { need("front_desk", "admin"); await adm.removeTimeOff(t, Number(sm[1])); await aud(actor, "schedule.time_off_remove"); return reply(204, {}); }
+          if ((sm = new RegExp(`^clinics/${idp}/closures$`).exec(sub))) {
+            need("front_desk", "admin");
+            if (req.method === "GET") return reply(200, { closures: await adm.listClosures(t, sm[1]!) });
+            if (req.method === "POST") { const b = await obj(); const r = await adm.addClosure(t, sm[1]!, String(b.startsAt), String(b.endsAt), String(b.reason ?? "")); await aud(actor, "schedule.closure_add", { targetType: "clinic", targetId: sm[1]!, detail: { affected: r.affectedAppointments } }); return reply(201, r); }
+          }
+          if (req.method === "DELETE" && (sm = /^closures\/(\d{1,12})$/.exec(sub))) { need("front_desk", "admin"); await adm.removeClosure(t, Number(sm[1])); await aud(actor, "schedule.closure_remove"); return reply(204, {}); }
+        } catch (e) {
+          if (e instanceof StaffError) {
+            const st = { invalid_input: 400, invalid_credentials: 401, locked: 423, forbidden: 403, not_found: 404, conflict: 409 }[e.code];
+            return fail(st, e.code, e.code === "invalid_input" || e.code === "conflict" ? e.message : e.code === "not_found" ? "Not found" : e.message);
+          }
           if (e instanceof AdminNotFoundError) return fail(404, "not_found", "Not found");
           if (e instanceof AdminValidationError) return fail(400, "invalid_request", e.message);
           throw e;
@@ -327,6 +430,8 @@ export function createServer(deps: Deps): Server {
         const s = { not_found: 404, invalid_request: 400, idempotency_conflict: 422, payload_too_large: 413, change_window_closed: 409, scheduling_unavailable: 503 }[e.code];
         return fail(s, e.code, e.code === "not_found" ? "Not found" : e.message);
       }
+      deps.log?.({ correlationId: cid, event: "internal_error", error: e instanceof Error ? e.name : "unknown", code: (e as { code?: unknown })?.code });   // class and SQLSTATE only: messages may quote patient data
+      if (process.env.CAREX_DEBUG_ERRORS) console.error(e);
       return fail(500, "internal_error", "Something went wrong");                                    // never leak internals
     } finally {
       deps.log?.(redact({ correlationId: cid, tenant: tenantSlug, route, method: req.method, status, durationMs: Date.now() - started }));

@@ -14,6 +14,8 @@ export interface ReserveInput {
   userId?: string;
   /** Result of clinical intake (patient, consent, modality, copay). Absent for legacy callers. */
   intake?: IntakeDecision;
+  /** Staff booking on behalf of a patient who has no account (phone or walk-in). */
+  bookedBy?: "patient" | "staff"; staffId?: string; patientDob?: string; smsOk?: boolean;
 }
 export interface BookingRecord { bookingId: string; tenantId: string; slotId: string; idempotencyKey: string; startsAt: string; endsAt: string; status: "confirmed" | "cancelled" | "arrived" | "completed" | "no_show" }
 
@@ -34,7 +36,7 @@ export interface SchedulingSource {
   /** Idempotent: cancelling an already cancelled booking returns it. Throws BookingNotFoundError, ChangeWindowClosedError. */
   cancel(tenantId: string, bookingId: string, opts?: { reason?: string; by?: "patient" | "staff" }): Promise<ManagedBooking>;
   /** Atomic move to another offered slot of the same provider, clinic and visit type; the reference stays the same. Throws BookingNotFoundError, ChangeWindowClosedError, SlotTakenError. */
-  reschedule(tenantId: string, bookingId: string, newSlotId: string): Promise<ManagedBooking>;
+  reschedule(tenantId: string, bookingId: string, newSlotId: string, opts?: { by?: "patient" | "staff" }): Promise<ManagedBooking>;
   /** All bookings of one account in one tenant, soonest first. */
   listForUser(tenantId: string, userId: string): Promise<ManagedBooking[]>;
 }

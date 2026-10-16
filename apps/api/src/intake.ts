@@ -85,18 +85,52 @@ export class DbIntake implements IntakePort {
       : await this.ensureSelf(tenantId, userId).then((p) => ({ id: p.id, relationship: p.relationship, first_name: p.firstName, last_name: p.lastName, date_of_birth: p.dateOfBirth }));
     if (!patient) throw new IntakeError("patient_not_found", "We couldn't find that person on your account.");
 
-    // 1. Emergency screen: always honoured when the patient said yes or wrote an emergency phrase; required to be present when intake is required.
+    const c = await this.checks(tenantId, req, { dob: patient.date_of_birth, patientId: patient.id, consentRequired: required, consentVersion: t.consent_version, videoBase: t.video_join_base_url });
+
+    // Coverage and network.
+    const copayCents = await this.coverage(tenantId, userId, req.clinicId, req.serviceId);
+
+    return {
+      patientId: patient.id, patientFirstName: patient.first_name, patientLastName: patient.last_name,
+      reason: c.reason, modality: c.modality, patientState: c.state, interpreterLanguage: req.interpreterLanguage?.trim() || null,
+      accommodations: req.accommodations?.trim() || null, referralRef: c.referral, copayCents,
+      consentVersion: required || req.consentVersion ? t.consent_version : null, videoJoinBase: t.video_join_base_url, intakeRequired: required,
+    };
+  }
+
+  /**
+   * Intake for a patient a staff member is booking by phone or at the desk (no account). Same safety rules as self-service:
+   * the screening script must have been read (redFlags present), a positive stops the booking, and verbal consent must be recorded.
+   */
+  async prepareForStaff(tenantId: string, patient: { firstName: string; lastName: string; dateOfBirth?: string }, req: BookingRequest & { consentAttested?: boolean }): Promise<IntakeDecision> {
+    const t = await this.db.get<{ consent_version: string; video_join_base_url: string | null }>("SELECT consent_version, video_join_base_url FROM tenants WHERE id = ?", tenantId);
+    if (!t) throw new IntakeError("not_found", "selection is not available");
+    if (req.consentAttested !== true) throw new IntakeError("consent_required", "Confirm the patient gave verbal consent to treatment.");
+    const c = await this.checks(tenantId, { ...req, consentVersion: t.consent_version }, { dob: patient.dateOfBirth ?? null, patientId: null, consentRequired: true, consentVersion: t.consent_version, videoBase: t.video_join_base_url, staff: true });
+    return {
+      patientId: "", patientFirstName: patient.firstName, patientLastName: patient.lastName, reason: c.reason, modality: c.modality, patientState: c.state,
+      interpreterLanguage: req.interpreterLanguage?.trim() || null, accommodations: req.accommodations?.trim() || null, referralRef: c.referral, copayCents: 0,
+      consentVersion: t.consent_version, videoJoinBase: t.video_join_base_url, intakeRequired: true,
+    };
+  }
+
+  /** Screening, consent, age, referral, modality/licensure and new-patient acceptance: identical for self-service and staff bookings. */
+  private async checks(tenantId: string, req: BookingRequest, o: { dob: string | null; patientId: string | null; consentRequired: boolean; consentVersion: string; videoBase: string | null; staff?: boolean }):
+    Promise<{ reason: string | null; modality: Modality; state: string | null; referral: string | null }> {
+    const required = o.consentRequired;
+        // 1. Emergency screen: always honoured when the patient said yes or wrote an emergency phrase; required to be present when intake is required.
     const sc = screen(req.reason, req.redFlags);
     if (sc.emergency) throw new IntakeError("emergency_redirect", sc.message!);
     if (required && !sc.screened) throw new IntakeError("screening_required", "Please answer the safety questions before booking.");
     if (required && (req.reason ?? "").trim().length < 3) throw new IntakeError("reason_required", "Tell us briefly what the visit is for.");
-    if (required && req.consentVersion !== t.consent_version) throw new IntakeError("consent_required", "Please review and accept the consent to treatment to continue.");
+    if (required && req.consentVersion !== o.consentVersion) throw new IntakeError("consent_required", "Please review and accept the consent to treatment to continue.");
 
     const v = await this.db.get<{ modality: "in_person" | "telehealth" | "either"; requires_referral: number; min_age: number | null; max_age: number | null }>(
       "SELECT modality, requires_referral, min_age, max_age FROM visit_types WHERE tenant_id = ? AND id = ?", tenantId, req.serviceId);
     if (!v) throw new IntakeError("not_found", "selection is not available");
-    const age = ageOn(patient.date_of_birth, this.now());
-    if ((v.min_age !== null && age < v.min_age) || (v.max_age !== null && age > v.max_age)) throw new IntakeError("patient_not_allowed", "This visit isn't available for this patient's age.");
+    const age = o.dob ? ageOn(o.dob, this.now()) : null;
+    if (age === null && (v.min_age !== null || v.max_age !== null)) throw new IntakeError("dob_required", "Enter the patient's date of birth: this visit has an age range.");
+    if (age !== null && ((v.min_age !== null && age < v.min_age) || (v.max_age !== null && age > v.max_age))) throw new IntakeError("patient_not_allowed", "This visit isn't available for this patient's age.");
 
     // 2. Referral.
     const referral = (req.referralRef ?? "").trim();
@@ -109,7 +143,7 @@ export class DbIntake implements IntakePort {
     if (!prov) throw new IntakeError("not_found", "selection is not available");
     let state: string | null = null;
     if (modality === "telehealth") {
-      if (!t.video_join_base_url) throw new IntakeError("telehealth_unavailable", "Video visits aren't available yet. Please choose an in-person visit.");
+      if (!o.videoBase) throw new IntakeError("telehealth_unavailable", "Video visits aren't available yet. Please choose an in-person visit.");
       state = req.patientState ?? null;
       if (!state) throw new IntakeError("patient_state_required", "Tell us the state you'll be in during the video visit.");
       const licensed = JSON.parse(prov.licensed_states || "[]") as string[];
@@ -118,19 +152,11 @@ export class DbIntake implements IntakePort {
 
     // 4. New-patient acceptance.
     if (prov.accepting_new === 0) {
-      const seen = await this.db.get("SELECT 1 AS ok FROM appointments WHERE tenant_id = ? AND patient_id = ? AND provider_id = ? AND status IN ('arrived','completed') LIMIT 1", tenantId, patient.id, req.providerId);
-      if (!seen) throw new IntakeError("provider_not_accepting_new", `${prov.display_name} isn't accepting new patients. Choose another provider.`);
+      const seen = o.patientId ? await this.db.get("SELECT 1 AS ok FROM appointments WHERE tenant_id = ? AND patient_id = ? AND provider_id = ? AND status IN ('arrived','completed') LIMIT 1", tenantId, o.patientId, req.providerId) : undefined;
+      if (!seen && !o.staff) throw new IntakeError("provider_not_accepting_new", `${prov.display_name} isn't accepting new patients. Choose another provider.`);
     }
 
-    // 5. Coverage and network.
-    const copayCents = await this.coverage(tenantId, userId, req.clinicId, req.serviceId);
-
-    return {
-      patientId: patient.id, patientFirstName: patient.first_name, patientLastName: patient.last_name,
-      reason: (req.reason ?? "").trim() || null, modality, patientState: state, interpreterLanguage: req.interpreterLanguage?.trim() || null,
-      accommodations: req.accommodations?.trim() || null, referralRef: referral || null, copayCents,
-      consentVersion: required || req.consentVersion ? t.consent_version : null, videoJoinBase: t.video_join_base_url, intakeRequired: required,
-    };
+    return { reason: (req.reason ?? "").trim() || null, modality, state, referral: referral || null };
   }
 
   /** What the signed-in account's plan says about this visit. Throws when it isn't covered or the clinic is out of network. */
