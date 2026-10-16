@@ -12,13 +12,13 @@ import { isUniqueViolation, type Db } from "./db.js";
 import { BookingNotFoundError, ChangeWindowClosedError, IdempotencyConflictError, SlotTakenError, type BookingRecord, type ManagedBooking, type ReserveInput, type SchedulingSource } from "./scheduling.js";
 import { localParts, zonedTimeToUtc } from "./zoned.js";
 
-type Query = { tenantId: string; clinicId: string; serviceId: string; providerId: string; userId?: string };
+type Query = { tenantId: string; clinicId: string; serviceId: string; providerId: string; userId?: string; patientId?: string };
 type ApptStatus = "confirmed" | "cancelled" | "arrived" | "completed" | "no_show";
 interface Candidate { slot: Slot; resourceId: string | null }
 interface VisitRules { duration_min: number; min_lead_minutes: number | null; horizon_days: number | null; buffer_before_min: number; buffer_after_min: number; min_age: number | null; max_age: number | null; new_patients: "any" | "new_only" | "established_only"; resource_kind: string | null }
 type Range = { start: number; end: number };
 interface ApptRow { id: string; tenant_id: string; provider_id: string; starts_at: string; ends_at: string; idempotency_key: string; request_hash: string; status: ApptStatus }
-interface ManageRow { user_id?: string | null; id: string; tenant_id: string; clinic_id: string; visit_type_id: string; provider_id: string; starts_at: string; ends_at: string; status: ApptStatus }
+interface ManageRow { modality?: "in_person" | "telehealth"; join_url?: string | null; copay_cents?: number; patient_first_name?: string; patient_last_name?: string; reason?: string | null; user_id?: string | null; id: string; tenant_id: string; clinic_id: string; visit_type_id: string; provider_id: string; starts_at: string; ends_at: string; status: ApptStatus }
 
 const MINUTE_MS = 60_000;
 const DAY_MS = 86_400_000;
@@ -70,18 +70,25 @@ export class DbScheduling implements SchedulingSource {
       }
       // Serialise writers per provider so overlapping (not just identical) slots can never both commit.
       await tx.get("SELECT pg_advisory_xact_lock(hashtext(?))", `${input.tenantId}:${input.providerId}`);
-      const cand = (await this.candidates(tx, { ...input, requireUser: true })).find((c) => c.slot.id === input.slotId);
+      const cand = (await this.candidates(tx, { ...input, ...(input.intake ? { patientId: input.intake.patientId } : {}), requireUser: true })).find((c) => c.slot.id === input.slotId);
       if (!cand) throw new SlotTakenError("Slot is not available");
       const slot = cand.slot;
       const id = bookingReference();
-      const p = input.patient;
+      const p = input.patient; const it = input.intake;
       try {
         await tx.run(
           `INSERT INTO appointments (id, tenant_id, clinic_id, visit_type_id, provider_id, starts_at, ends_at, status, idempotency_key, request_hash,
-             patient_first_name, patient_last_name, patient_email, patient_phone, created_at, user_id, resource_id)
-           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+             patient_first_name, patient_last_name, patient_email, patient_phone, created_at, user_id, resource_id,
+             patient_id, reason, modality, patient_state, interpreter_language, accommodations, referral_ref, copay_cents, join_url)
+           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
           id, input.tenantId, input.clinicId, input.serviceId, input.providerId, slot.startsAt, slot.endsAt, "confirmed",
-          input.idempotencyKey, hash, p.firstName, p.lastName, p.email ?? null, p.phone ?? null, this.now().toISOString(), input.userId ?? null, cand.resourceId);
+          input.idempotencyKey, hash, p.firstName, p.lastName, p.email ?? null, p.phone ?? null, this.now().toISOString(), input.userId ?? null, cand.resourceId,
+          it?.patientId ?? null, it?.reason ?? null, it?.modality ?? "in_person", it?.patientState ?? null, it?.interpreterLanguage ?? null, it?.accommodations ?? null, it?.referralRef ?? null, it?.copayCents ?? 0,
+          it && it.modality === "telehealth" && it.videoJoinBase ? `${it.videoJoinBase.replace(/\/+$/, "")}/${id}` : null);
+        if (it?.consentVersion && input.userId) {
+          await tx.run("INSERT INTO consent_records (tenant_id, user_id, patient_id, kind, version, accepted_at, appointment_id) VALUES (?,?,?,?,?,?,?)",
+            input.tenantId, input.userId, it.patientId, "treatment", it.consentVersion, this.now().toISOString(), id);
+        }
       } catch (e) {
         if (isUniqueViolation(e, "appointments_slot") || isUniqueViolation(e, "appointments_resource_slot")) throw new SlotTakenError("Slot is not available");
         throw e;
@@ -103,7 +110,7 @@ export class DbScheduling implements SchedulingSource {
   /** The bookings of one account, soonest first. Never returns another user's rows. */
   async listForUser(tenantId: string, userId: string): Promise<ManagedBooking[]> {
     const rows = await this.db.all<ManageRow>(
-      "SELECT id, tenant_id, clinic_id, visit_type_id, provider_id, starts_at, ends_at, status, user_id FROM appointments WHERE tenant_id = ? AND user_id = ? ORDER BY starts_at, id",
+      "SELECT id, tenant_id, clinic_id, visit_type_id, provider_id, starts_at, ends_at, status, user_id, modality, join_url, copay_cents, patient_first_name, patient_last_name, reason FROM appointments WHERE tenant_id = ? AND user_id = ? ORDER BY starts_at, id",
       tenantId, userId);
     return rows.map(toManaged);
   }
@@ -147,7 +154,7 @@ export class DbScheduling implements SchedulingSource {
 
   private findManaged(db: Db, tenantId: string, bookingId: string, lock = false): Promise<ManageRow | undefined> {
     return db.get<ManageRow>(
-      `SELECT id, tenant_id, clinic_id, visit_type_id, provider_id, starts_at, ends_at, status, user_id FROM appointments WHERE tenant_id = ? AND id = ?${lock ? " FOR UPDATE" : ""}`,
+      `SELECT id, tenant_id, clinic_id, visit_type_id, provider_id, starts_at, ends_at, status, user_id, modality, join_url, copay_cents, patient_first_name, patient_last_name, reason FROM appointments WHERE tenant_id = ? AND id = ?${lock ? " FOR UPDATE" : ""}`,
       tenantId, bookingId);
   }
 
@@ -246,7 +253,9 @@ export class DbScheduling implements SchedulingSource {
     const restricted = v.min_age !== null || v.max_age !== null || v.new_patients !== "any";
     if (!restricted) return true;
     if (!q.userId) return !q.requireUser;
-    const u = await db.get<{ date_of_birth: string }>("SELECT date_of_birth FROM users WHERE id = ? AND tenant_id = ?", q.userId, q.tenantId);
+    const u = q.patientId
+      ? await db.get<{ date_of_birth: string }>("SELECT date_of_birth FROM patients WHERE id = ? AND tenant_id = ? AND user_id = ?", q.patientId, q.tenantId, q.userId)
+      : await db.get<{ date_of_birth: string }>("SELECT date_of_birth FROM users WHERE id = ? AND tenant_id = ?", q.userId, q.tenantId);
     if (!u) return false;
     if (v.min_age !== null || v.max_age !== null) {
       const age = ageOn(u.date_of_birth, this.now());
@@ -254,7 +263,9 @@ export class DbScheduling implements SchedulingSource {
       if (v.max_age !== null && age > v.max_age) return false;
     }
     if (v.new_patients !== "any") {
-      const seen = await db.get("SELECT 1 AS ok FROM appointments WHERE tenant_id = ? AND user_id = ? AND status IN ('arrived','completed') LIMIT 1", q.tenantId, q.userId);
+      const seen = q.patientId
+        ? await db.get("SELECT 1 AS ok FROM appointments WHERE tenant_id = ? AND patient_id = ? AND status IN ('arrived','completed') LIMIT 1", q.tenantId, q.patientId)
+        : await db.get("SELECT 1 AS ok FROM appointments WHERE tenant_id = ? AND user_id = ? AND status IN ('arrived','completed') LIMIT 1", q.tenantId, q.userId);
       if (v.new_patients === "new_only" && seen) return false;
       if (v.new_patients === "established_only" && !seen) return false;
     }
@@ -275,11 +286,13 @@ function toRecord(r: ApptRow): BookingRecord {
 }
 
 function toManaged(r: ManageRow): ManagedBooking {
-  return { bookingId: r.id, tenantId: r.tenant_id, clinicId: r.clinic_id, serviceId: r.visit_type_id, providerId: r.provider_id, startsAt: r.starts_at, endsAt: r.ends_at, status: r.status, ...(r.user_id ? { userId: r.user_id } : {}) };
+  return { bookingId: r.id, tenantId: r.tenant_id, clinicId: r.clinic_id, serviceId: r.visit_type_id, providerId: r.provider_id, startsAt: r.starts_at, endsAt: r.ends_at, status: r.status, ...(r.user_id ? { userId: r.user_id } : {}),
+    ...(r.modality ? { modality: r.modality } : {}), ...(r.join_url ? { joinUrl: r.join_url } : {}), ...(r.copay_cents ? { copayCents: r.copay_cents } : {}),
+    ...(r.patient_first_name ? { patientName: `${r.patient_first_name} ${r.patient_last_name ?? ""}`.trim() } : {}), ...(r.reason ? { reason: r.reason } : {}) };
 }
 
 function requestHash(i: ReserveInput): string {
   const p = i.patient;
-  const canon = JSON.stringify([i.tenantId, i.userId ?? null, i.clinicId, i.serviceId, i.providerId, i.slotId, p.firstName, p.lastName, p.email ?? null, p.phone ?? null]);
+  const canon = JSON.stringify([i.tenantId, i.userId ?? null, i.clinicId, i.serviceId, i.providerId, i.slotId, p.firstName, p.lastName, p.email ?? null, p.phone ?? null, i.intake ? [i.intake.patientId, i.intake.reason, i.intake.modality, i.intake.patientState, i.intake.referralRef] : null]);
   return createHash("sha256").update(canon).digest("hex");
 }

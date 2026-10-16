@@ -16,8 +16,8 @@ describe("viewing", () => {
     const { rec, slot } = await book(2, "key-manage-01");
     expect(rec.status).toBe("confirmed");
     const b = await s.getBooking("tn-north", rec.bookingId);
-    expect(b).toEqual({ bookingId: rec.bookingId, tenantId: "tn-north", clinicId: "cl-sb", serviceId: "sv-pc-n", providerId: "pr-a", startsAt: slot.startsAt, endsAt: slot.endsAt, status: "confirmed" });
-    expect(JSON.stringify(b)).not.toMatch(/Pat|Example|pat@/);
+    expect(b).toEqual({ bookingId: rec.bookingId, tenantId: "tn-north", clinicId: "cl-sb", serviceId: "sv-pc-n", providerId: "pr-a", startsAt: slot.startsAt, endsAt: slot.endsAt, status: "confirmed", modality: "in_person", patientName: "Pat Example" });
+    expect(JSON.stringify(b)).not.toMatch(/pat@|555|phone|email/);   // the booker may see who the visit is for, never contact details
   });
   it("does not reveal bookings across tenants or unknown references", async () => {
     const { rec } = await book(0, "key-manage-02");

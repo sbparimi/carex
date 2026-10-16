@@ -19,10 +19,19 @@ export const PublicClinic = z.object({
 });
 export type PublicClinic = z.infer<typeof PublicClinic>;
 
-export const VisitType = z.object({ id: Id, canonicalType: CanonicalVisitType, label: z.string(), description: z.string() });
+export const Modality = z.enum(["in_person", "telehealth"]);
+export type Modality = z.infer<typeof Modality>;
+export const VisitType = z.object({
+  id: Id, canonicalType: CanonicalVisitType, label: z.string(), description: z.string(),
+  durationMin: z.number().int().optional(), modality: z.enum(["in_person", "telehealth", "either"]).optional(),
+  requiresReferral: z.boolean().optional(), minAge: z.number().int().optional(), maxAge: z.number().int().optional(),
+});
 export type VisitType = z.infer<typeof VisitType>;
 
-export const PublicProvider = z.object({ id: Id, displayName: z.string() });
+export const PublicProvider = z.object({
+  id: Id, displayName: z.string(),
+  specialty: z.string().optional(), languages: z.array(z.string()).optional(), acceptingNew: z.boolean().optional(), bio: z.string().optional(),
+});
 export type PublicProvider = z.infer<typeof PublicProvider>;
 
 /** Provisional until a booking succeeds (BR-006). */
@@ -47,11 +56,23 @@ export const BookingRequest = z.object({
   /** Ignored by the server: the patient is the signed-in account (ADR-005). Kept optional so older clients still parse. */
   patient: Patient.optional(),
   confirmed: z.literal(true),
+  // Clinical intake (enforced by the server when the tenant requires intake).
+  patientId: Id.optional(),
+  reason: z.string().trim().max(500).optional(),
+  /** Red-flag keys the patient answered YES to. Present (even empty) means the screening question was shown and answered. */
+  redFlags: z.array(z.string().max(40)).max(20).optional(),
+  modality: Modality.optional(),
+  patientState: StateCode.optional(),
+  interpreterLanguage: z.string().trim().max(40).optional(),
+  accommodations: z.string().trim().max(300).optional(),
+  referralRef: z.string().trim().max(60).optional(),
+  consentVersion: z.string().max(20).optional(),
 });
 export type BookingRequest = z.infer<typeof BookingRequest>;
 
 export const AppointmentSummary = z.object({
   clinic: PublicClinic, visitType: VisitType, provider: PublicProvider, startsAt: z.string(), endsAt: z.string(), timeZone: z.string(),
+  modality: Modality.optional(), joinUrl: z.string().optional(), copayCents: z.number().int().optional(), patientName: z.string().optional(), reason: z.string().optional(),
 });
 export type AppointmentSummary = z.infer<typeof AppointmentSummary>;
 

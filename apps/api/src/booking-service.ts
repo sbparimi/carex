@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { BookingRequest, type BookingOutcome, type ManagedAppointment, type RescheduleOutcome, type Slot } from "@carex/contracts";
 import type { CatalogPort } from "./catalog.js";
+import { IntakeError, type IntakeDecision, type IntakePort } from "./intake.js";
 import { BookingNotFoundError, ChangeWindowClosedError, IdempotencyConflictError, SchedulingTimeoutError, SchedulingUnavailableError, SlotTakenError, type ManagedBooking, type SchedulingSource } from "./scheduling.js";
 
 export class DomainError extends Error {
@@ -22,9 +23,10 @@ export class BookingService {
   private inflight = new Map<string, { fingerprint: string; promise: Promise<BookingOutcome> }>();
   private settled = new Map<string, { fingerprint: string; outcome: BookingOutcome; req: BookingRequest }>();
 
-  private notice: number; private now: () => Date;
+  private notice: number; private now: () => Date; private intake: IntakePort | undefined;
   /** `changeNoticeMinutes` must match the scheduling engine's own rule; it only drives what the UI is told (the engine enforces it). */
-  constructor(private catalog: CatalogPort, private source: SchedulingSource, opts: { now?: () => Date; changeNoticeMinutes?: number } = {}) {
+  constructor(private catalog: CatalogPort, private source: SchedulingSource, opts: { now?: () => Date; changeNoticeMinutes?: number; intake?: IntakePort } = {}) {
+    this.intake = opts.intake;
     this.notice = opts.changeNoticeMinutes ?? 120; this.now = opts.now ?? (() => new Date());
   }
 
@@ -75,7 +77,7 @@ export class BookingService {
     const d = await this.catalog.describe(tenantId, b.clinicId, b.serviceId, b.providerId);
     if (!d) return undefined;
     const canChange = b.status === "confirmed" && Date.parse(b.startsAt) - this.now().getTime() >= this.notice * 60_000;
-    return { bookingId: b.bookingId, status: b.status, summary: { ...d, startsAt: b.startsAt, endsAt: b.endsAt, timeZone: d.clinic.timeZone }, canChange, changeNoticeMinutes: this.notice };
+    return { bookingId: b.bookingId, status: b.status, summary: { ...d, startsAt: b.startsAt, endsAt: b.endsAt, timeZone: d.clinic.timeZone, ...(b.modality ? { modality: b.modality } : {}), ...(b.joinUrl ? { joinUrl: b.joinUrl } : {}), ...(b.copayCents !== undefined ? { copayCents: b.copayCents } : {}), ...(b.patientName ? { patientName: b.patientName } : {}), ...(b.reason ? { reason: b.reason } : {}) }, canChange, changeNoticeMinutes: this.notice };
   }
   private async requireManaged(tenantId: string, b: ManagedBooking): Promise<ManagedAppointment> {
     const m = await this.toManaged(tenantId, b);
@@ -89,9 +91,20 @@ export class BookingService {
     return e;
   }
 
-  async slots(tenantId: string, clinicId: string, serviceId: string, providerId: string): Promise<Slot[]> {
+  async slots(tenantId: string, clinicId: string, serviceId: string, providerId: string, who?: { userId: string; patientId?: string }): Promise<Slot[]> {
     if (!(await this.catalog.eligible(tenantId, clinicId, serviceId, providerId))) return [];
-    return this.source.listSlots({ tenantId, clinicId, serviceId, providerId });
+    return this.source.listSlots({ tenantId, clinicId, serviceId, providerId, ...(who ? { userId: who.userId, ...(who.patientId ? { patientId: who.patientId } : {}) } : {}) });
+  }
+
+  /** "Any provider": the soonest openings across every eligible provider, soonest first. */
+  async firstAvailable(tenantId: string, clinicId: string, serviceId: string, who: { userId: string; patientId?: string }, limit = 6): Promise<(Slot & { providerName: string })[]> {
+    const out: (Slot & { providerName: string })[] = [];
+    for (const p of await this.catalog.providers(tenantId, clinicId, serviceId)) {
+      if (p.acceptingNew === false) continue;
+      const slots = await this.source.listSlots({ tenantId, clinicId, serviceId, providerId: p.id, userId: who.userId, ...(who.patientId ? { patientId: who.patientId } : {}) }).catch(() => []);
+      for (const s of slots.slice(0, limit)) out.push({ ...s, providerName: p.displayName });
+    }
+    return out.sort((a, b) => a.startsAt.localeCompare(b.startsAt) || a.providerId.localeCompare(b.providerId)).slice(0, limit);
   }
 
   async create(tenantId: string, user: Principal, raw: unknown, idempotencyKey: string): Promise<BookingOutcome> {
@@ -141,19 +154,26 @@ export class BookingService {
   private async attempt(tenantId: string, user: Principal, req: BookingRequest, key: string): Promise<BookingOutcome> {
     const elig = await this.catalog.eligible(tenantId, req.clinicId, req.serviceId, req.providerId);
     if (!elig) throw new DomainError("not_found", "selection is not available");   // same answer for "other tenant" and "does not exist"
+    let decision: IntakeDecision | undefined;
+    if (this.intake) {
+      try { decision = await this.intake.prepare(tenantId, user.id, req); }
+      catch (e) { if (e instanceof IntakeError) return { status: "failed", code: e.code, message: e.message, retryable: false }; throw e; }
+    }
+    const who = { tenantId, clinicId: req.clinicId, serviceId: req.serviceId, providerId: req.providerId, userId: user.id, ...(decision ? { patientId: decision.patientId } : {}) };
     // A key that already has a booking at the source is a replay: let the source answer (it also checks the request matches).
     const prior = await this.source.lookupByKey(tenantId, key).catch(() => undefined);
     if (!prior) {
-      const offered = await this.source.listSlots({ tenantId, clinicId: req.clinicId, serviceId: req.serviceId, providerId: req.providerId });
+      const offered = await this.source.listSlots(who);
       if (!offered.some((s) => s.id === req.slotId)) return this.unavailable(offered);
     }
     try {
-      const rec = await this.source.reserve({ tenantId, clinicId: req.clinicId, serviceId: req.serviceId, providerId: req.providerId, slotId: req.slotId, idempotencyKey: key, userId: user.id, patient: { firstName: user.firstName, lastName: user.lastName, email: user.email, phone: user.phone } });
+      const rec = await this.source.reserve({ tenantId, clinicId: req.clinicId, serviceId: req.serviceId, providerId: req.providerId, slotId: req.slotId, idempotencyKey: key, userId: user.id,
+        patient: { firstName: decision?.patientFirstName ?? user.firstName, lastName: decision?.patientLastName ?? user.lastName, email: user.email, phone: user.phone }, ...(decision ? { intake: decision } : {}) });
       if (rec.status !== "confirmed") return { status: "failed", code: "booking_cancelled", message: "This booking was cancelled. Please start a new booking.", retryable: false };
-      return { status: "confirmed", bookingId: rec.bookingId, summary: { ...elig, startsAt: rec.startsAt, endsAt: rec.endsAt, timeZone: elig.clinic.timeZone } };
+      return { status: "confirmed", bookingId: rec.bookingId, summary: { ...elig, startsAt: rec.startsAt, endsAt: rec.endsAt, timeZone: elig.clinic.timeZone, ...(decision ? { modality: decision.modality, copayCents: decision.copayCents, ...(decision.modality === "telehealth" && decision.videoJoinBase ? { joinUrl: `${decision.videoJoinBase.replace(/\/+$/, "")}/${rec.bookingId}` } : {}), patientName: `${decision.patientFirstName} ${decision.patientLastName}`, ...(decision.reason ? { reason: decision.reason } : {}) } : {}) } };
     } catch (e) {
       if (e instanceof IdempotencyConflictError) throw new DomainError("idempotency_conflict", "this Idempotency-Key was used with a different request");
-      if (e instanceof SlotTakenError) return this.unavailable(await this.source.listSlots({ tenantId, clinicId: req.clinicId, serviceId: req.serviceId, providerId: req.providerId }).catch(() => []));
+      if (e instanceof SlotTakenError) return this.unavailable(await this.source.listSlots(who).catch(() => []));
       if (e instanceof SchedulingTimeoutError) return { status: "pending", correlationId: key, message: "We could not confirm whether your appointment was booked yet. Please do not rebook; we are checking." };
       return { status: "failed", code: "scheduling_unavailable", message: "Booking is temporarily unavailable. No appointment was created.", retryable: true };
     }

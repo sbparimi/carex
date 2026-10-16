@@ -36,7 +36,7 @@ describe("DbCatalog", () => {
   });
   it("offers only visit types switched on at that clinic, sorted by label", async () => {
     expect((await c.visitTypes("tn-north", "cl-sb")).map((v) => v.id)).toEqual(["sv-physio-n", "sv-pc-n"]);
-    expect((await c.visitTypes("tn-north", "cl-sb"))[1]).toEqual({ id: "sv-pc-n", canonicalType: "primary_care", label: "Primary Care", description: "Primary Care visit" });
+    expect((await c.visitTypes("tn-north", "cl-sb"))[1]).toMatchObject({ id: "sv-pc-n", canonicalType: "primary_care", label: "Primary Care", description: "Primary Care visit" });
     expect(await c.visitTypes("tn-bay", "cl-sb")).toEqual([]);
     expect(await c.visitTypes("tn-north", "cl-fr")).toEqual([]);
   });

@@ -9,6 +9,8 @@ import { emitTelemetry, redact, type TelemetrySink } from "./telemetry.js";
 import { createRateLimiter } from "./ratelimit.js";
 import { Accounts, AccountError } from "./accounts.js";
 import type { AdminKeys } from "./admin-keys.js";
+import { IntakeError, type DbIntake } from "./intake.js";
+import { RED_FLAGS } from "./triage.js";
 import { AdminNotFoundError, AdminValidationError, type DbAdmin } from "./db-admin.js";
 
 export interface Deps {
@@ -18,6 +20,8 @@ export interface Deps {
   staticDir?: string;
   /** Account sign-up, login and sessions (ADR-005). */
   accounts: Accounts;
+  /** Patients, consent, screening, coverage (P2). Without it bookings skip clinical intake. */
+  intake?: DbIntake;
   /** Mark the session cookie Secure. True in production (HTTPS); false for http://localhost development. */
   secureCookies?: boolean;
   /** Per-client request budgets per minute; the defaults suit a single small deployment. Clients are identified by socket address (no proxy headers are trusted). */
@@ -203,13 +207,25 @@ export function createServer(deps: Deps): Server {
           if (!id.success) return fail(400, "invalid_request", "Invalid request");
           return reply(200, { visitTypes: await deps.catalog.visitTypes(t, id.data) });
         }
+        if (path === "intake-config" && deps.intake) { route = "intake-config"; return reply(200, { ...(await deps.intake.config(t)), redFlags: RED_FLAGS }); }
+        if (path === "patients" && deps.intake) { route = "patients"; return reply(200, { patients: await deps.intake.list(t, user.id) }); }
+        if (path === "coverage" && deps.intake) {
+          route = "coverage"; const c = Id.safeParse(q.get("clinicId")), s = Id.safeParse(q.get("serviceId"));
+          if (!c.success || !s.success) return fail(400, "invalid_request", "Invalid request");
+          return reply(200, await deps.intake.preview(t, user.id, c.data, s.data));
+        }
+        if (path === "first-available") {
+          route = "first-available"; const c = Id.safeParse(q.get("clinicId")), s = Id.safeParse(q.get("serviceId")), pt = q.get("patientId");
+          if (!c.success || !s.success || (pt !== null && !Id.safeParse(pt).success)) return fail(400, "invalid_request", "Invalid request");
+          return reply(200, { slots: await deps.bookings.firstAvailable(t, c.data, s.data, { userId: user.id, ...(pt ? { patientId: pt } : {}) }) });
+        }
         if (path === "providers" || path === "slots") {
           route = path; const c = Id.safeParse(q.get("clinicId")), s = Id.safeParse(q.get("serviceId"));
           if (!c.success || !s.success) return fail(400, "invalid_request", "Invalid request");
           if (path === "providers") return reply(200, { providers: await deps.catalog.providers(t, c.data, s.data) });
           const p = Id.safeParse(q.get("providerId"));
           if (!p.success) return fail(400, "invalid_request", "Invalid request");
-          return reply(200, { slots: await deps.bookings.slots(t, c.data, s.data, p.data), note: "Availability is provisional until the booking is confirmed." });
+          return reply(200, { slots: await deps.bookings.slots(t, c.data, s.data, p.data, { userId: user.id }), note: "Availability is provisional until the booking is confirmed." });
         }
         mm = /^bookings\/by-key\/([A-Za-z0-9_-]{8,64})$/.exec(path);
         if (mm) {
@@ -233,6 +249,18 @@ export function createServer(deps: Deps): Server {
           return reply(o.status === "rescheduled" ? 200 : 409, o);
         }
         return fail(404, "not_found", "Not found");
+      }
+      if (req.method === "POST" && deps.intake && path === "patients") {
+        route = "add-patient";
+        const b = (await readBody(req)) as Record<string, unknown> | null;
+        try { return reply(201, { patient: await deps.intake.addDependent(t, user.id, { relationship: String(b?.relationship ?? ""), firstName: String(b?.firstName ?? ""), lastName: String(b?.lastName ?? ""), dateOfBirth: String(b?.dateOfBirth ?? "") }) }); }
+        catch (e) { if (e instanceof IntakeError) return fail(400, e.code, e.message); throw e; }
+      }
+      const rp = /^patients\/([A-Za-z0-9_-]{6,80})\/remove$/.exec(path);
+      if (req.method === "POST" && deps.intake && rp) {
+        route = "remove-patient";
+        try { return (await deps.intake.removeDependent(t, user.id, rp[1]!)) ? reply(200, { removed: true }) : fail(404, "not_found", "Not found"); }
+        catch (e) { if (e instanceof IntakeError) return fail(409, e.code, e.message); throw e; }
       }
       if (req.method === "POST" && path === "bookings") {
         route = "create-booking";

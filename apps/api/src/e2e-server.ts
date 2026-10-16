@@ -6,6 +6,7 @@ import { syntheticCatalog } from "./seed.js";
 import { DbCatalog } from "./db-catalog.js";
 import { DbScheduling } from "./db-scheduling.js";
 import { FaultInjectingScheduling, type Fault } from "./fault-injection.js";
+import { DbIntake } from "./intake.js";
 import { BookingService } from "./booking-service.js";
 import { AdminKeys } from "./admin-keys.js";
 import { DbAdmin } from "./db-admin.js";
@@ -19,11 +20,11 @@ async function fresh() {
   const db = await openTestDb(); await seedDb(db, syntheticCatalog());
   const catalog = new DbCatalog(db);
   const source = new FaultInjectingScheduling(new DbScheduling(db));
-  return { db, catalog, source, bookings: new BookingService(catalog, source), accounts: new Accounts(db, undefined, mailer), admin: { keys: new AdminKeys(db), config: new DbAdmin(db) } };
+  return { db, catalog, source, intake: new DbIntake(db), bookings: new BookingService(catalog, source, { intake: new DbIntake(db) }), accounts: new Accounts(db, undefined, mailer), admin: { keys: new AdminKeys(db), config: new DbAdmin(db) } };
 }
 let state = await fresh();
 const deps: Deps = {
-  catalog: state.catalog, bookings: state.bookings, accounts: state.accounts, admin: state.admin,
+  catalog: state.catalog, bookings: state.bookings, intake: state.intake, accounts: state.accounts, admin: state.admin,
   limits: { read: { limit: 100_000, windowMs: 60_000 }, write: { limit: 100_000, windowMs: 60_000 }, auth: { limit: 100_000, windowMs: 60_000 } },   // tests hit the API far faster than a patient would
   staticDir: process.env.STATIC_DIR ?? fileURLToPath(new URL("../../web/public", import.meta.url)),
   testHooks: {

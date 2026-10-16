@@ -18,6 +18,16 @@ export interface CatalogData {
   /** Employers and insurance providers each tenant serves (account sign-up, ADR-005). */
   employers?: { id: string; tenantId: string; name: string }[];
   insurers?: { id: string; tenantId: string; name: string }[];
+  /** Per-visit scheduling and clinical rules (engine, intake). */
+  rules?: { tenantId: string; serviceId: string; minLeadMinutes?: number; horizonDays?: number; bufferBeforeMin?: number; bufferAfterMin?: number; minAge?: number; maxAge?: number;
+    newPatients?: "any" | "new_only" | "established_only"; modality?: "in_person" | "telehealth" | "either"; requiresReferral?: boolean; resourceKind?: string }[];
+  resources?: { id: string; tenantId: string; clinicId: string; kind: string; name: string }[];
+  closures?: { tenantId: string; clinicId: string; startsAt: string; endsAt: string; reason?: string }[];
+  profiles?: { tenantId: string; providerId: string; specialty?: string; languages?: string[]; licensedStates?: string[]; acceptingNew?: boolean; bio?: string }[];
+  tenantSettings?: { tenantId: string; intakeRequired?: boolean; videoJoinBaseUrl?: string; consentVersion?: string }[];
+  employerRules?: { tenantId: string; employerId: string; verification: "none" | "domain" | "roster"; emailDomain?: string; roster?: string[] }[];
+  networks?: { tenantId: string; insurerId: string; clinicId: string }[];
+  coverage?: { tenantId: string; serviceId: string; employerId?: string; insurerId?: string; covered?: boolean; copayCents?: number }[];
 }
 
 /** What the booking service and HTTP layer need from a catalog. Every read is scoped to one tenant. */

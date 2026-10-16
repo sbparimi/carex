@@ -53,7 +53,7 @@ describe("my appointments", () => {
     const r = await me.get(`${NW}/bookings/${a.body.bookingId}`);
     expect(r.status).toBe(200);
     expect(r.body).toMatchObject({ bookingId: a.body.bookingId, status: "confirmed", canChange: true, changeNoticeMinutes: 120, summary: { clinic: { id: "cl-sb" }, provider: { displayName: "Dr. Alex Example" }, startsAt: s!.startsAt } });
-    expect(r.text).not.toMatch(/Synthetic|pat\.synthetic|Pat\b/);
+    expect(r.text).not.toMatch(/pat\.synthetic|@example|phone|email/);   // who the visit is for is shown; contact details never are
   });
   it("another user's appointment answers exactly like an unknown one, for view, cancel and reschedule", async () => {
     const all = await slots(); const a = await book(all[3]!.id); const id = a.body.bookingId as string;

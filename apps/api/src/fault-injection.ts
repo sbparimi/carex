@@ -11,7 +11,7 @@ export class FaultInjectingScheduling implements SchedulingSource {
   private faults: Fault[] = [];
   constructor(private inner: SchedulingSource) {}
   injectFault(f: Fault) { this.faults.push(f); }
-  listSlots(q: { tenantId: string; clinicId: string; serviceId: string; providerId: string; userId?: string }): Promise<Slot[]> { return this.inner.listSlots(q); }
+  listSlots(q: { tenantId: string; clinicId: string; serviceId: string; providerId: string; userId?: string; patientId?: string }): Promise<Slot[]> { return this.inner.listSlots(q); }
   async reserve(i: ReserveInput & { patient: Patient }): Promise<BookingRecord> {
     const fault = this.faults.shift();
     if (fault === "unavailable") throw new SchedulingUnavailableError("scheduling source unavailable");

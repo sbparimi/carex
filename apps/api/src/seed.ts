@@ -16,6 +16,8 @@ export function syntheticCatalog(): CatalogData {
   });
   const prov = (id: string, tenantId: string, displayName: string, status: "active" | "inactive" = "active") => ({ id, tenantId, displayName, status });
   return {
+    // The synthetic catalog predates clinical intake; tests that exercise intake switch it on explicitly.
+    tenantSettings: [{ tenantId: "tn-north", intakeRequired: false }, { tenantId: "tn-bay", intakeRequired: false }, { tenantId: "tn-off", intakeRequired: false }],
     tenants: [
       t("tn-north", "northwind-health", "Northwind Health (synthetic)", "#0b5fff"),
       t("tn-bay", "bayview-care", "Bayview Care (synthetic)", "#0a7d5a", false),

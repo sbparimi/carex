@@ -104,6 +104,20 @@ export async function seedDb(db: Db, d: CatalogData): Promise<void> {
     for (const o of d.timeOff ?? []) await t.run("INSERT INTO time_off (tenant_id, provider_id, starts_at, ends_at) VALUES (?,?,?,?)", o.tenantId, o.providerId, o.startsAt, o.endsAt);
     for (const e of d.employers ?? []) await t.run("INSERT INTO employers (id, tenant_id, name) VALUES (?,?,?)", e.id, e.tenantId, e.name);
     for (const i of d.insurers ?? []) await t.run("INSERT INTO insurers (id, tenant_id, name) VALUES (?,?,?)", i.id, i.tenantId, i.name);
+    for (const r of d.rules ?? []) await t.run(
+      `UPDATE visit_types SET min_lead_minutes = ?, horizon_days = ?, buffer_before_min = ?, buffer_after_min = ?, min_age = ?, max_age = ?, new_patients = ?, modality = ?, requires_referral = ?, resource_kind = ?
+        WHERE tenant_id = ? AND id = ?`, r.minLeadMinutes ?? null, r.horizonDays ?? null, r.bufferBeforeMin ?? 0, r.bufferAfterMin ?? 0, r.minAge ?? null, r.maxAge ?? null, r.newPatients ?? "any", r.modality ?? "in_person", b(r.requiresReferral ?? false), r.resourceKind ?? null, r.tenantId, r.serviceId);
+    for (const r of d.resources ?? []) await t.run("INSERT INTO clinic_resources (id, tenant_id, clinic_id, kind, name) VALUES (?,?,?,?,?)", r.id, r.tenantId, r.clinicId, r.kind, r.name);
+    for (const c of d.closures ?? []) await t.run("INSERT INTO clinic_closures (tenant_id, clinic_id, starts_at, ends_at, reason) VALUES (?,?,?,?,?)", c.tenantId, c.clinicId, c.startsAt, c.endsAt, c.reason ?? "");
+    for (const p of d.profiles ?? []) await t.run("UPDATE providers SET specialty = ?, languages = ?, licensed_states = ?, accepting_new = ?, bio = ? WHERE tenant_id = ? AND id = ?",
+      p.specialty ?? "", JSON.stringify(p.languages ?? []), JSON.stringify(p.licensedStates ?? []), b(p.acceptingNew ?? true), p.bio ?? "", p.tenantId, p.providerId);
+    for (const s of d.tenantSettings ?? []) await t.run("UPDATE tenants SET intake_required = ?, video_join_base_url = ?, consent_version = ? WHERE id = ?", b(s.intakeRequired ?? true), s.videoJoinBaseUrl ?? null, s.consentVersion ?? "v1", s.tenantId);
+    for (const r of d.employerRules ?? []) {
+      await t.run("UPDATE employers SET verification = ?, email_domain = ? WHERE tenant_id = ? AND id = ?", r.verification, r.emailDomain?.toLowerCase() ?? null, r.tenantId, r.employerId);
+      for (const e of r.roster ?? []) await t.run("INSERT INTO employer_roster (tenant_id, employer_id, email) VALUES (?,?,?)", r.tenantId, r.employerId, e.toLowerCase());
+    }
+    for (const n of d.networks ?? []) await t.run("INSERT INTO insurer_networks (tenant_id, insurer_id, clinic_id) VALUES (?,?,?)", n.tenantId, n.insurerId, n.clinicId);
+    for (const c of d.coverage ?? []) await t.run("INSERT INTO coverage_rules (tenant_id, visit_type_id, employer_id, insurer_id, covered, copay_cents) VALUES (?,?,?,?,?,?)", c.tenantId, c.serviceId, c.employerId ?? null, c.insurerId ?? null, b(c.covered ?? true), c.copayCents ?? 0);
   });
 }
 

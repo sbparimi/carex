@@ -4,15 +4,23 @@ import type { Db } from "./db.js";
 
 interface TenantDbRow { id: string; slug: string; status: "active" | "suspended"; display_name: string; primary_color: string; logo_url: string | null; support_email: string | null; support_phone: string | null; analytics_enabled: number }
 interface ClinicDbRow { id: string; name: string; city: string; address: string; state_code: string; time_zone: string }
-interface VisitTypeDbRow { id: string; canonical_type: string; label: string; description: string }
-interface ProviderDbRow { id: string; display_name: string }
+interface VisitTypeDbRow { id: string; canonical_type: string; label: string; description: string; duration_min?: number; modality?: string; requires_referral?: number; min_age?: number | null; max_age?: number | null }
+interface ProviderDbRow { id: string; display_name: string; specialty?: string; languages?: string; accepting_new?: number; bio?: string }
 
 const CLINIC_COLS = "c.id, c.name, c.city, c.address, c.state_code, c.time_zone";
 const ACTIVE_CLINIC = "c.tenant_id = ? AND c.status = 'active' AND c.bookable = 1";
 
 const toClinic = (r: ClinicDbRow): PublicClinic => ({ id: r.id, name: r.name, city: r.city, address: r.address, stateCode: r.state_code, timeZone: r.time_zone });
-const toVisitType = (r: VisitTypeDbRow): VisitType => ({ id: r.id, canonicalType: r.canonical_type as VisitType["canonicalType"], label: r.label, description: r.description });
-const toProvider = (r: ProviderDbRow): PublicProvider => ({ id: r.id, displayName: r.display_name });
+const toVisitType = (r: VisitTypeDbRow): VisitType => ({
+  id: r.id, canonicalType: r.canonical_type as VisitType["canonicalType"], label: r.label, description: r.description,
+  ...(r.duration_min ? { durationMin: r.duration_min } : {}), ...(r.modality ? { modality: r.modality as NonNullable<VisitType["modality"]> } : {}),
+  ...(r.requires_referral ? { requiresReferral: true } : {}), ...(r.min_age != null ? { minAge: r.min_age } : {}), ...(r.max_age != null ? { maxAge: r.max_age } : {}),
+});
+const toProvider = (r: ProviderDbRow): PublicProvider => ({
+  id: r.id, displayName: r.display_name,
+  ...(r.specialty ? { specialty: r.specialty } : {}), ...(r.languages && r.languages !== "[]" ? { languages: JSON.parse(r.languages) as string[] } : {}),
+  ...(r.accepting_new === 0 ? { acceptingNew: false } : {}), ...(r.bio ? { bio: r.bio } : {}),
+});
 
 /**
  * SQLite-backed CatalogPort. Mirrors the in-memory Catalog: every query is scoped by tenant_id
@@ -48,7 +56,7 @@ export class DbCatalog implements CatalogPort {
 
   async visitTypes(tenantId: string, clinicId: string): Promise<VisitType[]> {
     const rows = await this.db.all<VisitTypeDbRow>(
-      `SELECT v.id, v.canonical_type, v.label, v.description
+      `SELECT v.id, v.canonical_type, v.label, v.description, v.duration_min, v.modality, v.requires_referral, v.min_age, v.max_age
          FROM clinics c
          JOIN clinic_visit_types cv ON cv.clinic_id = c.id AND cv.tenant_id = c.tenant_id AND cv.active = 1
          JOIN visit_types v ON v.id = cv.visit_type_id AND v.tenant_id = c.tenant_id AND v.status = 'active'
@@ -60,7 +68,7 @@ export class DbCatalog implements CatalogPort {
 
   async providers(tenantId: string, clinicId: string, serviceId: string): Promise<PublicProvider[]> {
     const rows = await this.db.all<ProviderDbRow>(
-      `SELECT p.id, p.display_name
+      `SELECT p.id, p.display_name, p.specialty, p.languages, p.accepting_new, p.bio
          FROM clinics c
          JOIN clinic_visit_types cv ON cv.clinic_id = c.id AND cv.tenant_id = c.tenant_id AND cv.visit_type_id = ? AND cv.active = 1
          JOIN visit_types v ON v.id = cv.visit_type_id AND v.tenant_id = c.tenant_id AND v.status = 'active'
@@ -82,8 +90,8 @@ export class DbCatalog implements CatalogPort {
   /** For an existing booking: names only, regardless of active/bookable flags, still scoped to the tenant. */
   async describe(tenantId: string, clinicId: string, serviceId: string, providerId: string) {
     const c = await this.db.get<ClinicDbRow>(`SELECT ${CLINIC_COLS} FROM clinics c WHERE c.tenant_id = ? AND c.id = ?`, tenantId, clinicId);
-    const v = await this.db.get<VisitTypeDbRow>("SELECT v.id, v.canonical_type, v.label, v.description FROM visit_types v WHERE v.tenant_id = ? AND v.id = ?", tenantId, serviceId);
-    const p = await this.db.get<ProviderDbRow>("SELECT p.id, p.display_name FROM providers p WHERE p.tenant_id = ? AND p.id = ?", tenantId, providerId);
+    const v = await this.db.get<VisitTypeDbRow>("SELECT v.id, v.canonical_type, v.label, v.description, v.duration_min, v.modality, v.requires_referral, v.min_age, v.max_age FROM visit_types v WHERE v.tenant_id = ? AND v.id = ?", tenantId, serviceId);
+    const p = await this.db.get<ProviderDbRow>("SELECT p.id, p.display_name, p.specialty, p.languages, p.accepting_new, p.bio FROM providers p WHERE p.tenant_id = ? AND p.id = ?", tenantId, providerId);
     return c && v && p ? { clinic: toClinic(c), visitType: toVisitType(v), provider: toProvider(p) } : undefined;
   }
 }

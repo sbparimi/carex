@@ -83,8 +83,14 @@ export class Accounts {
     if (typeof i.phone !== "string" || !/^[0-9+() .-]{7,20}$/.test(i.phone.trim())) fields.phone = "Enter a valid mobile phone number";
     let employerId: string | null = null, insurerId: string | null = null, accessName = "";
     if (i.access?.type === "employer") {
-      const e = await this.db.get<{ id: string; name: string }>("SELECT id, name FROM employers WHERE tenant_id = ? AND id = ?", tenantId, String(i.access.employerId));
-      if (!e) fields.access = "Choose your employer from the list"; else { employerId = e.id; accessName = e.name; }
+      const e = await this.db.get<{ id: string; name: string; verification: string; email_domain: string | null }>("SELECT id, name, verification, email_domain FROM employers WHERE tenant_id = ? AND id = ?", tenantId, String(i.access.employerId));
+      if (!e) fields.access = "Choose your employer from the list";
+      else {
+        employerId = e.id; accessName = e.name;
+        // Eligibility check: some employers require a work email or a place on the employer's member list.
+        if (!fields.email && e.verification === "domain" && e.email_domain && !email.endsWith(`@${e.email_domain}`)) fields.email = `Use your ${e.name} work email (ends with @${e.email_domain})`;
+        if (!fields.email && e.verification === "roster" && !(await this.db.get("SELECT 1 AS ok FROM employer_roster WHERE employer_id = ? AND email = ?", e.id, email))) fields.email = `We couldn't find this email on ${e.name}'s member list. Use the email your employer has on file.`;
+      }
     } else if (i.access?.type === "insurer") {
       const e = await this.db.get<{ id: string; name: string }>("SELECT id, name FROM insurers WHERE tenant_id = ? AND id = ?", tenantId, String(i.access.insurerId));
       if (!e) fields.access = "Choose your insurance provider from the list"; else { insurerId = e.id; accessName = e.name; }
