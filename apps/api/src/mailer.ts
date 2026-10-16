@@ -23,6 +23,13 @@ export function resendMailer(o: ResendOptions): Mailer {
       });
       if (!res.ok) throw new Error(`email provider returned ${res.status}`);
     },
+    async sendLoginCode(to, tenantName, code) {
+      const res = await doFetch("https://api.resend.com/emails", {
+        method: "POST", headers: { authorization: `Bearer ${o.apiKey}`, "content-type": "application/json" },
+        body: JSON.stringify({ from: o.from, to: [to], subject: `Your ${tenantName} sign-in code`, text: `Your sign-in code is ${code}.\n\nIt works once and expires in 10 minutes. If you did not try to sign in, change your password.` }),
+      });
+      if (!res.ok) throw new Error(`email provider returned ${res.status}`);
+    },
   };
 }
 

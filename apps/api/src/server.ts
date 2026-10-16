@@ -9,7 +9,8 @@ import { emitTelemetry, redact, type TelemetrySink } from "./telemetry.js";
 import { createRateLimiter } from "./ratelimit.js";
 import { Accounts, AccountError } from "./accounts.js";
 import type { AdminKeys } from "./admin-keys.js";
-import { timingSafeEqual } from "node:crypto";
+import { createHash, timingSafeEqual } from "node:crypto";
+import type { Audit, Actor } from "./audit.js";
 import type { Notifier } from "./notify.js";
 import { DbWaitlist, WaitlistError } from "./waitlist.js";
 import { IntakeError, type DbIntake } from "./intake.js";
@@ -27,6 +28,8 @@ export interface Deps {
   intake?: DbIntake;
   /** Waitlist (P3). */
   waitlist?: DbWaitlist;
+  /** Append-only access trail (P4). */
+  audit?: Audit;
   /** Outbound messages (P3). With `cronSecret`, GET/POST /internal/dispatch sends what is due. */
   notifier?: Notifier;
   cronSecret?: string;
@@ -46,7 +49,7 @@ const ASSETS: Record<string, string> = { "app.js": "text/javascript; charset=utf
 /** Page shells served under /t/<slug>/<page>. Each is generic and contains no tenant or user data. */
 const PAGES: Record<string, string> = { "": "index.html", appointments: "manage.html", login: "login.html", signup: "signup.html", forgot: "forgot.html", reset: "reset.html" };
 const COOKIE = "carex_session";
-const SESSION_SECONDS = 7 * 86_400;
+const SESSION_SECONDS = 24 * 3600;
 
 const MAX_BODY = 10_000;
 const SLUG = /^[a-z0-9][a-z0-9-]{0,62}$/;
@@ -137,6 +140,8 @@ export function createServer(deps: Deps): Server {
         if (deps.secureCookies) attrs.push("Secure");
         res.setHeader("set-cookie", attrs.join("; "));
       };
+      const aud = (actor: Actor, action: string, o: { targetType?: string; targetId?: string; detail?: Record<string, unknown> } = {}) =>
+        deps.audit?.record({ tenantId: t, actor, action, ip: client, ...o });
       const obj = async () => { const b = await readBody(req); if (typeof b !== "object" || b === null || Array.isArray(b)) throw new DomainError("invalid_request", "body must be an object"); return b as Record<string, any>; };
 
       // ---- public: branding for the login page
@@ -152,18 +157,27 @@ export function createServer(deps: Deps): Server {
           if (req.method === "GET" && sub === "me") { const me = await accounts.authenticate(t, cookieOf(req, COOKIE)); return me ? reply(200, { user: me }) : fail(401, "unauthorized", "Please log in"); }
           if (req.method === "POST" && sub === "signup") {
             const r = await accounts.signup(t, (await obj()) as any); setSession(r.token);
-            emitTelemetry(tel, { event: "account_created", tenantId: t, correlationId: cid }); return reply(201, { user: r.profile });
+            emitTelemetry(tel, { event: "account_created", tenantId: t, correlationId: cid }); await aud({ type: "user", id: r.profile.id }, "auth.signup"); return reply(201, { user: r.profile });
           }
           if (req.method === "POST" && sub === "login") {
             const b = await obj(); if (!allow(limiter.loginId, `${t}:${String(b.email).toLowerCase()}`)) return tooMany();
-            const r = await accounts.login(t, String(b.email ?? ""), String(b.password ?? "")); setSession(r.token); return reply(200, { user: r.profile });
+            let r; try { r = await accounts.beginLogin(t, String(b.email ?? ""), String(b.password ?? "")); }
+            catch (e) { if (e instanceof AccountError) await aud({ type: "anonymous" }, e.code === "locked" ? "auth.login_locked" : "auth.login_failed", { detail: { email: createHash("sha256").update(String(b.email ?? "").toLowerCase()).digest("hex").slice(0, 12) } }); throw e; }
+            if (r.mfa) { await aud({ type: "anonymous" }, "auth.mfa_challenge"); return reply(200, { mfa: { required: true, challenge: r.mfa.challenge } }); }
+            setSession(r.token); await aud({ type: "user", id: r.profile.id }, "auth.login"); return reply(200, { user: r.profile });
           }
-          if (req.method === "POST" && sub === "logout") { await accounts.logout(t, cookieOf(req, COOKIE)); setSession(undefined); return reply(204, {}); }
+          if (req.method === "POST" && sub === "verify-login") {
+            const b = await obj(); if (!allow(limiter.loginId, `mfa:${t}:${String(b.challenge).slice(0, 12)}`)) return tooMany();
+            let r; try { r = await accounts.verifyLogin(t, String(b.challenge ?? ""), String(b.code ?? "")); }
+            catch (e) { if (e instanceof AccountError) await aud({ type: "anonymous" }, "auth.mfa_failed"); throw e; }
+            setSession(r.token); await aud({ type: "user", id: r.profile.id }, "auth.login", { detail: { mfa: true } }); return reply(200, { user: r.profile });
+          }
+          if (req.method === "POST" && sub === "logout") { const who = await accounts.authenticate(t, cookieOf(req, COOKIE)); await accounts.logout(t, cookieOf(req, COOKIE)); if (who) await aud({ type: "user", id: who.id }, "auth.logout"); setSession(undefined); return reply(204, {}); }
           if (req.method === "POST" && sub === "forgot-password") {
             const b = await obj(); if (!allow(limiter.loginId, `reset:${t}:${String(b.email).toLowerCase()}`)) return tooMany();
-            await accounts.requestReset(t, tenantSlug, String(b.email ?? "")); return reply(202, { message: "If that email has an account, we have sent a link to reset the password." });
+            await accounts.requestReset(t, tenantSlug, String(b.email ?? "")); await aud({ type: "anonymous" }, "auth.password_reset_requested"); return reply(202, { message: "If that email has an account, we have sent a link to reset the password." });
           }
-          if (req.method === "POST" && sub === "reset-password") { const b = await obj(); await accounts.resetPassword(t, String(b.token ?? ""), String(b.password ?? "")); return reply(204, {}); }
+          if (req.method === "POST" && sub === "reset-password") { const b = await obj(); await accounts.resetPassword(t, String(b.token ?? ""), String(b.password ?? "")); await aud({ type: "anonymous" }, "auth.password_reset_completed"); return reply(204, {}); }
         } catch (e) {
           if (e instanceof AccountError) {
             const st = { invalid_input: 400, email_taken: 409, invalid_credentials: 401, locked: 423, invalid_token: 400 }[e.code];
@@ -249,19 +263,19 @@ export function createServer(deps: Deps): Server {
           const o = await deps.bookings.reconcile(t, user.id, mm[1]!);
           return o ? reply(200, o) : fail(404, "not_found", "Not found");
         }
-        if (path === "bookings") { route = "my-bookings"; return reply(200, { appointments: await deps.bookings.list(t, user.id) }); }
+        if (path === "bookings") { route = "my-bookings"; await aud({ type: "user", id: user.id }, "booking.list"); return reply(200, { appointments: await deps.bookings.list(t, user.id) }); }
       }
       // ---- an account's own booking: view, cancel, reschedule (another user's booking answers 404)
       const mg = /^bookings\/([A-Za-z0-9-]{6,32})(?:\/(cancel|reschedule))?$/.exec(path);
       if (mg) {
         route = "manage"; const id = mg[1]!; const action = mg[2];
-        if (req.method === "GET" && !action) { const a = await deps.bookings.managed(t, user.id, id); return a ? reply(200, a) : fail(404, "not_found", "Not found"); }
-        if (req.method === "POST" && action === "cancel") { const cb = await readBody(req).catch(() => ({})) as Record<string, unknown> | null; const a = await deps.bookings.cancel(t, user.id, id, typeof cb?.reason === "string" ? cb.reason : undefined); void deps.notifier?.dispatch({ appointmentId: id }).catch(() => {}); emitTelemetry(tel, { event: "booking_cancelled", tenantId: t, correlationId: cid }); return reply(200, a); }
+        if (req.method === "GET" && !action) { const a = await deps.bookings.managed(t, user.id, id); if (a) await aud({ type: "user", id: user.id }, "booking.view", { targetType: "appointment", targetId: id }); return a ? reply(200, a) : fail(404, "not_found", "Not found"); }
+        if (req.method === "POST" && action === "cancel") { const cb = await readBody(req).catch(() => ({})) as Record<string, unknown> | null; const a = await deps.bookings.cancel(t, user.id, id, typeof cb?.reason === "string" ? cb.reason : undefined); await aud({ type: "user", id: user.id }, "booking.cancel", { targetType: "appointment", targetId: id }); void deps.notifier?.dispatch({ appointmentId: id }).catch(() => {}); emitTelemetry(tel, { event: "booking_cancelled", tenantId: t, correlationId: cid }); return reply(200, a); }
         if (req.method === "POST" && action === "reschedule") {
           const body = RescheduleRequest.safeParse(await readBody(req));
           if (!body.success) return fail(400, "invalid_request", "Invalid request");
           const o = await deps.bookings.reschedule(t, user.id, id, body.data.slotId);
-          if (o.status === "rescheduled") emitTelemetry(tel, { event: "booking_rescheduled", tenantId: t, correlationId: cid });
+          if (o.status === "rescheduled") { emitTelemetry(tel, { event: "booking_rescheduled", tenantId: t, correlationId: cid }); await aud({ type: "user", id: user.id }, "booking.reschedule", { targetType: "appointment", targetId: id }); }
           return reply(o.status === "rescheduled" ? 200 : 409, o);
         }
         return fail(404, "not_found", "Not found");
@@ -285,13 +299,13 @@ export function createServer(deps: Deps): Server {
       if (req.method === "POST" && deps.intake && path === "patients") {
         route = "add-patient";
         const b = (await readBody(req)) as Record<string, unknown> | null;
-        try { return reply(201, { patient: await deps.intake.addDependent(t, user.id, { relationship: String(b?.relationship ?? ""), firstName: String(b?.firstName ?? ""), lastName: String(b?.lastName ?? ""), dateOfBirth: String(b?.dateOfBirth ?? "") }) }); }
+        try { const pt = await deps.intake.addDependent(t, user.id, { relationship: String(b?.relationship ?? ""), firstName: String(b?.firstName ?? ""), lastName: String(b?.lastName ?? ""), dateOfBirth: String(b?.dateOfBirth ?? "") }); await aud({ type: "user", id: user.id }, "patient.add", { targetType: "patient", targetId: pt.id }); return reply(201, { patient: pt }); }
         catch (e) { if (e instanceof IntakeError) return fail(400, e.code, e.message); throw e; }
       }
       const rp = /^patients\/([A-Za-z0-9_-]{6,80})\/remove$/.exec(path);
       if (req.method === "POST" && deps.intake && rp) {
         route = "remove-patient";
-        try { return (await deps.intake.removeDependent(t, user.id, rp[1]!)) ? reply(200, { removed: true }) : fail(404, "not_found", "Not found"); }
+        try { if (await deps.intake.removeDependent(t, user.id, rp[1]!)) { await aud({ type: "user", id: user.id }, "patient.remove", { targetType: "patient", targetId: rp[1]! }); return reply(200, { removed: true }); } return fail(404, "not_found", "Not found"); }
         catch (e) { if (e instanceof IntakeError) return fail(409, e.code, e.message); throw e; }
       }
       if (req.method === "POST" && path === "bookings") {
@@ -301,6 +315,8 @@ export function createServer(deps: Deps): Server {
         const key = String(req.headers["idempotency-key"] ?? "");
         const outcome = await deps.bookings.create(t, user, body, key);
         emitTelemetry(tel, { event: outcome.status === "confirmed" ? "booking_confirmed" : "booking_failed", tenantId: t, correlationId: cid, errorCode: outcome.status === "confirmed" ? undefined : outcome.status });
+        if (outcome.status === "confirmed") await aud({ type: "user", id: user.id }, "booking.create", { targetType: "appointment", targetId: outcome.bookingId });
+        if (outcome.status === "failed" && outcome.code === "emergency_redirect") await aud({ type: "user", id: user.id }, "booking.emergency_redirect");
         if (outcome.status === "confirmed") await deps.notifier?.dispatch({ appointmentId: outcome.bookingId }).catch(() => undefined);   // best effort: the outbox retries later
         const code = outcome.status === "failed" ? (outcome.retryable ? 503 : 409) : { confirmed: 201, pending: 202, slot_unavailable: 409 }[outcome.status];
         return reply(code, outcome);

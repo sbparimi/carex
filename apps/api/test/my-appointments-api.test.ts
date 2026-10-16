@@ -1,6 +1,6 @@
 // Signed-in account: booking, viewing, cancelling and rescheduling its OWN appointments; rate limiting and response hardening.
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { startApi, NOW, type Api, type Client } from "./helpers.js";
+import { startApi, NOW, PASSWORD, type Api, type Client } from "./helpers.js";
 
 const NW = "/t/northwind-health/api";
 let api: Api; let me: Client; let other: Client; let now: Date;
@@ -112,6 +112,7 @@ describe("cancelling and rescheduling", () => {
   it("refuses changes inside the notice window with a clear code, and reports canChange=false", async () => {
     const all = await slots(); const a = await book(all[0]!.id);
     now = new Date(Date.parse(all[0]!.startsAt) - 60 * 60_000);
+    await me.call("POST", `${NW}/auth/login`, { email: "pat.synthetic@example.test", password: PASSWORD });    // the time jump outlasted the idle timeout
     expect((await me.get(`${NW}/bookings/${a.body.bookingId}`)).body.canChange).toBe(false);
     const c = await me.post(`${NW}/bookings/${a.body.bookingId}/cancel`);
     expect(c.status).toBe(409); expect(c.body.error.code).toBe("change_window_closed");

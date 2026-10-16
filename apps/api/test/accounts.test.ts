@@ -115,10 +115,10 @@ describe("sessions", () => {
     await acc.logout("tn-north", token);
     expect(await acc.authenticate("tn-north", token)).toBeUndefined();
   });
-  it("expires after 7 days", async () => {
+  it("expires 24 hours after sign-in, however active", async () => {
     const { token } = await acc.signup("tn-north", base());
-    now = new Date(now.getTime() + 6 * 86_400_000); expect(await acc.authenticate("tn-north", token)).toBeDefined();
-    now = new Date(now.getTime() + 2 * 86_400_000); expect(await acc.authenticate("tn-north", token)).toBeUndefined();
+    for (let i = 0; i < 71; i++) { now = new Date(now.getTime() + 20 * 60_000); expect(await acc.authenticate("tn-north", token)).toBeDefined(); }
+    now = new Date(now.getTime() + 41 * 60_000); expect(await acc.authenticate("tn-north", token)).toBeUndefined();
   });
   it("stores only a hash of the session token", async () => {
     const { token } = await acc.signup("tn-north", base());

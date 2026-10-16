@@ -1,6 +1,7 @@
 import { openDb, type Db, type OpenOptions } from "./db.js";
 import { DbCatalog } from "./db-catalog.js";
 import { DbScheduling } from "./db-scheduling.js";
+import { Audit } from "./audit.js";
 import { DbIntake } from "./intake.js";
 import { Notifier, type Channels } from "./notify.js";
 import { DbWaitlist } from "./waitlist.js";
@@ -20,10 +21,11 @@ export async function buildApp(opts: { db?: OpenOptions; /** An already-open dat
   const scheduling = new DbScheduling(db, { minChangeNoticeMinutes: notice, ...(opts.now ? { now: opts.now } : {}) });
   const intake = new DbIntake(db, opts.now);
   const waitlist = new DbWaitlist(db, opts.now);
+  const audit = new Audit(db, opts.now, opts.log);
   const notifier = new Notifier(db, opts.channels ?? { baseUrl: "http://localhost:8080" }, opts.now);
   const bookings = new BookingService(catalog, scheduling, { changeNoticeMinutes: notice, intake, ...(opts.now ? { now: opts.now } : {}) });
   const admin = { keys: new AdminKeys(db, opts.now), config: new DbAdmin(db, opts.now) };
   const accounts = new Accounts(db, opts.now, opts.mailer);
   const { db: _d, database: _db, now: _n, changeNoticeMinutes: _c, mailer: _m, channels: _ch, ...rest } = opts;
-  return { db, catalog, scheduling, bookings, admin, accounts, notifier, server: createServer({ catalog, bookings, admin, accounts, intake, waitlist, notifier, ...rest }) };
+  return { db, catalog, scheduling, bookings, admin, accounts, notifier, audit, server: createServer({ catalog, bookings, admin, accounts, intake, waitlist, notifier, audit, ...rest }) };
 }

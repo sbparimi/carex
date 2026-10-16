@@ -1,4 +1,4 @@
-import { createHash, randomBytes, randomUUID, scrypt as scryptCb, timingSafeEqual } from "node:crypto";
+import { createHash, randomBytes, randomInt, randomUUID, scrypt as scryptCb, timingSafeEqual } from "node:crypto";
 import { promisify } from "node:util";
 import type { Db } from "./db.js";
 import { isUniqueViolation } from "./db.js";
@@ -13,12 +13,19 @@ export class AccountError extends Error {
 export type Access = { type: "employer"; employerId: string } | { type: "insurer"; insurerId: string };
 export interface SignupInput { email: string; password: string; firstName: string; lastName: string; dateOfBirth: string; phone: string; access: Access }
 export interface Profile { id: string; email: string; firstName: string; lastName: string; dateOfBirth: string; phone: string; access: { type: "employer" | "insurer"; id: string; name: string }; notify: { email: boolean; sms: boolean } }
-export interface Mailer { sendPasswordReset(to: string, tenantSlug: string, token: string): Promise<void> }
+export interface Mailer {
+  sendPasswordReset(to: string, tenantSlug: string, token: string): Promise<void>;
+  /** One-time sign-in code (tenants that require a second step). */
+  sendLoginCode?(to: string, tenantName: string, code: string): Promise<void>;
+}
 
 const SCRYPT = { N: 16384, r: 8, p: 1, maxmem: 64 * 1024 * 1024 };
 const MAX_FAILED = 5;
 const LOCK_MS = 15 * 60_000;
-const SESSION_MS = 7 * 86_400_000;
+const SESSION_MS = 24 * 3_600_000;          // absolute session lifetime
+const TOUCH_MS = 60_000;
+const MFA_MS = 10 * 60_000;
+const MFA_ATTEMPTS = 5;
 const RESET_MS = 30 * 60_000;
 const sha = (v: string) => createHash("sha256").update(v).digest("hex");
 
@@ -111,7 +118,14 @@ export class Accounts {
     return { profile, token: await this.newSession(tenantId, id) };
   }
 
+  /** Password sign-in for tenants without a second step. Throws if the tenant requires one: use `beginLogin`. */
   async login(tenantId: string, emailRaw: string, password: string): Promise<{ profile: Profile; token: string }> {
+    const r = await this.beginLogin(tenantId, emailRaw, password);
+    if (r.mfa) throw new AccountError("invalid_credentials", "A verification code is required");
+    return r;
+  }
+
+  async beginLogin(tenantId: string, emailRaw: string, password: string): Promise<{ profile: Profile; token: string; mfa?: undefined } | { mfa: { challenge: string }; profile?: undefined; token?: undefined }> {
     const email = typeof emailRaw === "string" ? normalizeEmail(emailRaw) : "";
     const u = typeof password === "string" && password.length <= 128 ? await this.db.get<{ id: string; password_hash: string; failed_logins: number; locked_until: string | null }>(
       "SELECT id, password_hash, failed_logins, locked_until FROM users WHERE tenant_id = ? AND email = ?", tenantId, email) : undefined;
@@ -123,6 +137,8 @@ export class Accounts {
       throw new AccountError("invalid_credentials", "Invalid email or password");
     }
     await this.db.run("UPDATE users SET failed_logins = 0, locked_until = NULL WHERE id = ?", u.id);
+    const t = await this.db.get<{ mfa_required: number; display_name: string }>("SELECT mfa_required, display_name FROM tenants WHERE id = ?", tenantId);
+    if (t?.mfa_required === 1) return { mfa: { challenge: await this.startChallenge(tenantId, u.id, email, t.display_name) } };
     return { profile: (await this.profileById(tenantId, u.id))!, token: await this.newSession(tenantId, u.id) };
   }
 
@@ -133,9 +149,13 @@ export class Accounts {
   /** The signed-in profile for a session cookie value, or undefined (missing, unknown, expired, other tenant). */
   async authenticate(tenantId: string, token: string | undefined): Promise<Profile | undefined> {
     if (!token || !/^[A-Za-z0-9_-]{43}$/.test(token)) return undefined;
-    const s = await this.db.get<{ user_id: string; expires_at: string }>("SELECT user_id, expires_at FROM sessions WHERE token_hash = ? AND tenant_id = ?", sha(token), tenantId);
+    const s = await this.db.get<{ user_id: string; expires_at: string; last_seen_at: string | null; created_at: string; idle: number }>(
+      "SELECT s.user_id, s.expires_at, s.last_seen_at, s.created_at, t.session_idle_minutes AS idle FROM sessions s JOIN tenants t ON t.id = s.tenant_id WHERE s.token_hash = ? AND s.tenant_id = ?", sha(token), tenantId);
     if (!s) return undefined;
-    if (Date.parse(s.expires_at) <= this.now().getTime()) { await this.db.run("DELETE FROM sessions WHERE token_hash = ?", sha(token)); return undefined; }
+    const now = this.now().getTime();
+    const lastSeen = Date.parse(s.last_seen_at ?? s.created_at);
+    if (Date.parse(s.expires_at) <= now || now - lastSeen > s.idle * 60_000) { await this.db.run("DELETE FROM sessions WHERE token_hash = ?", sha(token)); return undefined; }
+    if (now - lastSeen > TOUCH_MS) await this.db.run("UPDATE sessions SET last_seen_at = ? WHERE token_hash = ?", new Date(now).toISOString(), sha(token));
     return this.profileById(tenantId, s.user_id);
   }
 
@@ -164,6 +184,29 @@ export class Accounts {
     });
   }
 
+  // ---- second step (tenants with mfa_required): a 6-digit code emailed to the account, valid 10 minutes, 5 tries, single use
+  private async startChallenge(tenantId: string, userId: string, email: string, tenantName: string): Promise<string> {
+    const challenge = randomBytes(24).toString("base64url");
+    const code = String(randomInt(0, 1_000_000)).padStart(6, "0");
+    await this.db.run("INSERT INTO mfa_challenges (token_hash, user_id, tenant_id, code_hash, expires_at) VALUES (?,?,?,?,?)", sha(challenge), userId, tenantId, sha(`${challenge}:${code}`), new Date(this.now().getTime() + MFA_MS).toISOString());
+    await this.mailer?.sendLoginCode?.(email, tenantName, code);
+    return challenge;
+  }
+
+  async verifyLogin(tenantId: string, challenge: string, code: string): Promise<{ profile: Profile; token: string }> {
+    const bad = () => new AccountError("invalid_credentials", "That code is wrong or has expired. Sign in again to get a new one.");
+    if (typeof challenge !== "string" || typeof code !== "string" || !/^\d{6}$/.test(code.trim()) || challenge.length > 100) throw bad();
+    const userId = await this.db.tx(async (tx) => {
+      const c = await tx.get<{ user_id: string; code_hash: string; expires_at: string; attempts: number; used_at: string | null }>("SELECT user_id, code_hash, expires_at, attempts, used_at FROM mfa_challenges WHERE token_hash = ? AND tenant_id = ? FOR UPDATE", sha(challenge), tenantId);
+      if (!c || c.used_at || c.attempts >= MFA_ATTEMPTS || Date.parse(c.expires_at) <= this.now().getTime()) return undefined;
+      const ok = sha(`${challenge}:${code.trim()}`) === c.code_hash;
+      await tx.run("UPDATE mfa_challenges SET attempts = attempts + 1, used_at = ? WHERE token_hash = ?", ok ? this.now().toISOString() : null, sha(challenge));
+      return ok ? c.user_id : undefined;
+    });
+    if (!userId) throw bad();
+    return { profile: (await this.profileById(tenantId, userId))!, token: await this.newSession(tenantId, userId) };
+  }
+
   /** Notification choices. SMS is opt-in only (consent to text messages). */
   async setNotify(tenantId: string, userId: string, p: { email?: boolean; sms?: boolean }): Promise<void> {
     if (typeof p.email === "boolean") await this.db.run("UPDATE users SET notify_email = ? WHERE tenant_id = ? AND id = ?", p.email ? 1 : 0, tenantId, userId);
@@ -173,7 +216,7 @@ export class Accounts {
   private async newSession(tenantId: string, userId: string): Promise<string> {
     const token = randomBytes(32).toString("base64url");
     const t = this.now();
-    await this.db.run("INSERT INTO sessions (token_hash, user_id, tenant_id, created_at, expires_at) VALUES (?,?,?,?,?)", sha(token), userId, tenantId, t.toISOString(), new Date(t.getTime() + SESSION_MS).toISOString());
+    await this.db.run("INSERT INTO sessions (token_hash, user_id, tenant_id, created_at, expires_at, last_seen_at) VALUES (?,?,?,?,?,?)", sha(token), userId, tenantId, t.toISOString(), new Date(t.getTime() + SESSION_MS).toISOString(), t.toISOString());
     return token;
   }
 
