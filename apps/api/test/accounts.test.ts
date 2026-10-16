@@ -33,7 +33,7 @@ describe("password hashing", () => {
 describe("sign up", () => {
   it("creates an account, normalises the email, and returns the profile with the access path (no password data)", async () => {
     const r = await acc.signup("tn-north", base());
-    expect(r.profile).toEqual({ id: expect.any(String), email: "pat.synthetic@example.test", firstName: "Pat", lastName: "Synthetic", dateOfBirth: "1985-04-12", phone: "+31 6 1234 5678", access: { type: "employer", id: "em-n-1", name: "Acme Logistics (demo)" } });
+    expect(r.profile).toEqual({ id: expect.any(String), email: "pat.synthetic@example.test", firstName: "Pat", lastName: "Synthetic", dateOfBirth: "1985-04-12", phone: "+31 6 1234 5678", access: { type: "employer", id: "em-n-1", name: "Acme Logistics (demo)" }, notify: { email: true, sms: false } });
     expect(r.token).toMatch(/^[A-Za-z0-9_-]{43}$/);
     const row = await db.get<{ password_hash: string }>("SELECT password_hash FROM users WHERE id = ?", r.profile.id);
     expect(row!.password_hash).toMatch(/^scrypt\$/); expect(JSON.stringify(r)).not.toMatch(/scrypt|correct horse/);

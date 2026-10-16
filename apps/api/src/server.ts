@@ -9,6 +9,9 @@ import { emitTelemetry, redact, type TelemetrySink } from "./telemetry.js";
 import { createRateLimiter } from "./ratelimit.js";
 import { Accounts, AccountError } from "./accounts.js";
 import type { AdminKeys } from "./admin-keys.js";
+import { timingSafeEqual } from "node:crypto";
+import type { Notifier } from "./notify.js";
+import { DbWaitlist, WaitlistError } from "./waitlist.js";
 import { IntakeError, type DbIntake } from "./intake.js";
 import { RED_FLAGS } from "./triage.js";
 import { AdminNotFoundError, AdminValidationError, type DbAdmin } from "./db-admin.js";
@@ -22,6 +25,11 @@ export interface Deps {
   accounts: Accounts;
   /** Patients, consent, screening, coverage (P2). Without it bookings skip clinical intake. */
   intake?: DbIntake;
+  /** Waitlist (P3). */
+  waitlist?: DbWaitlist;
+  /** Outbound messages (P3). With `cronSecret`, GET/POST /internal/dispatch sends what is due. */
+  notifier?: Notifier;
+  cronSecret?: string;
   /** Mark the session cookie Secure. True in production (HTTPS); false for http://localhost development. */
   secureCookies?: boolean;
   /** Per-client request budgets per minute; the defaults suit a single small deployment. Clients are identified by socket address (no proxy headers are trusted). */
@@ -98,6 +106,13 @@ export function createServer(deps: Deps): Server {
           route = "page"; const html = await readFile(join(deps.staticDir, PAGES[pg[1] ?? ""]!));
           status = 200; res.writeHead(200, { ...SECURITY_HEADERS, "content-security-policy": CSP_PAGE, "content-type": "text/html; charset=utf-8", "cache-control": "no-store" }); return void res.end(html);
         }
+      }
+      if (url.pathname === "/internal/dispatch" && (req.method === "GET" || req.method === "POST")) {
+        route = "dispatch";
+        if (!deps.cronSecret || !deps.notifier) return fail(404, "not_found", "Not found");
+        const given = Buffer.from(String(req.headers.authorization ?? "")), want = Buffer.from(`Bearer ${deps.cronSecret}`);
+        if (given.length !== want.length || !timingSafeEqual(given, want)) return fail(401, "unauthorized", "Unauthorized");
+        return reply(200, await deps.notifier.dispatch({ limit: 200 }));
       }
       const m = /^\/t\/([^/]+)\/api\/(.+)$/.exec(url.pathname);
       if (!m) return fail(404, "not_found", "Not found");
@@ -219,6 +234,7 @@ export function createServer(deps: Deps): Server {
           if (!c.success || !s.success || (pt !== null && !Id.safeParse(pt).success)) return fail(400, "invalid_request", "Invalid request");
           return reply(200, { slots: await deps.bookings.firstAvailable(t, c.data, s.data, { userId: user.id, ...(pt ? { patientId: pt } : {}) }) });
         }
+        if (path === "waitlist" && deps.waitlist) { route = "waitlist"; return reply(200, { entries: await deps.waitlist.list(t, user.id) }); }
         if (path === "providers" || path === "slots") {
           route = path; const c = Id.safeParse(q.get("clinicId")), s = Id.safeParse(q.get("serviceId"));
           if (!c.success || !s.success) return fail(400, "invalid_request", "Invalid request");
@@ -240,7 +256,7 @@ export function createServer(deps: Deps): Server {
       if (mg) {
         route = "manage"; const id = mg[1]!; const action = mg[2];
         if (req.method === "GET" && !action) { const a = await deps.bookings.managed(t, user.id, id); return a ? reply(200, a) : fail(404, "not_found", "Not found"); }
-        if (req.method === "POST" && action === "cancel") { const a = await deps.bookings.cancel(t, user.id, id); emitTelemetry(tel, { event: "booking_cancelled", tenantId: t, correlationId: cid }); return reply(200, a); }
+        if (req.method === "POST" && action === "cancel") { const cb = await readBody(req).catch(() => ({})) as Record<string, unknown> | null; const a = await deps.bookings.cancel(t, user.id, id, typeof cb?.reason === "string" ? cb.reason : undefined); void deps.notifier?.dispatch({ appointmentId: id }).catch(() => {}); emitTelemetry(tel, { event: "booking_cancelled", tenantId: t, correlationId: cid }); return reply(200, a); }
         if (req.method === "POST" && action === "reschedule") {
           const body = RescheduleRequest.safeParse(await readBody(req));
           if (!body.success) return fail(400, "invalid_request", "Invalid request");
@@ -249,6 +265,22 @@ export function createServer(deps: Deps): Server {
           return reply(o.status === "rescheduled" ? 200 : 409, o);
         }
         return fail(404, "not_found", "Not found");
+      }
+      if (req.method === "POST" && deps.waitlist && path === "waitlist") {
+        route = "join-waitlist"; const b = await obj();
+        const c = Id.safeParse(b.clinicId), sv = Id.safeParse(b.serviceId);
+        const pv = b.providerId === undefined || b.providerId === null || b.providerId === "" ? undefined : Id.safeParse(b.providerId);
+        const pt = b.patientId === undefined || b.patientId === null || b.patientId === "" ? undefined : Id.safeParse(b.patientId);
+        if (!c.success || !sv.success || (pv && !pv.success) || (pt && !pt.success)) return fail(400, "invalid_request", "Invalid request");
+        try { return reply(201, { entry: await deps.waitlist.join(t, user.id, { clinicId: c.data, serviceId: sv.data, ...(pv?.success ? { providerId: pv.data } : {}), ...(pt?.success ? { patientId: pt.data } : {}) }) }); }
+        catch (e) { if (e instanceof WaitlistError) return fail(e.code === "not_found" ? 404 : 409, e.code, e.message); throw e; }
+      }
+      const wl = /^waitlist\/(\d{1,12})\/leave$/.exec(path);
+      if (req.method === "POST" && deps.waitlist && wl) { route = "leave-waitlist"; return (await deps.waitlist.leave(t, user.id, Number(wl[1]))) ? reply(200, { left: true }) : fail(404, "not_found", "Not found"); }
+      if (req.method === "POST" && path === "notifications") {
+        route = "notify-prefs"; const b = await obj();
+        await deps.accounts.setNotify(t, user.id, { ...(typeof b.email === "boolean" ? { email: b.email } : {}), ...(typeof b.sms === "boolean" ? { sms: b.sms } : {}) });
+        return reply(200, { notify: (await deps.accounts.authenticate(t, cookieOf(req, COOKIE)))?.notify });
       }
       if (req.method === "POST" && deps.intake && path === "patients") {
         route = "add-patient";
@@ -269,6 +301,7 @@ export function createServer(deps: Deps): Server {
         const key = String(req.headers["idempotency-key"] ?? "");
         const outcome = await deps.bookings.create(t, user, body, key);
         emitTelemetry(tel, { event: outcome.status === "confirmed" ? "booking_confirmed" : "booking_failed", tenantId: t, correlationId: cid, errorCode: outcome.status === "confirmed" ? undefined : outcome.status });
+        if (outcome.status === "confirmed") await deps.notifier?.dispatch({ appointmentId: outcome.bookingId }).catch(() => undefined);   // best effort: the outbox retries later
         const code = outcome.status === "failed" ? (outcome.retryable ? 503 : 409) : { confirmed: 201, pending: 202, slot_unavailable: 409 }[outcome.status];
         return reply(code, outcome);
       }

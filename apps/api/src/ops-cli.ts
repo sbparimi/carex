@@ -1,8 +1,11 @@
 // Operator commands for a deployed database. Run locally; DATABASE_URL is read from your shell or from a local .env file (never pass it on the command line):
 //   npm run ops -- migrate
 //   npm run ops -- create-tenant <slug> "<Display name>" "#0b5fff" [support-email]
+//   npm run ops -- dispatch                  (send due reminders and notifications; needs RESEND_API_KEY/EMAIL_FROM and/or TWILIO_* in the environment)
 //   npm run ops -- seed-demo --yes          (invented demo data; refuses a database that already has tenants)
 import { openDb } from "./db.js";
+import { channelsFromEnv } from "./mailer.js";
+import { Notifier } from "./notify.js";
 import { seedDb } from "./db.js";
 import { demoCatalog, seedDemoPatients, DEMO_PASSWORD } from "./seed-demo.js";
 
@@ -24,5 +27,7 @@ try {
     if (n > 0) { console.error("Refusing: this database already has tenants."); process.exit(1); }
     await seedDb(db, demoCatalog()); await seedDemoPatients(db);
     console.log(`Demo data loaded. Demo password: ${DEMO_PASSWORD}`);
-  } else { console.error("Commands: migrate | create-tenant | seed-demo"); process.exit(1); }
+  } else if (cmd === "dispatch") {
+    console.log(JSON.stringify(await new Notifier(db, channelsFromEnv(process.env)).dispatch({ limit: 500 })));
+  } else { console.error("Commands: migrate | create-tenant | seed-demo | dispatch"); process.exit(1); }
 } finally { await db.close(); }

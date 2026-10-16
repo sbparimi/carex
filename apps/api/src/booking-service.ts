@@ -42,10 +42,10 @@ export class BookingService {
     return b && this.toManaged(tenantId, b);
   }
 
-  async cancel(tenantId: string, userId: string, bookingId: string): Promise<ManagedAppointment> {
+  async cancel(tenantId: string, userId: string, bookingId: string, reason?: string): Promise<ManagedAppointment> {
     try {
       if (!(await this.owned(tenantId, userId, bookingId))) throw new BookingNotFoundError("Booking not found");
-      const m = await this.requireManaged(tenantId, await this.source.cancel(tenantId, bookingId)); this.forget(tenantId, bookingId); return m;
+      const m = await this.requireManaged(tenantId, await this.source.cancel(tenantId, bookingId, { reason: reason ?? "", by: "patient" })); this.forget(tenantId, bookingId); return m;
     } catch (e) { throw this.mapManageError(e); }
   }
 

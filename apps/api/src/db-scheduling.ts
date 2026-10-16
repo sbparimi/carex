@@ -10,6 +10,8 @@ export function bookingReference(): string {
 import type { Slot } from "@carex/contracts";
 import { isUniqueViolation, type Db } from "./db.js";
 import { BookingNotFoundError, ChangeWindowClosedError, IdempotencyConflictError, SlotTakenError, type BookingRecord, type ManagedBooking, type ReserveInput, type SchedulingSource } from "./scheduling.js";
+import { enqueue, enqueueReminders, skipPendingReminders } from "./notify.js";
+import { markBooked, notifyOpening } from "./waitlist.js";
 import { localParts, zonedTimeToUtc } from "./zoned.js";
 
 type Query = { tenantId: string; clinicId: string; serviceId: string; providerId: string; userId?: string; patientId?: string };
@@ -93,6 +95,12 @@ export class DbScheduling implements SchedulingSource {
         if (isUniqueViolation(e, "appointments_slot") || isUniqueViolation(e, "appointments_resource_slot")) throw new SlotTakenError("Slot is not available");
         throw e;
       }
+      if (input.userId) {
+        const now = this.now();
+        await enqueue(tx, now, { tenantId: input.tenantId, kind: "confirmation", appointmentId: id, userId: input.userId, dedupe: `confirmation:${id}` });
+        await enqueueReminders(tx, now, { tenantId: input.tenantId, appointmentId: id, userId: input.userId, startsAt: slot.startsAt });
+        await markBooked(tx, input.tenantId, input.userId, input.clinicId, input.serviceId);
+      }
       return { bookingId: id, tenantId: input.tenantId, slotId: input.slotId, idempotencyKey: input.idempotencyKey, startsAt: slot.startsAt, endsAt: slot.endsAt, status: "confirmed" };
     });
   }
@@ -115,14 +123,20 @@ export class DbScheduling implements SchedulingSource {
     return rows.map(toManaged);
   }
 
-  async cancel(tenantId: string, bookingId: string): Promise<ManagedBooking> {
+  async cancel(tenantId: string, bookingId: string, opts: { reason?: string; by?: "patient" | "staff" } = {}): Promise<ManagedBooking> {
     return this.db.tx(async (tx) => {
       const row = await this.findManaged(tx, tenantId, bookingId, true);
       if (!row) throw new BookingNotFoundError("Booking not found");
       if (row.status === "cancelled") return toManaged(row);
-      this.assertChangeAllowed(row);
-      const ts = this.now().toISOString();
-      await tx.run("UPDATE appointments SET status = 'cancelled', cancelled_at = ?, updated_at = ? WHERE id = ? AND tenant_id = ?", ts, ts, bookingId, tenantId);
+      if (opts.by !== "staff") this.assertChangeAllowed(row);
+      const nowD = this.now(); const ts = nowD.toISOString();
+      const pol = await tx.get<{ late_cancel_hours: number }>("SELECT late_cancel_hours FROM tenants WHERE id = ?", tenantId);
+      const late = Date.parse(row.starts_at) - nowD.getTime() < (pol?.late_cancel_hours ?? 24) * 3_600_000 ? 1 : 0;
+      await tx.run("UPDATE appointments SET status = 'cancelled', cancelled_at = ?, updated_at = ?, cancel_reason = ?, cancelled_by = ?, late_cancel = ? WHERE id = ? AND tenant_id = ?",
+        ts, ts, (opts.reason ?? "").slice(0, 200) || null, opts.by ?? "patient", late, bookingId, tenantId);
+      await skipPendingReminders(tx, bookingId);
+      if (row.user_id) await enqueue(tx, nowD, { tenantId, kind: "cancellation", appointmentId: bookingId, userId: row.user_id, dedupe: `cancellation:${bookingId}` });
+      await notifyOpening(tx, nowD, { tenantId, clinicId: row.clinic_id, serviceId: row.visit_type_id, providerId: row.provider_id, startsAt: row.starts_at });
       return toManaged({ ...row, status: "cancelled" });
     });
   }
@@ -144,6 +158,13 @@ export class DbScheduling implements SchedulingSource {
         if (isUniqueViolation(e, "appointments_slot") || isUniqueViolation(e, "appointments_resource_slot")) throw new SlotTakenError("Slot is not available");
         throw e;
       }
+      const nowD = this.now();
+      await skipPendingReminders(tx, bookingId);
+      if (row.user_id) {
+        await enqueue(tx, nowD, { tenantId, kind: "rescheduled", appointmentId: bookingId, userId: row.user_id, dedupe: `rescheduled:${bookingId}:${slot.startsAt}` });
+        await enqueueReminders(tx, nowD, { tenantId, appointmentId: bookingId, userId: row.user_id, startsAt: slot.startsAt });
+      }
+      await notifyOpening(tx, nowD, { tenantId, clinicId: row.clinic_id, serviceId: row.visit_type_id, providerId: row.provider_id, startsAt: row.starts_at });
       return toManaged({ ...row, starts_at: slot.startsAt, ends_at: slot.endsAt });
     });
   }

@@ -32,7 +32,7 @@ export interface SchedulingSource {
   lookupByKey(tenantId: string, idempotencyKey: string): Promise<BookingRecord | undefined>;
   getBooking(tenantId: string, bookingId: string): Promise<ManagedBooking | undefined>;
   /** Idempotent: cancelling an already cancelled booking returns it. Throws BookingNotFoundError, ChangeWindowClosedError. */
-  cancel(tenantId: string, bookingId: string): Promise<ManagedBooking>;
+  cancel(tenantId: string, bookingId: string, opts?: { reason?: string; by?: "patient" | "staff" }): Promise<ManagedBooking>;
   /** Atomic move to another offered slot of the same provider, clinic and visit type; the reference stays the same. Throws BookingNotFoundError, ChangeWindowClosedError, SlotTakenError. */
   reschedule(tenantId: string, bookingId: string, newSlotId: string): Promise<ManagedBooking>;
   /** All bookings of one account in one tenant, soonest first. */

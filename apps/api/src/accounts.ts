@@ -12,7 +12,7 @@ export class AccountError extends Error {
 
 export type Access = { type: "employer"; employerId: string } | { type: "insurer"; insurerId: string };
 export interface SignupInput { email: string; password: string; firstName: string; lastName: string; dateOfBirth: string; phone: string; access: Access }
-export interface Profile { id: string; email: string; firstName: string; lastName: string; dateOfBirth: string; phone: string; access: { type: "employer" | "insurer"; id: string; name: string } }
+export interface Profile { id: string; email: string; firstName: string; lastName: string; dateOfBirth: string; phone: string; access: { type: "employer" | "insurer"; id: string; name: string }; notify: { email: boolean; sms: boolean } }
 export interface Mailer { sendPasswordReset(to: string, tenantSlug: string, token: string): Promise<void> }
 
 const SCRYPT = { N: 16384, r: 8, p: 1, maxmem: 64 * 1024 * 1024 };
@@ -107,7 +107,7 @@ export class Accounts {
       if (isUniqueViolation(e)) throw new AccountError("email_taken", "An account with this email already exists. Try logging in.", { email: "An account with this email already exists" });
       throw e;
     }
-    const profile: Profile = { id, email, firstName: i.firstName.trim(), lastName: i.lastName.trim(), dateOfBirth: i.dateOfBirth, phone: i.phone.trim(), access: { type: employerId ? "employer" : "insurer", id: (employerId ?? insurerId)!, name: accessName } };
+    const profile: Profile = { id, email, firstName: i.firstName.trim(), lastName: i.lastName.trim(), dateOfBirth: i.dateOfBirth, phone: i.phone.trim(), access: { type: employerId ? "employer" : "insurer", id: (employerId ?? insurerId)!, name: accessName }, notify: { email: true, sms: false } };
     return { profile, token: await this.newSession(tenantId, id) };
   }
 
@@ -164,6 +164,12 @@ export class Accounts {
     });
   }
 
+  /** Notification choices. SMS is opt-in only (consent to text messages). */
+  async setNotify(tenantId: string, userId: string, p: { email?: boolean; sms?: boolean }): Promise<void> {
+    if (typeof p.email === "boolean") await this.db.run("UPDATE users SET notify_email = ? WHERE tenant_id = ? AND id = ?", p.email ? 1 : 0, tenantId, userId);
+    if (typeof p.sms === "boolean") await this.db.run("UPDATE users SET notify_sms = ? WHERE tenant_id = ? AND id = ?", p.sms ? 1 : 0, tenantId, userId);
+  }
+
   private async newSession(tenantId: string, userId: string): Promise<string> {
     const token = randomBytes(32).toString("base64url");
     const t = this.now();
@@ -172,12 +178,12 @@ export class Accounts {
   }
 
   private async profileById(tenantId: string, id: string): Promise<Profile | undefined> {
-    const r = await this.db.get<{ id: string; email: string; first_name: string; last_name: string; date_of_birth: string; phone: string; access_type: "employer" | "insurer"; employer_id: string | null; insurer_id: string | null; ename: string | null; iname: string | null }>(
-      `SELECT u.id, u.email, u.first_name, u.last_name, u.date_of_birth, u.phone, u.access_type, u.employer_id, u.insurer_id, e.name AS ename, i.name AS iname
+    const r = await this.db.get<{ id: string; email: string; first_name: string; last_name: string; date_of_birth: string; phone: string; notify_email: number; notify_sms: number; access_type: "employer" | "insurer"; employer_id: string | null; insurer_id: string | null; ename: string | null; iname: string | null }>(
+      `SELECT u.id, u.email, u.first_name, u.last_name, u.date_of_birth, u.phone, u.access_type, u.employer_id, u.insurer_id, u.notify_email, u.notify_sms, e.name AS ename, i.name AS iname
          FROM users u LEFT JOIN employers e ON e.id = u.employer_id LEFT JOIN insurers i ON i.id = u.insurer_id
         WHERE u.tenant_id = ? AND u.id = ?`, tenantId, id);
     if (!r) return undefined;
     return { id: r.id, email: r.email, firstName: r.first_name, lastName: r.last_name, dateOfBirth: r.date_of_birth, phone: r.phone,
-      access: r.access_type === "employer" ? { type: "employer", id: r.employer_id!, name: r.ename! } : { type: "insurer", id: r.insurer_id!, name: r.iname! } };
+      access: r.access_type === "employer" ? { type: "employer", id: r.employer_id!, name: r.ename! } : { type: "insurer", id: r.insurer_id!, name: r.iname! }, notify: { email: r.notify_email === 1, sms: r.notify_sms === 1 } };
   }
 }
