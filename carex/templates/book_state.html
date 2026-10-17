@@ -13,6 +13,7 @@
 <h1 id="h1" class="largetitle">Find care</h1>
 <p class="lead">Search by clinic or city, pick your state, or find the soonest visit of a kind.</p>
 {% if notice %}{{ banner('warning', notice, 'status') }}{% endif %}
+<div class="findgrid">
 {% if kinds %}
 <form class="sheet statepick" method="get" action="/t/{{ slug }}/book/find">
   <label for="kind">Soonest available</label>
@@ -38,6 +39,7 @@
   </div>
   <button class="primary wide" type="submit">Show clinics</button>
 </form>
+</div>
 {% if q %}
 <h2 class="section" id="clinics">Results for &ldquo;{{ q }}&rdquo;</h2>
 {% if not clinics %}<div class="sheet empty"><strong>No clinics match</strong><p class="hint">Try a city name or a shorter search.</p></div>{% endif %}

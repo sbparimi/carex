@@ -780,3 +780,30 @@ body.has-tabs main, body:has(.stickybook) main { padding-bottom: 2rem; }
 .regcard .cta:not(.ghost), .regcard .regline + .hint { display: revert !important; }
 .cta { display: inline-flex; }
 main { max-width: 64rem; }
+
+/* ---- Full-width web application: fills the browser window at any screen size; phones and tablets simply get fewer columns */
+header.site { padding-inline: clamp(1rem, 3vw, 3rem) !important; max-width: none; }
+main, main:has(.evt), main:has(.statepick) { max-width: none !important; width: 100%; padding: 1.5rem clamp(1rem, 3vw, 3rem) 2rem; }
+body.staff { max-width: none; }
+footer.site { max-width: none; margin: 3rem 0 2rem; padding: 0 clamp(1rem, 3vw, 3rem); }
+body.auth main, body.auth main.authcard { max-width: 28rem !important; width: auto; }
+body.auth main.authcard { margin-inline: auto; }
+ol.steps { max-width: none; }
+.findgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr)); gap: 1.25rem; align-items: start; margin-bottom: 1.5rem; }
+.findgrid .statepick { margin: 0; height: 100%; display: grid; align-content: start; gap: .75rem; }
+.clinics, .morelist { display: grid; grid-template-columns: repeat(auto-fill, minmax(22rem, 1fr)); gap: .75rem 1.25rem; }
+.clinics { gap: .75rem 1.25rem; }
+.vcards { grid-template-columns: repeat(auto-fill, minmax(20rem, 1fr)); }
+.evt { grid-template-columns: minmax(16rem, 22rem) minmax(0, 1fr); gap: 2rem 3rem; }
+.evt-main > .facts, .evt-main > .regcard, .evt-main > .sheet { max-width: 60rem; }
+.statepick, .sheet:has(form.stack), .stack { max-width: none; }
+.stack { max-width: 40rem; }
+main > form.statepick, main > .sheet:has(.statepick) { max-width: 40rem; }
+.prose { max-width: 60rem; }
+.tablewrap { overflow-x: auto; }
+table.grid { width: 100%; }
+.stats { grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); }
+@media (max-width: 52rem) { .evt { grid-template-columns: minmax(0, 1fr); } }
+@media (min-width: 70rem) { main:has(.tix) { } .tix-list { } }
+.filters select, .filters input { width: auto; min-width: 14rem; }
+form.filters { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; }
