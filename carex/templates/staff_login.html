@@ -9,9 +9,10 @@
 <h1 id="h1" tabindex="-1">Staff sign in</h1>
 {% if error %}{{ banner('error', error, 'alert') }}{% endif %}
 <form method="post" action="/t/{{ slug }}/staff/login" novalidate>
-  {{ field('email', 'Work email', email or '', 'email', '', 'email') }}
-  {{ field('password', 'Password', '', 'password', '', 'current-password') }}
+  {{ field('email', 'Work email', email or (demo.email if demo else ''), 'email', '', 'email') }}
+  {{ field('password', 'Password', demo.password if demo else '', 'password', '', 'current-password') }}
   <button class="primary wide" type="submit">Sign in</button>
 </form>
+{% if demo %}<div class="demobox" role="note"><strong>Demo account</strong> (front desk, invented data). Already filled in.<br>Email: <code>{{ demo.email }}</code><br>Password: <code>{{ demo.password }}</code><br>Also: <code>dr.alex@northwind.example.test</code> (provider), <code>admin@northwind.example.test</code> (admin), same password.<br><a href="/t/{{ slug }}/login">Patient sign in</a></div>{% endif %}
 </section>
 {% endblock %}

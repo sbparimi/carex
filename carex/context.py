@@ -40,6 +40,7 @@ class Ctx:
     channels: Channels
     secure_cookies: bool = False
     cron_secret: str | None = None
+    default_tenant: str | None = None
     trust_proxy: bool = False
 
 
@@ -55,4 +56,4 @@ def build(db: Db | None = None, env: Mapping[str, str] | None = None, clock: Cal
     return Ctx(db=db, clock=clock, catalog=catalog, sched=sched, intake=intake, booking=BookingService(catalog, sched, intake, clock),
                accounts=Accounts(db, clock, mailer or AccountMailer(ch, prod)), waitlist=Waitlist(db, clock), audit=Audit(db, clock), notifier=Notifier(db, ch, clock),
                staff_accounts=StaffAccounts(db, clock), desk=StaffDesk(db, sched, intake, clock), admin=Admin(db, clock), admin_keys=AdminKeys(db, clock), channels=ch,
-               secure_cookies=prod, cron_secret=env.get("CRON_SECRET") or None, trust_proxy=bool(env.get("VERCEL")) or env.get("CAREX_TRUST_PROXY") == "1")
+               secure_cookies=prod, cron_secret=env.get("CRON_SECRET") or None, default_tenant=env.get("DEFAULT_TENANT") or None, trust_proxy=bool(env.get("VERCEL")) or env.get("CAREX_TRUST_PROXY") == "1")

@@ -115,3 +115,26 @@ def test_password_reset_flow(client, ctx):
     # unknown email gives the same answer (no account enumeration)
     a = client.post(S + "/forgot", data={"email": "nobody@example.com"})
     assert a.status_code == 200
+
+
+def test_first_screen_is_sign_in_and_demo_logins_are_prefilled_only_for_demo_data(client, ctx):
+    r = client.get("/")
+    assert r.url.path.endswith("/login") and h1(r) == "Sign in"
+    assert "Demo account" not in r.text and 'value="Demo' not in r.text          # synthetic test data is not the demo set
+    from fastapi.testclient import TestClient
+    from carex.app import create_app
+    from carex.context import build
+    from carex.db import open_db
+    from carex.seed_demo import DEMO_PASSWORD, load_demo, seed_demo_people
+    d = open_db()
+    load_demo(d)
+    seed_demo_people(d)
+    client = TestClient(create_app(build(db=d, env={})), base_url="http://testserver", follow_redirects=True)
+    r = client.get("/")
+    assert r.url.path == S + "/login"                                           # the demo organisation, not alphabetical first
+    r = client.get(S + "/login")
+    assert "alex.demo@example.test" in r.text and DEMO_PASSWORD in r.text and "Demo account" in r.text
+    s = client.get(S + "/staff/login")
+    assert "frontdesk@northwind.example.test" in s.text
+    ok = client.post(S + "/login", data={"email": "alex.demo@example.test", "password": DEMO_PASSWORD})
+    assert h1(ok) == "Where would you like care?"

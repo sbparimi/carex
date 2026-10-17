@@ -96,9 +96,10 @@ def create_app(ctx: Ctx | None = None) -> FastAPI:
 
     @app.get("/")
     def home(request: Request):
-        rows = ctx.db.all("SELECT slug, display_name FROM tenants WHERE status = 'active' ORDER BY display_name")
-        if len(rows) == 1:
-            return W.redirect(f"/t/{rows[0]['slug']}/")
+        rows = ctx.db.all("SELECT id, slug, display_name FROM tenants WHERE status = 'active' ORDER BY display_name")
+        if rows:                                          # the first screen is always sign in / sign up
+            pick = next((r for r in rows if r["slug"] == ctx.default_tenant), None) or next((r for r in rows if W.demo({"id": r["id"]}, "staff")), None) or rows[0]
+            return W.redirect(f"/t/{pick['slug']}/login")
         return W.render(request, "home.html", tenants=rows)
 
     @app.api_route("/internal/dispatch", methods=["GET", "POST"])

@@ -118,7 +118,23 @@ class Web:
         self.c.audit.record(t["id"], actor_type, action, actor_id=actor_id, ip=self.client(request), **kw)
 
     # ---- responses
+    def demo(self, t: dict | None, kind: str) -> dict | None:
+        """Demo sign-in details, only for databases loaded with `seed-demo` (the demo user exists). Real databases never match."""
+        if not t:
+            return None
+        from .seed_demo import DEMO_PASSWORD, DEMO_PATIENTS, DEMO_STAFF
+        rows = DEMO_STAFF if kind == "staff" else DEMO_PATIENTS
+        for r in rows:
+            if r["tenant_id"] != t["id"]:
+                continue
+            table = "staff_users" if kind == "staff" else "users"
+            if self.c.db.get(f"SELECT 1 AS ok FROM {table} WHERE tenant_id = ? AND email = ?", t["id"], r["email"]):
+                return {"email": r["email"], "password": DEMO_PASSWORD}
+        return None
+
     def render(self, request: Request, name: str, status: int = 200, t: dict | None = None, **ctx) -> HTMLResponse:
+        if name in ("login.html", "staff_login.html") and "demo" not in ctx:
+            ctx["demo"] = self.demo(t, "staff" if name == "staff_login.html" else "patient")
         html = self.env.get_template(name).render(request=request, t=t, slug=t["slug"] if t else None, brand=t["brand"] if t else {"display_name": "CareX"}, **ctx)
         return HTMLResponse(html, status_code=status, headers={**SECURITY_HEADERS, "content-security-policy": CSP_PAGE, "cache-control": "no-store"})
 
