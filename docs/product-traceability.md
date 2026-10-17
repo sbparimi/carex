@@ -1,6 +1,6 @@
 # CareX booking: requirement traceability
 
-Status as of 2026-10-17. The product is now Python-only (ADR-009); behaviour is unchanged from the TypeScript build. The system of record is the CareX-native scheduling engine on SQLite or Postgres. Test names quoted in the Evidence column come from the earlier TypeScript suite; the same behaviour is covered by the pytest suite in `tests/` (83 tests on SQLite, the same 83 again plus Postgres-only runs: 162 total): engine and concurrency in `test_engine.py`, screening and consent in `test_intake.py`, accounts in `test_accounts.py`, reminders and waiting list in `test_notify.py`, patient pages in `test_pages.py`, staff desk in `test_staff.py`, health, API and CLI in `test_ops.py`.
+Status as of 2026-10-17. The product is now Python-only (ADR-009); behaviour is unchanged from the TypeScript build. The system of record is the CareX-native scheduling engine on SQLite or Postgres. Test names quoted in the Evidence column come from the earlier TypeScript suite; the same behaviour is covered by the pytest suite in `tests/` (83 tests; 162 runs counting the repeat on Postgres): engine and concurrency in `test_engine.py`, screening and consent in `test_intake.py`, accounts in `test_accounts.py`, reminders and waiting list in `test_notify.py`, patient pages in `test_pages.py`, staff desk in `test_staff.py`, health, API and CLI in `test_ops.py`.
 
 Test runs: 83 pytest tests, run on SQLite and on Postgres 16 (162 runs). Browser accessibility checks (axe) are not yet re-run on the Python pages.
 
