@@ -18,7 +18,10 @@ export function createHandler(init: () => Promise<App>) {
         res.writeHead(200, { "content-type": "application/json", "cache-control": "no-store" }); res.end('{"ok":true}'); return;
       }
       a.server.emit("request", req, res);
-    } catch {
+    } catch (e) {
+      // Log what failed (never the connection string) so the cause is visible in the platform's logs.
+      const err = e as { name?: string; code?: string; message?: string };
+      console.log(JSON.stringify({ event: "startup_or_request_failed", name: err?.name, code: err?.code, message: String(err?.message ?? "").replace(/postgres(ql)?:\/\/\S+/gi, "[redacted-url]").slice(0, 200) }));
       if (!res.headersSent) { res.writeHead(503, { "content-type": "application/json", "cache-control": "no-store" }); res.end('{"error":{"code":"unavailable","message":"Service temporarily unavailable"}}'); }
     }
   };
