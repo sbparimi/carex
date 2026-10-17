@@ -181,4 +181,10 @@ V1 = [
     "CREATE INDEX audit_target ON audit_log(tenant_id, target_type, target_id)",
 ]
 
-MIGRATIONS = [V1]
+# Version 2: clinics are grouped into headquarters / prominent / other locations on the state screen.
+V2 = [
+    "ALTER TABLE clinics ADD COLUMN tier TEXT NOT NULL DEFAULT 'other' CHECK (tier IN ('hq','major','other'))",
+    "ALTER TABLE clinics ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 100",
+]
+
+MIGRATIONS = [V1, V2]

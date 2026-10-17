@@ -7,13 +7,13 @@ from typing import Any
 from .db import Conn
 
 ACTIVE_CLINIC = "c.tenant_id = ? AND c.status = 'active' AND c.bookable = 1"
-CLINIC_COLS = "c.id, c.name, c.city, c.address, c.state_code, c.time_zone"
+CLINIC_COLS = "c.id, c.name, c.city, c.address, c.state_code, c.time_zone, c.tier"
 VISIT_COLS = "v.id, v.canonical_type, v.label, v.description, v.duration_min, v.modality, v.requires_referral, v.min_age, v.max_age"
 PROV_COLS = "p.id, p.display_name, p.specialty, p.languages, p.accepting_new, p.bio"
 
 
 def _clinic(r: dict) -> dict:
-    return {"id": r["id"], "name": r["name"], "city": r["city"], "address": r["address"], "state_code": r["state_code"], "time_zone": r["time_zone"]}
+    return {"id": r["id"], "name": r["name"], "city": r["city"], "address": r["address"], "state_code": r["state_code"], "time_zone": r["time_zone"], "tier": r["tier"]}
 
 
 def _visit(r: dict) -> dict:
@@ -41,7 +41,7 @@ class Catalog:
         return [r["state_code"] for r in self.db.all(f"SELECT DISTINCT c.state_code FROM clinics c WHERE {ACTIVE_CLINIC} ORDER BY c.state_code", tenant_id)]
 
     def clinics(self, tenant_id: str, state_code: str) -> list[dict]:
-        return [_clinic(r) for r in self.db.all(f"SELECT {CLINIC_COLS} FROM clinics c WHERE {ACTIVE_CLINIC} AND c.state_code = ? ORDER BY c.name, c.id", tenant_id, state_code)]
+        return [_clinic(r) for r in self.db.all(f"SELECT {CLINIC_COLS} FROM clinics c WHERE {ACTIVE_CLINIC} AND c.state_code = ? ORDER BY c.sort_order, c.name, c.id", tenant_id, state_code)]
 
     def clinic(self, tenant_id: str, clinic_id: str) -> dict | None:
         r = self.db.get(f"SELECT {CLINIC_COLS} FROM clinics c WHERE {ACTIVE_CLINIC} AND c.id = ?", tenant_id, clinic_id)
@@ -90,8 +90,9 @@ def seed_db(db, d: dict) -> None:
             t.run("INSERT INTO tenants (id, slug, status, display_name, primary_color, logo_url, support_email, support_phone, analytics_enabled) VALUES (?,?,?,?,?,?,?,?,?)",
                   x["id"], x["slug"], x.get("status", "active"), x["display_name"], x["primary_color"], x.get("logo_url"), x.get("support_email"), x.get("support_phone"), _b(x.get("analytics_enabled", True)))
         for c in d.get("clinics", []):
-            t.run("INSERT INTO clinics (id, tenant_id, name, city, address, state_code, time_zone, status, bookable) VALUES (?,?,?,?,?,?,?,?,?)",
-                  c["id"], c["tenant_id"], c["name"], c["city"], c["address"], c["state_code"], c["time_zone"], c.get("status", "active"), _b(c.get("bookable", True)))
+            t.run("INSERT INTO clinics (id, tenant_id, name, city, address, state_code, time_zone, status, bookable, tier, sort_order) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                  c["id"], c["tenant_id"], c["name"], c["city"], c["address"], c["state_code"], c["time_zone"], c.get("status", "active"), _b(c.get("bookable", True)),
+                  c.get("tier", "other"), c.get("sort_order", 100))
         for s in d.get("services", []):
             t.run("INSERT INTO visit_types (id, tenant_id, canonical_type, label, description, duration_min, status) VALUES (?,?,?,?,?,?,?)",
                   s["id"], s["tenant_id"], s["canonical_type"], s["label"], s.get("description", f"{s['label']} visit"), s.get("duration_min", 30), s.get("status", "active"))

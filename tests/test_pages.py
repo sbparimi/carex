@@ -141,18 +141,37 @@ def test_first_screen_is_sign_in_and_demo_logins_are_prefilled_only_for_demo_dat
     assert h1(ok) == "Find care"
 
 
-def test_state_picker_lists_all_56_and_shows_at_most_five_clinic_cards(signed_in, ctx):
+def test_state_picker_lists_all_56_and_every_state_has_at_least_20_clinics_in_tiers(demo):
+    signed_in, ctx = demo
     page = signed_in.get(S + "/book")
-    assert len(re.findall(r'<option value="[A-Z]{2}"', page.text)) == 56
+    codes = re.findall(r'<option value="([A-Z]{2})"', page.text)
+    assert len(codes) == 56
     assert "Puerto Rico" in page.text and "District of Columbia" in page.text and "Guam" in page.text
+    for code in codes:
+        n = ctx.db.get("SELECT COUNT(*) AS n FROM clinics WHERE tenant_id = 'tn-north' AND state_code = ? AND status = 'active' AND bookable = 1", code)["n"]
+        assert n >= 20, code
+        tiers = {r["tier"]: r["n"] for r in ctx.db.all("SELECT tier, COUNT(*) AS n FROM clinics WHERE tenant_id = 'tn-north' AND state_code = ? GROUP BY tier", code)}
+        assert tiers.get("hq") == 1 and tiers.get("major", 0) >= 4 and tiers.get("other", 0) >= 10, code
     ca = signed_in.get(S + "/book?state=CA")
-    assert "Clinics in California" in ca.text and 'selected' in ca.text and "San Bernardo Clinic" in ca.text
-    empty = signed_in.get(S + "/book?state=WY")
-    assert "No clinics open in Wyoming yet" in empty.text
-    for i in range(8):                                              # many clinics: still only the five most prominent
-        ctx.db.run("INSERT INTO clinics (id, tenant_id, state_code, name, city, address, time_zone, status, bookable) VALUES (?,?,?,?,?,?,?,?,?)",
-                   f"cl-x{i}", "tn-north", "CA", f"Extra {i}", "Town", "1 Way", "America/Los_Angeles", "active", 1)
-    assert signed_in.get(S + "/book?state=CA").text.count('class="clinic"') <= 5
+    assert "Clinics in California" in ca.text and "selected" in ca.text
+    assert "Headquarters location" in ca.text and "Prominent locations" in ca.text and "More locations in California" in ca.text
+    for name in ("San Francisco Clinic", "Los Angeles Clinic", "San Diego Clinic", "San Jose Clinic", "Santa Clara Clinic", "San Bernardino Clinic"):
+        assert name in ca.text
+    assert ca.text.index("San Francisco Clinic") < ca.text.index("Los Angeles Clinic") < ca.text.index("Santa Clara Clinic")      # headquarters, then prominent, then others
+    assert ca.text.count('class="clinic"') == 5 and ca.text.count('class="morerow"') >= 15
+    dc = signed_in.get(S + "/book?state=DC")
+    assert "Capitol Hill Clinic" in dc.text
+    pr = signed_in.get(S + "/book?state=PR")
+    assert "San Juan Clinic" in pr.text and "Atlantic Time" in pr.text
+    assert "Pago Pago Clinic" in signed_in.get(S + "/book?state=AS").text
+    assert "Pensacola Clinic" in signed_in.get(S + "/book?state=FL").text
+
+
+def test_any_generated_clinic_opens_with_providers_and_times(demo):
+    signed_in, _ = demo
+    for cid in ("cl-wy00", "cl-gu00", "cl-vi07", "cl-ny00"):
+        page = signed_in.get(S + "/book/provider?clinic=" + cid)
+        assert page.status_code == 200 and 'class="slot"' in page.text, cid
 
 
 def test_clinic_card_leads_to_providers_with_dates_times_and_time_zone_in_the_visit_colour(signed_in):

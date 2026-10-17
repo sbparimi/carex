@@ -8,7 +8,9 @@ from typing import Callable
 from .accounts import Accounts
 from .catalog import seed_db
 from .scheduling import ReserveInput, Scheduling
+from .demo_places import places
 from .seed import synthetic_catalog
+from .states import US_STATES
 from .staff import StaffAccounts
 from .util import now as _now
 
@@ -63,26 +65,36 @@ def demo_catalog() -> dict:
     d["availability"] = base["availability"] + (wk(N, "pr-d", "cl-sea", [1, 2, 3, 4, 5], 8, 16) + wk(N, "pr-e", "cl-sea", [2, 3, 4], 9, 17) + wk(N, "pr-f", "cl-sea", [1, 3, 5], 10, 15)
                                                  + wk(N, "pr-g", "cl-den", [1, 2, 3, 4, 5], 9, 17) + wk(N, "pr-b", "cl-den", [2, 4], 8, 12) + wk(N, "pr-f", "cl-den", [2, 4], 13, 17)
                                                  + wk(B, "pr-y", "cl-sj", [1, 2, 3, 4, 5], 9, 17) + wk(B, "pr-x", "cl-oak", [1, 3, 5], 10, 16))
-    # More prominent California clinics (Bay Area, Santa Clara, Los Angeles, San Diego) and clinics in other states, each with every visit type so the colour coding shows.
-    PT = "America/Los_Angeles"
-    more = [("cl-ba", "CA", "Bay Area Clinic", "San Francisco", PT), ("cl-scl", "CA", "Santa Clara Clinic", "Santa Clara", PT), ("cl-la", "CA", "Los Angeles Clinic", "Los Angeles", PT),
-            ("cl-sd", "CA", "San Diego Clinic", "San Diego", PT), ("cl-ny", "NY", "Manhattan Clinic", "New York", "America/New_York"), ("cl-bk", "NY", "Brooklyn Clinic", "Brooklyn", "America/New_York"),
-            ("cl-mia", "FL", "Miami Clinic", "Miami", "America/New_York"), ("cl-orl", "FL", "Orlando Clinic", "Orlando", "America/New_York"), ("cl-hou", "TX", "Houston Clinic", "Houston", "America/Chicago")]
+    # Twenty locations in every state and territory (see demo_places): the headquarters location and four prominent ones carry every visit type so the colour coding shows;
+    # the other locations carry primary care plus one rotating visit type. Clinics that already exist (Seattle, Denver, Austin ...) keep their ids and just take their place in the list.
     kinds = [("sv-pc-n", "Dr.", "Primary care", 8, 16), ("sv-physio-n", "", "Physiotherapy", 8, 15), ("sv-vision-n", "", "Vision care", 9, 17), ("sv-coach-n", "", "Health coaching", 10, 18), ("sv-fit-n", "", "Fitness", 7, 12)]
+    suffix = {"sv-physio-n": ", PT", "sv-vision-n": ", OD", "sv-coach-n": ", Health Coach", "sv-fit-n": ", Trainer"}
     first = ["Avery", "Blake", "Casey", "Devon", "Emerson", "Finley", "Harper", "Jamie", "Kendall", "Logan", "Morgan", "Parker", "Quinn", "Reese", "Sage", "Taylor"]
+    last = ["Example", "Sample", "Placeholder", "Demo", "Fictional", "Mockridge", "Testwell", "Samplewood"]
+    existing = {(c["state_code"], c["city"]): c for c in d["clinics"] if c["tenant_id"] == N and c.get("status") == "active" and c.get("bookable")}
     n = 0
     xprofiles = []
-    for cid, st, cname, city, tz in more:
-        d["clinics"].append(clinic(cid, N, st, cname, city, tz))
-        for sid, title, spec, h0, h1 in kinds:
-            pid = f"pr-x{n}"
-            nm = f"{first[n % len(first)]} Example{', ' + {'sv-physio-n': 'PT', 'sv-vision-n': 'OD', 'sv-coach-n': 'Health Coach', 'sv-fit-n': 'Trainer'}[sid] if sid != 'sv-pc-n' else ''}"
-            d["providers"].append({"id": pid, "tenant_id": N, "display_name": ("Dr. " + nm) if sid == "sv-pc-n" else nm, "status": "active"})
-            d["clinic_services"].append({"tenant_id": N, "clinic_id": cid, "service_id": sid, "active": True})
-            d["eligibility"].append(el(N, cid, sid, pid))
-            d["availability"] += wk(N, pid, cid, [1, 2, 3, 4, 5], h0, h1)
-            xprofiles.append({"tenant_id": N, "provider_id": pid, "specialty": spec, "languages": ["English", "Spanish"] if n % 2 else ["English"], "licensed_states": [st], "accepting_new": True})
-            n += 1
+    for st, _name in US_STATES:
+        for p in places(st):
+            have = existing.get((st, p["city"]))
+            if have and p["label"] == p["city"]:
+                have.update(tier=p["tier"], sort_order=p["sort_order"])
+                continue
+            cid = f"cl-{st.lower()}{p['sort_order']:02d}"
+            c = clinic(cid, N, st, f"{p['label']} Clinic", p["city"], p["time_zone"])
+            c["address"] = f"{10 + p['sort_order'] * 7} Example Way, {p['label']}" + (f", {p['city']}" if p["label"] != p["city"] else "")
+            c.update(tier=p["tier"], sort_order=p["sort_order"])
+            d["clinics"].append(c)
+            chosen = kinds if p["tier"] != "other" else [kinds[0], kinds[1 + p["sort_order"] % 4]]
+            for sid, title, spec, h0, h1 in chosen:
+                pid = f"pr-x{n}"
+                nm = f"{first[n % len(first)]} {last[n % len(last)]}{suffix.get(sid, '')}"
+                d["providers"].append({"id": pid, "tenant_id": N, "display_name": ("Dr. " + nm) if sid == "sv-pc-n" else nm, "status": "active"})
+                d["clinic_services"].append({"tenant_id": N, "clinic_id": cid, "service_id": sid, "active": True})
+                d["eligibility"].append(el(N, cid, sid, pid))
+                d["availability"] += wk(N, pid, cid, [1, 2, 3, 4, 5], h0, h1)
+                xprofiles.append({"tenant_id": N, "provider_id": pid, "specialty": spec, "languages": ["English", "Spanish"] if n % 2 else ["English"], "licensed_states": [st], "accepting_new": True})
+                n += 1
     d["employers"] = base["employers"] + named("em-n-", N, ["Vandelay Industries", "Stark Engineering", "Wayne Logistics", "Hooli Cloud", "Soylent Foods", "Wonka Confections", "Cyberdyne Systems",
                                                           "Gringotts Bank", "Pied Piper Labs", "Dunder Mifflin Paper"], 5) + named("em-b-", B, ["Oceanic Airlines", "Tyrell Biotech", "Bluth Construction", "Prestige Worldwide", "Sterling Cooper"], 3)
     d["insurers"] = base["insurers"] + named("in-n-", N, ["Demo Care Alliance", "Northstar Example Insurance", "Evergreen Sample Health", "Summit Placeholder Plan", "Riverbend Mutual"], 4) \

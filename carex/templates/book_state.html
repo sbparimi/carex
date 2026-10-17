@@ -18,16 +18,34 @@
 </form>
 {% if state %}
 <h2 class="section" id="clinics">Clinics in {{ state_name }}</h2>
-<div class="clinics">
-{% for c in clinics %}
+{% macro card(c, i) %}
   <a class="clinic" href="/t/{{ slug }}/book/provider?clinic={{ c.id }}">
-    <span class="tile t{{ loop.index0 % 5 }}" aria-hidden="true"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-5.7 7-11a7 7 0 1 0-14 0c0 5.3 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg></span>
+    <span class="tile t{{ i % 5 }}" aria-hidden="true"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-5.7 7-11a7 7 0 1 0-14 0c0 5.3 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg></span>
     <span class="clinic-body"><strong>{{ c.name }}</strong><small>{{ c.address }}{% if c.city not in c.address %}, {{ c.city }}{% endif %}</small><small class="zone">{{ zone_name(c.time_zone) }}</small></span>
     <span class="chev" aria-hidden="true"></span>
   </a>
-{% else %}
-  <div class="sheet empty"><strong>No clinics open in {{ state_name }} yet</strong><p class="hint">Try another state, or contact {{ brand.support_email or 'the clinic' }}.</p></div>
-{% endfor %}
+{% endmacro %}
+{% set hq = clinics | selectattr('tier', 'equalto', 'hq') | list %}
+{% set major = clinics | selectattr('tier', 'equalto', 'major') | list %}
+{% set other = clinics | selectattr('tier', 'equalto', 'other') | list %}
+{% if not clinics %}
+<div class="sheet empty"><strong>No clinics open in {{ state_name }} yet</strong><p class="hint">Try another state, or contact {{ brand.support_email or 'the clinic' }}.</p></div>
+{% endif %}
+{% if hq %}
+<h3 class="tierhead">Headquarters location</h3>
+<div class="clinics">{% for c in hq %}{{ card(c, 0) }}{% endfor %}</div>
+{% endif %}
+{% if major %}
+<h3 class="tierhead">Prominent locations</h3>
+<div class="clinics">{% for c in major %}{{ card(c, loop.index) }}{% endfor %}</div>
+{% endif %}
+{% if other %}
+<h3 class="tierhead">More locations in {{ state_name }} <span class="count">{{ other | length }}</span></h3>
+<div class="sheet morelist">
+  {% for c in other %}
+  <a class="morerow" href="/t/{{ slug }}/book/provider?clinic={{ c.id }}"><span class="clinic-body"><strong>{{ c.name }}</strong><small>{{ zone_name(c.time_zone) }}</small></span><span class="chev" aria-hidden="true"></span></a>
+  {% endfor %}
 </div>
+{% endif %}
 {% endif %}
 {% endblock %}

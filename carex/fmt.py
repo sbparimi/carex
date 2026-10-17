@@ -34,7 +34,8 @@ def day_parts(iso: str, tz: str) -> dict:
 
 
 ZONE_NAMES = {"America/Los_Angeles": "Pacific Time", "America/Denver": "Mountain Time", "America/Chicago": "Central Time", "America/New_York": "Eastern Time",
-              "America/Phoenix": "Mountain Time (Arizona)", "America/Anchorage": "Alaska Time", "Pacific/Honolulu": "Hawaii Time", "America/Puerto_Rico": "Atlantic Time"}
+              "America/Phoenix": "Mountain Time (Arizona)", "America/Anchorage": "Alaska Time", "Pacific/Honolulu": "Hawaii Time", "America/Puerto_Rico": "Atlantic Time",
+              "Pacific/Pago_Pago": "Samoa Time", "Pacific/Guam": "Chamorro Time", "Pacific/Saipan": "Chamorro Time", "America/St_Thomas": "Atlantic Time"}
 
 
 def zone_name(tz: str) -> str:

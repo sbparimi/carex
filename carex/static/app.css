@@ -420,3 +420,12 @@ summary::-webkit-details-marker { display: none; }
 
 .vsec input[type=text], .vsec input[type=date], .vsec input[type=email], .vsec input[type=tel] { border: 0; background: var(--fill); color: var(--ink); width: 100%; }
 .vsec input[type=date] { min-height: 3.25rem; padding: .5rem .875rem; }
+
+/* Clinic tiers on the state screen */
+.tierhead { margin: 1.5rem 0 .625rem; font-size: .8125rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); display: flex; align-items: center; gap: .5rem; }
+.tierhead .count { font-size: .75rem; padding: .125rem .5rem; border-radius: 999px; background: color-mix(in srgb, var(--brand) 12%, transparent); color: var(--brand); letter-spacing: 0; }
+.morelist { padding: 0; overflow: hidden; }
+.morerow { display: flex; align-items: center; gap: .75rem; padding: .875rem 1rem; min-height: 3.25rem; text-decoration: none; color: var(--ink); border-top: 1px solid var(--line, rgba(128, 128, 128, .2)); }
+.morerow:first-child { border-top: 0; }
+.morerow:hover { background: color-mix(in srgb, var(--brand) 6%, transparent); }
+.morerow strong { font-size: 1rem; }

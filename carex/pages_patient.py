@@ -68,7 +68,7 @@ def register(app: FastAPI, W: Web) -> None:
         u = W.need_user(request, t)
         state = state.upper()[:2]
         known = dict(STATES56)
-        clinics = c.catalog.clinics(t["id"], state)[:5] if state in known else []        # the 5 most prominent clinics in the state
+        clinics = c.catalog.clinics(t["id"], state) if state in known else []        # headquarters first, then prominent, then the other locations
         return W.render(request, "book_state.html", t=t, user=u, nav="book", states=STATES56, state=state if state in known else "", state_name=known.get(state, ""),
                         clinics=clinics, notice=notice[:120] if notice else "")
 

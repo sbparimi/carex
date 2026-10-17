@@ -121,3 +121,16 @@ def book_through_pages(c, intake=True, **over):
 def pytest_sessionfinish(session, exitstatus):
     if "db" in _pg:
         _pg["db"].close()
+
+
+@pytest.fixture
+def demo(db, clock):
+    """The full demo catalog (20+ clinics in every state) with a signed-in demo patient."""
+    from carex.seed_demo import DEMO_PASSWORD, load_demo, seed_demo_people
+    load_demo(db)
+    seed_demo_people(db, clock)
+    c = build(db=db, env={}, clock=clock, mailer=Outbox())
+    cl = TestClient(create_app(c), base_url="http://testserver", follow_redirects=True)
+    r = cl.post(S + "/login", data={"email": "alex.demo@example.test", "password": DEMO_PASSWORD})
+    assert r.status_code == 200
+    return cl, c
