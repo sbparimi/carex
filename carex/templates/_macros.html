@@ -15,8 +15,12 @@
 {% macro logomark(size=36) %}<svg class="logomark" viewBox="0 0 64 64" width="{{ size }}" height="{{ size }}" aria-hidden="true" focusable="false"><path d="M45 17.5A19 19 0 1 0 45 46.5" fill="none" stroke="#1b6fb5" stroke-width="9" stroke-linecap="round"/><path d="M32 24l16 16M48 24L32 40" fill="none" stroke="#f7941d" stroke-width="6" stroke-linecap="round"/></svg>{% endmacro %}
 {% macro wordmark(size=36) %}<span class="wordmark">{{ logomark(size) }}<span class="wm-text">Care<b>X</b></span></span>{% endmacro %}
 
+{% macro orgmark(brand, size=36) %}{% if brand.logo_url %}<img class="orgmark" src="{{ brand.logo_url }}" alt="" width="{{ size }}" height="{{ size }}">{% else %}<span class="orgmark mono" aria-hidden="true">{{ brand.display_name[:1] }}</span>{% endif %}{% endmacro %}
+{% macro orgname(brand) %}{% set w = brand.display_name.split(' ', 1) %}<span class="org-text"><b>{{ w[0] }}</b>{% if w|length > 1 %} {{ w[1] }}{% endif %}</span>{% endmacro %}
+{% macro poweredby() %}<span class="poweredby">Powered by {{ wordmark(18) }}</span>{% endmacro %}
+
 {% macro authbrand(brand) %}
-<div class="authbrand">{{ wordmark(44) }}{% if brand.logo_url %}<img src="{{ brand.logo_url }}" alt="" height="36">{% endif %}<span class="authbrand-name">{{ brand.display_name }}</span><p class="tagline">{{ TAGLINE }}</p></div>
+<div class="authbrand">{{ orgmark(brand, 56) }}{{ orgname(brand) }}<p class="tagline">{{ TAGLINE }}</p></div>
 {% endmacro %}
 
 {% macro care911() %}

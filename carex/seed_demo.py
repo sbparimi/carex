@@ -75,6 +75,7 @@ def demo_catalog() -> dict:
         return {"tenant_id": tenant, "clinic_id": clinic_id, "service_id": service, "provider_id": provider, "active": True}
 
     d = dict(base)
+    d["tenants"] = [dict(t, display_name="Northwind Healthcare", logo_url="/assets/northwind.svg", support_email="care@northwind-healthcare.example") if t["id"] == N else t for t in base["tenants"]]
     d["clinics"] = base["clinics"] + [clinic("cl-sea", N, "WA", "Seattle Clinic", "Seattle", "America/Los_Angeles"), clinic("cl-den", N, "CO", "Denver Clinic", "Denver", "America/Denver"),
                                       clinic("cl-sj", B, "CA", "San Jose Clinic", "San Jose", "America/Los_Angeles")]
     d["services"] = base["services"] + [svc("sv-vision-b", B, "vision_care", "Vision Care"), svc("sv-coach-b", B, "health_coach", "Health Coach")]

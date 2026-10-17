@@ -90,6 +90,10 @@ def create_app(ctx: Ctx | None = None) -> FastAPI:
     def logo():
         return FileResponse(STATIC / "logo.svg", media_type="image/svg+xml", headers={"cache-control": "public, max-age=86400", **SECURITY_HEADERS})
 
+    @app.get("/assets/northwind.svg")
+    def northwind_logo():
+        return FileResponse(STATIC / "northwind.svg", media_type="image/svg+xml", headers={"cache-control": "public, max-age=86400", **SECURITY_HEADERS})
+
     @app.get("/healthz")
     def healthz():
         try:
