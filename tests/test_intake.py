@@ -1,11 +1,11 @@
-"""Emergency screening, consent, patients, referral, telehealth licensure and coverage."""
+"""Consent, patients, referral, telehealth licensure and coverage."""
 from __future__ import annotations
 
 import pytest
 
 from carex.accounts import Accounts
 from carex.intake import IntakeError
-from carex.triage import EMERGENCY_MESSAGE, screen
+from carex.triage import CRISIS, NOTICE
 
 
 @pytest.fixture
@@ -26,25 +26,14 @@ def code(ctx, user, **kw):
     return e.value.code
 
 
-def test_screening_flags_and_phrases():
-    assert screen("fine", None) == {"emergency": False, "screened": False}
-    assert screen("fine", []) == {"emergency": False, "screened": True}
-    assert screen("fine", ["chest_pain"])["emergency"] and screen("fine", ["chest_pain"])["message"] == EMERGENCY_MESSAGE
-    for phrase in ("I have crushing chest pain", "can't breathe", "thinking of suicide", "possible overdose", "he is unresponsive", "severe bleeding"):
-        assert screen(phrase, [])["emergency"], phrase
-    assert not screen("annual physical", [])["emergency"]
-
-
-def test_a_positive_screen_warns_but_never_blocks_booking(ctx, user):
-    for kw in ({"red_flags": ["breathing"]}, {"reason": "chest pain since morning"}):
-        req = {"clinic_id": "cl-sb", "service_id": "sv-pc-n", "provider_id": "pr-a", "reason": "Cough", "red_flags": [], "consent_version": "v1", **kw}
-        assert ctx.intake.prepare("tn-north", user["id"], req)["emergency"] is True
-    ok = {"clinic_id": "cl-sb", "service_id": "sv-pc-n", "provider_id": "pr-a", "reason": "Cough", "red_flags": [], "consent_version": "v1"}
-    assert ctx.intake.prepare("tn-north", user["id"], ok)["emergency"] is False
+def test_symptom_words_never_block_or_warn_the_booking(ctx, user):
+    """The 911 text is purely informational: nothing a patient types or selects is screened."""
+    for kw in ({"reason": "chest pain since morning"}, {"red_flags": ["breathing"]}, {"red_flags": None}):
+        d = ctx.intake.prepare("tn-north", user["id"], req(**kw))
+        assert "emergency" not in d and d["patient_id"].startswith("pt_self_")
 
 
 def test_required_intake_fields(ctx, user):
-    assert code(ctx, user, red_flags=None) == "screening_required"
     assert code(ctx, user, reason="") == "reason_required"
     assert code(ctx, user, consent_version=None) == "consent_required"
     assert ctx.intake.prepare("tn-north", user["id"], req())["patient_id"].startswith("pt_self_")
@@ -123,15 +112,11 @@ def test_coverage_network_and_copay(ctx, user):
     assert e.value.code == "out_of_network"
 
 
-def test_staff_intake_requires_attested_consent_and_screening(ctx):
+def test_staff_intake_requires_attested_consent(ctx):
     ctx.db.run("UPDATE tenants SET video_join_base_url = NULL")
     pt = {"first_name": "Walk", "last_name": "In", "date_of_birth": "1980-01-01"}
     base = {"clinic_id": "cl-sb", "service_id": "sv-pc-n", "provider_id": "pr-a", "reason": "Cough", "red_flags": []}
     with pytest.raises(IntakeError) as e:
         ctx.intake.prepare_for_staff("tn-north", pt, base)
     assert e.value.code == "consent_required"
-    assert ctx.intake.prepare_for_staff("tn-north", pt, {**base, "consent_attested": True, "red_flags": ["stroke"]})["emergency"] is True
-    with pytest.raises(IntakeError) as e:
-        ctx.intake.prepare_for_staff("tn-north", pt, {**base, "consent_attested": True, "red_flags": None})
-    assert e.value.code == "screening_required"
     assert ctx.intake.prepare_for_staff("tn-north", pt, {**base, "consent_attested": True})["intake_required"] is True

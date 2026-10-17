@@ -1,4 +1,4 @@
-"""Clinical intake: patients (self + dependents), consent, screening, referral, telehealth licensure and coverage, evaluated server-side before any slot is held."""
+"""Clinical intake: patients (self + dependents), consent, referral, telehealth licensure and coverage, evaluated server-side before any slot is held."""
 from __future__ import annotations
 
 import json
@@ -7,7 +7,6 @@ import secrets
 from datetime import datetime
 from typing import Callable
 
-from .triage import screen
 from .util import age_on, iso, now as _now, parse
 
 CONSENT_TEXT = ("I consent to evaluation and treatment by the clinic's providers, including by video if I choose a video visit. I understand I can cancel or change this appointment up to the notice time shown, "
@@ -100,11 +99,10 @@ class Intake:
         return {"patient_id": patient["id"], "patient_first_name": patient["first_name"], "patient_last_name": patient["last_name"], "reason": c["reason"], "modality": c["modality"],
                 "patient_state": c["state"], "interpreter_language": (req.get("interpreter_language") or "").strip() or None, "accommodations": (req.get("accommodations") or "").strip() or None,
                 "referral_ref": c["referral"], "copay_cents": copay, "consent_version": t["consent_version"] if required or req.get("consent_version") else None,
-                "video_join_base": t["video_join_base_url"], "intake_required": required, "emergency": c["emergency"]}
+                "video_join_base": t["video_join_base_url"], "intake_required": required}
 
     def prepare_for_staff(self, tenant_id: str, patient: dict, req: dict) -> dict:
-        """Intake for a patient a staff member is booking by phone or at the desk (no account). Same safety rules as self-service: the screening script
-        must have been read (red_flags present), a positive shows a 911 warning (it does not block), and verbal consent must be attested."""
+        """Intake for a patient a staff member is booking by phone or at the desk (no account). Same rules as self-service, and verbal consent must be attested."""
         t = self.db.get("SELECT consent_version, video_join_base_url FROM tenants WHERE id = ?", tenant_id)
         if not t:
             raise IntakeError("not_found", "selection is not available")
@@ -114,14 +112,11 @@ class Intake:
                          consent_version=t["consent_version"], video_base=t["video_join_base_url"], staff=True)
         return {"patient_id": "", "patient_first_name": patient["first_name"], "patient_last_name": patient["last_name"], "reason": c["reason"], "modality": c["modality"],
                 "patient_state": c["state"], "interpreter_language": (req.get("interpreter_language") or "").strip() or None, "accommodations": (req.get("accommodations") or "").strip() or None,
-                "referral_ref": c["referral"], "copay_cents": 0, "consent_version": t["consent_version"], "video_join_base": t["video_join_base_url"], "intake_required": True, "emergency": c["emergency"]}
+                "referral_ref": c["referral"], "copay_cents": 0, "consent_version": t["consent_version"], "video_join_base": t["video_join_base_url"], "intake_required": True}
 
     def _checks(self, tenant_id: str, req: dict, *, dob, patient_id, consent_required: bool, consent_version: str, video_base, staff: bool = False) -> dict:
         """Screening, consent, age, referral, modality/licensure and new-patient acceptance: identical for self-service and staff bookings."""
         required = consent_required
-        sc = screen(req.get("reason"), req.get("red_flags"))
-        if required and not sc["screened"]:
-            raise IntakeError("screening_required", "Please answer the safety questions before booking.")
         if required and len((req.get("reason") or "").strip()) < 3:
             raise IntakeError("reason_required", "Tell us briefly what the visit is for.")
         if required and req.get("consent_version") != consent_version:
@@ -156,7 +151,7 @@ class Intake:
             seen = patient_id and self.db.get("SELECT 1 AS ok FROM appointments WHERE tenant_id = ? AND patient_id = ? AND provider_id = ? AND status IN ('arrived','completed') LIMIT 1", tenant_id, patient_id, req["provider_id"])
             if not seen and not staff:
                 raise IntakeError("provider_not_accepting_new", f"{prov['display_name']} isn't accepting new patients. Choose another provider.")
-        return {"reason": (req.get("reason") or "").strip() or None, "modality": modality, "state": state, "referral": referral or None, "emergency": sc["emergency"]}
+        return {"reason": (req.get("reason") or "").strip() or None, "modality": modality, "state": state, "referral": referral or None}
 
     def coverage(self, tenant_id: str, user_id: str, clinic_id: str, service_id: str) -> int:
         """What the signed-in account's plan says about this visit. Raises when it isn't covered or the clinic is out of network."""

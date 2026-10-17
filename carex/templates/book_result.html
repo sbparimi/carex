@@ -1,10 +1,10 @@
 {% extends "base.html" %}
-{% from "_macros.html" import banner, emergency %}
+{% from "_macros.html" import banner, care911 %}
 {% block title %}{{ 'Booked' if o.status == 'confirmed' else 'Booking' }} · {{ brand.display_name }}{% endblock %}
 {% block content %}
 {% if o.status == 'confirmed' %}
 <h1 id="h1" tabindex="-1">You're booked</h1>
-{% if urgent %}{{ emergency() }}{% endif %}
+{{ care911() }}
 {{ banner('success', 'Your appointment is confirmed. We also sent you a confirmation.', 'status') }}
 <div class="apptcard vt-{{ vtc[o.summary.visit_type.id] }}"><span class="vtag">{{ o.summary.visit_type.label }}</span><strong>{{ when(o.summary.starts_at, o.summary.time_zone) }}</strong><span>{{ o.summary.provider.display_name }}</span></div>
 <dl class="summary">

@@ -239,7 +239,7 @@ class StaffDesk:
         return self.sched.list_slots(tenant_id, clinic_id, service_id, provider_id)
 
     def book(self, tenant_id: str, staff: dict, b: dict) -> dict:
-        """Book a phone or walk-in patient who has no account. Same safety rules as self-service; the staff member attests the screening was read and verbal consent given."""
+        """Book a phone or walk-in patient who has no account. Same rules as self-service; the staff member attests verbal consent was given."""
         if staff["role"] == "provider":
             raise StaffError("forbidden", "Providers can't book on behalf of patients")
         for k in ("clinic_id", "service_id", "provider_id"):
@@ -267,14 +267,13 @@ class StaffDesk:
             f["patient_state"] = "Enter a two-letter state code"
         if f:
             raise StaffError("invalid_input", next(iter(f.values())), f)
-        req = {"clinic_id": b["clinic_id"], "service_id": b["service_id"], "provider_id": b["provider_id"], "slot_id": b["slot_id"], "reason": b.get("reason") if isinstance(b.get("reason"), str) else None,
-               "red_flags": [str(x) for x in b["red_flags"]] if isinstance(b.get("red_flags"), list) else None, "modality": b.get("modality") if b.get("modality") in ("in_person", "telehealth") else None,
+        req = {"clinic_id": b["clinic_id"], "service_id": b["service_id"], "provider_id": b["provider_id"], "slot_id": b["slot_id"], "reason": b.get("reason") if isinstance(b.get("reason"), str) else None, "modality": b.get("modality") if b.get("modality") in ("in_person", "telehealth") else None,
                "patient_state": b.get("patient_state") or None, "interpreter_language": b.get("interpreter_language") or None, "accommodations": b.get("accommodations") or None,
                "referral_ref": b.get("referral_ref") or None, "consent_attested": b.get("consent_attested") is True}
         try:
             dec = self.intake.prepare_for_staff(tenant_id, {"first_name": first, "last_name": last, "date_of_birth": dob or None}, req)
         except IntakeError as e:
-            raise StaffError("conflict" if e.code == "emergency_redirect" else "invalid_input", str(e), {e.code: str(e)})
+            raise StaffError("invalid_input", str(e), {e.code: str(e)})
         try:
             rec = self.sched.reserve(ReserveInput(tenant_id, req["clinic_id"], req["service_id"], req["provider_id"], req["slot_id"], f"staff-{uuid.uuid4()}", first, last, email or None, phone or None,
                                                   intake=dec, booked_by="staff", staff_id=staff["id"], patient_dob=dob or None, sms_ok=b.get("sms_ok") is True))

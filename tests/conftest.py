@@ -110,7 +110,7 @@ def first_slot(c, clinic="cl-sb", service="sv-physio-n", provider="pr-b"):
 def book_through_pages(c, intake=True, **over):
     """Drives details -> review -> confirm for pr-b physio at San Bernardo; returns (confirm response, form values)."""
     slot = first_slot(c)
-    d = dict(clinic="cl-sb", service="sv-physio-n", provider="pr-b", slot=slot, none_apply="1", reason="Sore knee", modality="in_person", consent="v1")
+    d = dict(clinic="cl-sb", service="sv-physio-n", provider="pr-b", slot=slot, reason="Sore knee", modality="in_person", consent="v1")
     d.update(over)
     review = c.post(S + "/book/review", data=d)
     if h1(review) != "Review and confirm":

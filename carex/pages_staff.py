@@ -12,7 +12,6 @@ from .admin import AdminNotFoundError, AdminValidationError
 from .intake import CONSENT_TEXT, INTERPRETER_LANGUAGES
 from .pages_patient import group_days
 from .staff import StaffError, to_csv
-from .triage import KEYS, screen
 from .util import iso, local_parts, now as _now, parse, zoned_to_utc
 from .web import CSP_API, ID, SECURITY_HEADERS, STAFF_COOKIE, STAFF_SECONDS, Web, form, s
 
@@ -107,7 +106,7 @@ def register(app: FastAPI, W: Web) -> None:
         d = parse(date + "T00:00:00Z")
         provs = {p["id"]: p for cl in cat["clinics"] for p in cl["providers"]}
         back = f"/t/{slug}/staff?date={date}&clinic={quote(clinic)}&provider={quote(provider)}"
-        notices = {"done": ("Updated.", True), "moved": ("Appointment moved.", True), "booked": ("Appointment booked.", True), "booked_urgent": ("Appointment booked, but the patient reported possible emergency symptoms. Make sure they have been told to call 911 now.", False), "cancelled": ("Appointment cancelled.", True)}
+        notices = {"done": ("Updated.", True), "moved": ("Appointment moved.", True), "booked": ("Appointment booked.", True),  "cancelled": ("Appointment cancelled.", True)}
         msg, ok = notices.get(n, ("", True))
         return W.render(request, "staff_day.html", t=t, staff=st, nav="day", cat=cat, rows=rows, date=date, clinic=clinic, provider=provider, providers=list(provs.values()),
                         prev=(d - timedelta(days=1)).date().isoformat(), next=(d + timedelta(days=1)).date().isoformat(), back=back, transitions=TRANSITIONS, labels=LABELS, notice=msg, notice_ok=ok)
@@ -176,7 +175,7 @@ def register(app: FastAPI, W: Web) -> None:
     def book_ctx(t, st, q: dict, v: dict, **extra):
         cat = c.desk.catalog(t["id"], st)
         cl = next((x for x in cat["clinics"] if x["id"] == q.get("clinic")), None)
-        ctx = dict(t=t, staff=st, nav="sbook", cat=cat, stage=1, cl=cl, v=v, error=None, emergency_stop=False)
+        ctx = dict(t=t, staff=st, nav="sbook", cat=cat, stage=1, cl=cl, v=v, error=None)
         if not cl:
             return ctx
         ctx["stage"] = 2
@@ -196,7 +195,7 @@ def register(app: FastAPI, W: Web) -> None:
         return {**ctx, **extra}
 
     def empty_book_v():
-        return {"slot_id": "", "first_name": "", "last_name": "", "date_of_birth": "", "phone": "", "email": "", "sms_ok": False, "flags": [], "none_apply": False, "reason": "",
+        return {"slot_id": "", "first_name": "", "last_name": "", "date_of_birth": "", "phone": "", "email": "", "sms_ok": False, "reason": "",
                 "modality": "", "patient_state": "", "referral_ref": "", "interpreter_language": "", "accommodations": "", "consent_attested": False}
 
     @app.get(P + "/book")
@@ -210,30 +209,26 @@ def register(app: FastAPI, W: Web) -> None:
         t = W.tenant(slug)
         st = W.need_staff(request, t, "front_desk", "admin")
         W.allow("write", W.client(request))
-        flags = [x for x in f.get("flag_all", []) if x in KEYS]
-        none = bool(f.get("none_apply"))
         v = {"slot_id": s(f, "slot_id", 120), "first_name": s(f, "first_name", 80), "last_name": s(f, "last_name", 80), "date_of_birth": s(f, "date_of_birth", 10), "phone": s(f, "phone", 30),
-             "email": s(f, "email", 254), "sms_ok": bool(f.get("sms_ok")), "flags": flags, "none_apply": none, "reason": s(f, "reason", 300), "modality": s(f, "modality", 20),
+             "email": s(f, "email", 254), "sms_ok": bool(f.get("sms_ok")), "reason": s(f, "reason", 300), "modality": s(f, "modality", 20),
              "patient_state": s(f, "patient_state", 2), "referral_ref": s(f, "referral_ref", 80), "interpreter_language": s(f, "interpreter_language", 60),
              "accommodations": s(f, "accommodations", 300), "consent_attested": bool(f.get("consent_attested"))}
         q = {"clinic": s(f, "clinic_id", 64), "service": s(f, "service_id", 64), "provider": s(f, "provider_id", 64)}
         body = {"clinic_id": q["clinic"], "service_id": q["service"], "provider_id": q["provider"], "slot_id": v["slot_id"], "first_name": v["first_name"], "last_name": v["last_name"],
-                "date_of_birth": v["date_of_birth"], "phone": v["phone"], "email": v["email"], "sms_ok": v["sms_ok"], "reason": v["reason"], "red_flags": flags if (flags or none) else None,
+                "date_of_birth": v["date_of_birth"], "phone": v["phone"], "email": v["email"], "sms_ok": v["sms_ok"], "reason": v["reason"],
                 "modality": v["modality"], "patient_state": v["patient_state"], "referral_ref": v["referral_ref"], "interpreter_language": v["interpreter_language"],
                 "accommodations": v["accommodations"], "consent_attested": v["consent_attested"]}
-        urgent = bool(screen(v["reason"], flags if (flags or none) else None)["emergency"])
         try:
             row = c.desk.book(t["id"], st, body)
         except StaffError as e:
-            emergency = urgent
             status = 409 if e.code == "conflict" else 400
             if e.code == "forbidden":
                 raise HTTPException(403, str(e))
-            return W.render(request, "staff_book.html", status, **book_ctx(t, st, q, v, error=str(e), emergency_stop=emergency))
-        W.audit(request, t, "staff", "staff.booking_create", actor_id=st["id"], target_type="appointment", target_id=row["id"], detail={"emergency_warning": True} if urgent else None)
+            return W.render(request, "staff_book.html", status, **book_ctx(t, st, q, v, error=str(e)))
+        W.audit(request, t, "staff", "staff.booking_create", actor_id=st["id"], target_type="appointment", target_id=row["id"])
         W.notify_now(row["id"])
         l = local_parts(parse(row["starts_at"]), row["time_zone"])
-        return W.redirect(f"/t/{slug}/staff?date={l['year']:04d}-{l['month']:02d}-{l['day']:02d}&n={'booked_urgent' if urgent else 'booked'}")
+        return W.redirect(f"/t/{slug}/staff?date={l['year']:04d}-{l['month']:02d}-{l['day']:02d}&n=booked")
 
     # ------------------------------------------------------------------ hours, time off, closures
     def own(st, provider_id):

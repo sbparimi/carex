@@ -54,24 +54,18 @@ def test_full_booking_then_replay_then_cancel_then_reschedule(signed_in):
     assert f"/appointments/{ids[0]}/cancel" not in signed_in.get(S + "/appointments").text
 
 
-def test_emergency_symptoms_show_an_urgent_911_warning_but_booking_still_works(signed_in):
+def test_911_text_is_informational_only_and_never_blocks(signed_in):
     r, _ = book_through_pages(signed_in, reason="crushing chest pain and trouble breathing")
-    assert h1(r) == "You're booked" and "911" in r.text and 'class="banner warning emergency"' in r.text
-    slot = first_slot(signed_in)
-    review = signed_in.post(S + "/book/review", data=dict(clinic="cl-sb", service="sv-physio-n", provider="pr-b", slot=slot, reason="Sore knee", flag="stroke", modality="in_person", consent="v1"))
-    assert h1(review) == "Review and confirm" and "emergency" in review.text and "Confirm booking" in review.text
-    assert "animation" not in review.text and "<style" not in review.text          # motion lives in the stylesheet, not inline
+    assert h1(r) == "You're booked" and "911" in r.text and 'class="infonote"' in r.text
+    assert "emergency" not in re.findall(r'class="banner ([^"]*)"', r.text)
+    details = signed_in.get(S + f"/book/details?clinic=cl-sb&service=sv-physio-n&provider=pr-b&slot={first_slot(signed_in)}")
+    assert details.status_code == 200 and 'class="infonote"' in details.text and "Safety check" not in details.text
+    css = signed_in.get("/assets/app.css").text
+    assert "emerg-pulse" not in css and "banner.emergency" not in css
 
 
-def test_emergency_banner_has_motion_that_respects_reduced_motion(client):
-    css = client.get("/assets/app.css").text
-    assert "emerg-pulse" in css and "prefers-reduced-motion: reduce" in css
-
-
-def test_must_acknowledge_red_flag_screen_and_consent(signed_in, ctx):
+def test_consent_is_required_when_intake_is_on(signed_in, ctx):
     ctx.db.run("UPDATE tenants SET intake_required = 1")
-    r, _ = book_through_pages(signed_in, none_apply="")
-    assert h1(r) != "Review and confirm" and r.status_code in (200, 422)
     r, _ = book_through_pages(signed_in, consent="")
     assert h1(r) != "Review and confirm"
 
@@ -177,3 +171,27 @@ def test_every_visit_type_has_a_different_colour(client, ctx):
     from carex.web import Web
     colors = Web(ctx).visit_colors(ctx.db.get("SELECT id FROM tenants WHERE slug = 'northwind-health'"))
     assert len(colors) >= 5 and len(set(colors.values())) == len(colors)
+
+
+def test_details_page_is_a_modern_form_and_quick_reasons_combine_with_free_text(signed_in, ctx):
+    ctx.db.run("UPDATE tenants SET intake_required = 1")
+    slot = first_slot(signed_in, service="sv-pc-n", provider="pr-a")
+    page = signed_in.get(f"{S}/book/details?clinic=cl-sb&service=sv-pc-n&provider=pr-a&slot={slot}")
+    for marker in ('class="persons"', 'class="pills"', 'class="actionbar"', 'class="switch"', 'class="apptcard vt-', "Review booking"):
+        assert marker in page.text, marker
+    assert len(re.findall(r'name="reason_pick"', page.text)) == 6
+    r = signed_in.post(S + "/book/review", data=dict(clinic="cl-sb", service="sv-pc-n", provider="pr-a", slot=slot, reason_pick="Follow-up", reason_text="Left knee", modality="in_person", consent="v1"))
+    assert h1(r) == "Review and confirm" and "Follow-up: Left knee" in r.text
+    only_pick = signed_in.post(S + "/book/review", data=dict(clinic="cl-sb", service="sv-pc-n", provider="pr-a", slot=slot, reason_pick="Check-up", consent="v1"))
+    assert h1(only_pick) == "Review and confirm"
+    nothing = signed_in.post(S + "/book/review", data=dict(clinic="cl-sb", service="sv-pc-n", provider="pr-a", slot=slot, consent="v1"))
+    assert h1(nothing) != "Review and confirm" and "what the visit is for" in nothing.text.lower()
+
+
+def test_video_visits_show_the_state_question_and_in_person_only_visits_do_not(signed_in, ctx):
+    ctx.db.run("UPDATE visit_types SET modality = 'either' WHERE id = 'sv-pc-n'")
+    slot = first_slot(signed_in, service="sv-pc-n", provider="pr-a")
+    page = signed_in.get(f"{S}/book/details?clinic=cl-sb&service=sv-pc-n&provider=pr-a&slot={slot}")
+    assert 'value="telehealth"' in page.text and 'class="tele"' in page.text and "licensed" in page.text
+    inperson = signed_in.get(f"{S}/book/details?clinic=cl-sb&service=sv-physio-n&provider=pr-b&slot={first_slot(signed_in)}")
+    assert 'class="tele' not in inperson.text and 'value="in_person"' in inperson.text

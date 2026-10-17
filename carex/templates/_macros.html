@@ -15,8 +15,8 @@
 <div class="authbrand"><span class="mark" aria-hidden="true"></span>{% if brand.logo_url %}<img src="{{ brand.logo_url }}" alt="" height="36">{% endif %}<span class="authbrand-name">{{ brand.display_name }}</span></div>
 {% endmacro %}
 
-{% macro emergency() %}
-<div class="banner warning emergency" role="alert"><span class="icon" aria-hidden="true">!</span><span class="text"><strong>This may be an emergency.</strong> Please call <a href="tel:911">911</a> now or go to the nearest emergency room; do not wait for this appointment. If you are thinking about harming yourself, call or text <a href="tel:988">988</a> (Suicide &amp; Crisis Lifeline) right away. You can still book this visit.</span></div>
+{% macro care911() %}
+<p class="infonote"><span class="i" aria-hidden="true">i</span><span>{{ NOTICE }} {{ CRISIS }}</span></p>
 {% endmacro %}
 
 {% macro steps(current) %}

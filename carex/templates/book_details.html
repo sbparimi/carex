@@ -1,70 +1,110 @@
 {% extends "base.html" %}
-{% from "_macros.html" import steps, banner, emergency %}
-{% block title %}Visit details · {{ brand.display_name }}{% endblock %}
+{% from "_macros.html" import steps, banner, care911 %}
+{% block title %}Your visit · {{ brand.display_name }}{% endblock %}
 {% block content %}
 {{ steps(4) }}
-<p class="back"><a href="/t/{{ slug }}/book/provider?clinic={{ clinic.id }}&amp;service={{ visit.id }}&amp;provider={{ provider.id }}">&larr; Change time</a></p>
-<h1 id="h1" class="largetitle">Visit details</h1>
-<div class="apptcard vt-{{ vtc[visit.id] }}"><span class="vtag">{{ visit.label }}</span><strong>{{ when(slot.starts_at, slot.time_zone) }}</strong><span>{{ provider.display_name }} · {{ clinic.name }}</span></div>
-{% if emergency_stop %}{{ emergency() }}{% endif %}
+<p class="back"><a class="backlink" href="/t/{{ slug }}/book/provider?clinic={{ clinic.id }}&amp;service={{ visit.id }}&amp;provider={{ provider.id }}">Change time</a></p>
+<h1 id="h1" class="largetitle">Your visit</h1>
+
+<div class="apptcard vt-{{ vtc[visit.id] }}">
+  <span class="vtag">{{ visit.label }} · {{ visit.duration_min }} min</span>
+  <strong>{{ when(slot.starts_at, slot.time_zone) }}</strong>
+  <span>{{ provider.display_name }} · {{ clinic.name }}</span>
+  <span class="addr">{{ clinic.address }}{% if clinic.city not in clinic.address %}, {{ clinic.city }}{% endif %} · {{ zone_name(clinic.time_zone) }}</span>
+</div>
+
 {% if error %}{{ banner('error', error, 'alert') }}{% endif %}
-{% if cfg.coverage_notice %}{{ banner('info' if cfg.coverage_notice.covered else 'error', cfg.coverage_notice.text, 'status') }}{% endif %}
-<form method="post" action="/t/{{ slug }}/book/review" novalidate>
+
+<form class="vform vt-{{ vtc[visit.id] }}" method="post" action="/t/{{ slug }}/book/review" novalidate>
   <input type="hidden" name="clinic" value="{{ clinic.id }}"><input type="hidden" name="service" value="{{ visit.id }}"><input type="hidden" name="provider" value="{{ provider.id }}"><input type="hidden" name="slot" value="{{ slot.id }}">
 
-  <fieldset>
-    <legend>Who is this visit for?</legend>
-    {% for p in patients %}<label class="radio"><input type="radio" name="patient_id" value="{{ p.id }}"{% if (v.patient_id or patients[0].id) == p.id %} checked{% endif %}> <span>{{ p.first_name }} {{ p.last_name }}{% if p.relationship == 'self' %} (me){% else %} ({{ p.relationship }}){% endif %}</span></label>{% endfor %}
-    <details class="subform"><summary>Add a family member</summary>
-      <label class="field" for="dep_rel">Relationship</label>
-      <select id="dep_rel" name="dep_relationship"><option value="">Choose…</option><option value="child">Child</option><option value="spouse">Spouse or partner</option><option value="parent">Parent</option><option value="other">Other</option></select>
-      <label class="field" for="dep_first">First name</label><input id="dep_first" name="dep_first_name" type="text" autocomplete="off">
-      <label class="field" for="dep_last">Last name</label><input id="dep_last" name="dep_last_name" type="text" autocomplete="off">
-      <label class="field" for="dep_dob">Date of birth</label><input id="dep_dob" name="dep_date_of_birth" type="date">
+  <section class="vsec" aria-labelledby="s-who">
+    <h2 id="s-who"><span class="num">1</span>Who is this visit for?</h2>
+    <div class="persons">
+      {% for p in patients %}
+      <label class="person"><input type="radio" name="patient_id" value="{{ p.id }}"{% if (v.patient_id or patients[0].id) == p.id %} checked{% endif %}>
+        <span class="pcard"><span class="avatar sm" aria-hidden="true">{{ p.first_name[:1] }}</span><span class="ptext"><strong>{{ p.first_name }} {{ p.last_name }}</strong><small>{% if p.relationship == 'self' %}Me{% else %}{{ p.relationship|capitalize }}{% endif %}</small></span><span class="tick" aria-hidden="true"></span></span></label>
+      {% endfor %}
+    </div>
+    <details class="addperson"><summary>Add a family member</summary>
+      <div class="two">
+        <div><label class="field" for="dep_rel">Relationship</label>
+        <div class="selectwrap"><select id="dep_rel" name="dep_relationship"><option value="">Choose&hellip;</option><option value="child">Child</option><option value="spouse">Spouse or partner</option><option value="parent">Parent</option><option value="other">Other</option></select></div></div>
+        <div><label class="field" for="dep_dob">Date of birth</label><input id="dep_dob" name="dep_date_of_birth" type="date"></div>
+        <div><label class="field" for="dep_first">First name</label><input id="dep_first" name="dep_first_name" type="text" autocomplete="off"></div>
+        <div><label class="field" for="dep_last">Last name</label><input id="dep_last" name="dep_last_name" type="text" autocomplete="off"></div>
+      </div>
       <p class="hint">If you fill this in, the visit is booked for this person.</p>
     </details>
-  </fieldset>
+  </section>
 
-  <fieldset>
-    <legend>Safety check{% if cfg.intake_required %} <span aria-hidden="true">*</span>{% endif %}</legend>
-    <p class="hint">Does the patient have any of these right now? Select all that apply.</p>
-    {% for r in red_flags %}<label class="check"><input type="checkbox" name="flag" value="{{ r.key }}"{% if r.key in v.flags %} checked{% endif %}> <span>{{ r.label }}</span></label>{% endfor %}
-    <label class="check"><input type="checkbox" name="none_apply" value="1"{% if v.none_apply %} checked{% endif %}> <span><strong>None of these apply</strong></span></label>
-    <p class="hint">If this is an emergency, call 911. For thoughts of self-harm, call or text 988.</p>
-  </fieldset>
-
-  <label class="field" for="reason">What is the visit for?{% if cfg.intake_required %} <span aria-hidden="true">*</span>{% endif %}</label>
-  <textarea id="reason" name="reason" maxlength="300">{{ v.reason }}</textarea>
-
-  {% if visit.modality == 'either' %}
-  <fieldset><legend>How would you like to be seen?</legend>
-    <label class="radio"><input type="radio" name="modality" value="in_person"{% if v.modality != 'telehealth' %} checked{% endif %}> <span>In person</span></label>
-    <label class="radio"><input type="radio" name="modality" value="telehealth"{% if v.modality == 'telehealth' %} checked{% endif %}> <span>By video</span></label>
-  </fieldset>
-  {% elif visit.modality == 'telehealth' %}<input type="hidden" name="modality" value="telehealth"><p class="hint">This is a video visit.</p>
-  {% else %}<input type="hidden" name="modality" value="in_person">{% endif %}
   {% if visit.modality != 'in_person' %}
-  <label class="field" for="patient_state">For a video visit: the state the patient will be in</label>
-  <select id="patient_state" name="patient_state"><option value="">Choose…</option>{% for st in US_STATES %}<option value="{{ st }}"{% if v.patient_state == st %} selected{% endif %}>{{ st }}</option>{% endfor %}</select>
+  <section class="vsec" aria-labelledby="s-how">
+    <h2 id="s-how"><span class="num">2</span>How would you like to be seen?</h2>
+    {% if visit.modality == 'either' %}
+    <div class="formats">
+      <label class="format"><input type="radio" name="modality" value="in_person"{% if v.modality != 'telehealth' %} checked{% endif %}>
+        <span class="fcard"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 21V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v16M16 9h2a2 2 0 0 1 2 2v10M2 21h20M8 7h4M8 11h4M8 15h4"/></svg><strong>In person</strong><small>At {{ clinic.name }}</small></span></label>
+      <label class="format"><input type="radio" name="modality" value="telehealth"{% if v.modality == 'telehealth' %} checked{% endif %}>
+        <span class="fcard"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="6" width="14" height="12" rx="3"/><path d="M16 10l6-3v10l-6-3"/></svg><strong>Video</strong><small>From wherever you are</small></span></label>
+    </div>
+    {% else %}
+    <input type="hidden" name="modality" value="telehealth">
+    <p class="chipline"><span class="vtag">Video visit</span> You'll get a link to join.</p>
+    {% endif %}
+    <div class="tele{% if visit.modality == 'telehealth' %} always{% endif %}">
+      <label class="field" for="patient_state">Which state will the patient be in during the video visit?</label>
+      <div class="selectwrap"><select id="patient_state" name="patient_state"><option value="">Choose&hellip;</option>{% for st in US_STATES %}<option value="{{ st }}"{% if v.patient_state == st %} selected{% endif %}>{{ st }}</option>{% endfor %}</select></div>
+      <p class="hint">Providers can only see patients in states where they are licensed.</p>
+    </div>
+  </section>
+  {% else %}<input type="hidden" name="modality" value="in_person">{% endif %}
+
+  <section class="vsec" aria-labelledby="s-why">
+    <h2 id="s-why"><span class="num">{{ 3 if visit.modality != 'in_person' else 2 }}</span>What brings you in?{% if cfg.intake_required %} <span class="req" aria-hidden="true">required</span>{% endif %}</h2>
+    <div class="pills" role="radiogroup" aria-label="Common reasons">
+      {% for r in reasons %}<label class="pill"><input type="radio" name="reason_pick" value="{{ r }}"{% if v.reason_pick == r %} checked{% endif %}><span>{{ r }}</span></label>{% endfor %}
+    </div>
+    <label class="field" for="reason_text">Anything else we should know? <span class="opt">Optional</span></label>
+    <textarea id="reason_text" name="reason_text" rows="3" maxlength="300" placeholder="e.g. Left knee, since Monday">{{ v.reason_text }}</textarea>
+  </section>
+
+  {% if cfg.coverage_notice %}
+  <section class="coverage {{ 'ok' if cfg.coverage_notice.covered else 'no' }}" role="status">
+    <span class="cico" aria-hidden="true">{{ '✓' if cfg.coverage_notice.covered else '!' }}</span>
+    <span><strong>{{ 'Coverage' if cfg.coverage_notice.covered else 'Not covered' }}</strong><br>{{ cfg.coverage_notice.text }}</span>
+  </section>
   {% endif %}
 
   {% if visit.requires_referral %}
-  <label class="field" for="referral_ref">Referral number <span aria-hidden="true">*</span></label>
-  <input id="referral_ref" name="referral_ref" type="text" value="{{ v.referral_ref }}" maxlength="80">
+  <section class="vsec">
+    <label class="field" for="referral_ref">Referral number <span class="req">required</span></label>
+    <input id="referral_ref" name="referral_ref" type="text" value="{{ v.referral_ref }}" maxlength="80" autocomplete="off">
+  </section>
   {% endif %}
 
-  <label class="field" for="interp">Interpreter (optional)</label>
-  <select id="interp" name="interpreter_language"><option value="">No interpreter needed</option>{% for l in cfg.interpreter_languages %}<option value="{{ l }}"{% if v.interpreter_language == l %} selected{% endif %}>{{ l }}</option>{% endfor %}</select>
-
-  <label class="field" for="acc">Accessibility needs (optional)</label>
-  <textarea id="acc" name="accommodations" maxlength="300">{{ v.accommodations }}</textarea>
+  <details class="vsec more"{% if v.interpreter_language or v.accommodations %} open{% endif %}>
+    <summary><span>Language and accessibility</span><small>Interpreter, accessibility needs</small></summary>
+    <label class="field" for="interp">Interpreter</label>
+    <div class="selectwrap"><select id="interp" name="interpreter_language"><option value="">No interpreter needed</option>{% for l in cfg.interpreter_languages %}<option value="{{ l }}"{% if v.interpreter_language == l %} selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+    <label class="field" for="acc">Accessibility needs</label>
+    <textarea id="acc" name="accommodations" rows="2" maxlength="300">{{ v.accommodations }}</textarea>
+  </details>
 
   {% if cfg.intake_required %}
-  <h2 class="h2-md">Consent to treatment</h2>
-  <div class="consent">{{ cfg.consent_text }}</div>
-  <label class="check"><input type="checkbox" name="consent" value="{{ cfg.consent_version }}"{% if v.consent %} checked{% endif %}> <span>I have read and agree <span aria-hidden="true">*</span></span></label>
+  <section class="vsec consentbox" aria-labelledby="s-consent">
+    <h2 id="s-consent">Consent to treatment <span class="req" aria-hidden="true">required</span></h2>
+    <details class="consenttext"><summary>Read the consent</summary><div class="consent">{{ cfg.consent_text }}</div></details>
+    <label class="switch"><input type="checkbox" name="consent" value="{{ cfg.consent_version }}"{% if v.consent %} checked{% endif %}><span class="track" aria-hidden="true"></span><span class="swtext">I have read and agree</span></label>
+    <p class="hint needconsent">Turn this on to continue.</p>
+  </section>
   {% endif %}
 
-  <div class="actions"><button class="primary" type="submit">Review booking</button></div>
+  {{ care911() }}
+
+  <div class="actionbar">
+    <div class="abtext"><strong>{{ visit.label }}</strong><small>{{ day_label(slot.starts_at, slot.time_zone) }} · {{ time_label(slot.starts_at, slot.time_zone) }}</small></div>
+    <button class="primary" type="submit">Review booking</button>
+  </div>
 </form>
 {% endblock %}

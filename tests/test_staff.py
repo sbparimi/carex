@@ -30,7 +30,7 @@ def login(ctx, email):
 def phone_book(c, ctx, idx=30, slot=None, **over):
     slot = slot or ctx.sched.list_slots("tn-north", "cl-sb", "sv-pc-n", "pr-a")[idx]
     d = dict(clinic_id="cl-sb", service_id="sv-pc-n", provider_id="pr-a", slot_id=slot["id"], first_name="Phil", last_name="Phone", date_of_birth="1980-01-01",
-             phone="555-222-3333", email="phil@x.com", reason="Cough", modality="in_person", none_apply="1", consent_attested="1")
+             phone="555-222-3333", email="phil@x.com", reason="Cough", modality="in_person", consent_attested="1")
     d.update(over)
     return c.post(S + "/staff/book", data=d), slot
 
@@ -60,14 +60,10 @@ def test_front_desk_books_by_phone_and_sees_it_on_the_day(ctx, staff):
     assert n == 1
 
 
-def test_phone_booking_requires_the_screen_and_verbal_consent(ctx, staff):
+def test_phone_booking_requires_verbal_consent(ctx, staff):
     c = login(ctx, "desk@x.com")
-    r, _ = phone_book(c, ctx, 31, none_apply="")
-    assert r.status_code == 400
     r, _ = phone_book(c, ctx, 31, consent_attested="")
     assert r.status_code == 400
-    r, _ = phone_book(c, ctx, 31, reason="severe chest pain", none_apply="")
-    assert r.status_code in (400, 409)
 
 
 def test_status_changes_follow_the_allowed_transitions(ctx, staff):
@@ -138,8 +134,8 @@ def test_staff_cannot_cross_tenants(ctx, staff):
         assert r.url.path.endswith("/staff/login")
 
 
-def test_phone_booking_with_emergency_symptoms_still_books_and_tells_staff_to_advise_911(ctx, staff):
+def test_phone_booking_never_screens_symptom_words(ctx, staff):
     c = login(ctx, "desk@x.com")
     r, slot = phone_book(c, ctx, 36, reason="severe chest pain")
-    assert r.status_code == 200 and "call 911 now" in r.text
+    assert r.status_code == 200 and "Appointment booked" in r.text
     assert ctx.db.get("SELECT COUNT(*) AS n FROM appointments WHERE starts_at = ?", slot["starts_at"])["n"] == 1

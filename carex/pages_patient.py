@@ -10,7 +10,6 @@ from .booking import DomainError
 from .fmt import clock, day_label, day_parts, time_label
 from .intake import IntakeError
 from .states import US_STATES as STATES56
-from .triage import KEYS, screen
 from .util import iso
 from .waitlist import WaitlistError
 from .web import ID, Web, form, ink_for, s
@@ -114,22 +113,30 @@ def register(app: FastAPI, W: Web) -> None:
         slot = next((sl for sl in c.booking.slots(t["id"], clinic, service, provider, u["id"]) if sl["id"] == slot_id), None)
         cfg = c.intake.config(t["id"])
         pv = c.intake.preview(t["id"], u["id"], clinic, service)
-        cfg["coverage_notice"] = ({"covered": True, "text": f"Covered by your plan. Expected copay: {pv['copay_cents'] / 100:,.2f} dollars, due at the visit." if pv["copay_cents"] else "Covered by your plan. No copay expected."}
+        cfg["coverage_notice"] = ({"covered": True, "text": f"Covered by your plan. Expected copay: ${pv['copay_cents'] / 100:,.2f}, due at the visit." if pv["copay_cents"] else "Covered by your plan. No copay expected."}
                                   if pv["covered"] else {"covered": False, "text": pv.get("reason", "This visit isn't covered by your plan.")})
         return slot, dict(t=t, user=u, nav="book", clinic=elig["clinic"], visit=elig["visit_type"], provider=elig["provider"], slot=slot, cfg=cfg, patients=c.intake.list(t["id"], u["id"]), v=v, **extra)
 
+    REASONS = ["Check-up", "New concern", "Follow-up", "Prescription refill", "Pain or injury", "Something else"]
+
     def empty_v():
-        return {"patient_id": "", "flags": [], "none_apply": False, "reason": "", "modality": "", "patient_state": "", "referral_ref": "", "interpreter_language": "", "accommodations": "", "consent": ""}
+        return {"patient_id": "", "reason": "", "reason_pick": "", "reason_text": "", "modality": "", "patient_state": "", "referral_ref": "", "interpreter_language": "", "accommodations": "", "consent": ""}
 
     def values(f: dict) -> dict:
-        return {"patient_id": s(f, "patient_id", 80), "flags": [x for x in f.get("flag_all", []) if x in KEYS], "none_apply": bool(f.get("none_apply")), "reason": s(f, "reason", 300),
+        pick = s(f, "reason_pick", 40)
+        pick = pick if pick in REASONS else ""
+        text = s(f, "reason_text", 300)
+        given = s(f, "reason", 300)                       # review/confirm pass the combined reason
+        if given and not pick and not text:
+            text = given
+        reason = f"{pick}: {text}" if pick and text else (pick or text)
+        return {"patient_id": s(f, "patient_id", 80), "reason": reason[:300], "reason_pick": pick, "reason_text": text,
                 "modality": s(f, "modality", 20), "patient_state": s(f, "patient_state", 2), "referral_ref": s(f, "referral_ref", 80), "interpreter_language": s(f, "interpreter_language", 60),
                 "accommodations": s(f, "accommodations", 300), "consent": s(f, "consent", 40)}
 
     def build_req(f: dict, v: dict) -> dict:
-        screened = bool(v["flags"]) or v["none_apply"]
         return {"clinic_id": s(f, "clinic", 64), "service_id": s(f, "service", 64), "provider_id": s(f, "provider", 64), "slot_id": s(f, "slot", 120), "patient_id": v["patient_id"] or None,
-                "reason": v["reason"] or None, "red_flags": v["flags"] if screened else None, "modality": v["modality"] or None, "patient_state": v["patient_state"] or None,
+                "reason": v["reason"] or None, "modality": v["modality"] or None, "patient_state": v["patient_state"] or None,
                 "referral_ref": v["referral_ref"] or None, "interpreter_language": v["interpreter_language"] or None, "accommodations": v["accommodations"] or None, "consent_version": v["consent"] or None}
 
     @app.get(P + "/book/details")
@@ -140,20 +147,15 @@ def register(app: FastAPI, W: Web) -> None:
             provider, slot = choice.split("|", 1)
             return W.redirect(f"/t/{slug}/book/details?clinic={clinic}&service={service}&provider={provider}&slot={slot}")
         bad_id(clinic, service, provider)
-        sl, ctx = details_ctx(t, u, clinic, service, provider, slot, empty_v())
+        sl, ctx = details_ctx(t, u, clinic, service, provider, slot, empty_v(), reasons=REASONS)
         if not sl:
             return W.redirect(f"/t/{slug}/book/provider?clinic={clinic}&service={service}&provider={provider}&notice=That time is no longer available. Please pick another.")
         return W.render(request, "book_details.html", **ctx)
 
-    def urgent(v) -> bool:
-        return bool(screen(v["reason"], v["flags"])["emergency"])
-
-    def redisplay(request, t, u, f, v, error=None, emergency_stop=None, status=422):
-        if emergency_stop is None:
-            emergency_stop = urgent(v)
+    def redisplay(request, t, u, f, v, error=None, status=422):
         clinic, service, provider = s(f, "clinic", 64), s(f, "service", 64), s(f, "provider", 64)
         bad_id(clinic, service, provider)
-        sl, ctx = details_ctx(t, u, clinic, service, provider, s(f, "slot", 120), v, error=error, emergency_stop=emergency_stop)
+        sl, ctx = details_ctx(t, u, clinic, service, provider, s(f, "slot", 120), v, error=error, reasons=REASONS)
         if not sl:
             return W.redirect(f"/t/{t['slug']}/book/provider?clinic={clinic}&service={service}&provider={provider}&notice=That time is no longer available. Please pick another.")
         return W.render(request, "book_details.html", status, **ctx)
@@ -178,17 +180,14 @@ def register(app: FastAPI, W: Web) -> None:
             req = build_req(f, v)
             dec = c.intake.prepare(t["id"], u["id"], req)
         except IntakeError as e:
-            return redisplay(request, t, u, f, v, error=str(e), emergency_stop=urgent(v))
+            return redisplay(request, t, u, f, v, error=str(e))
         sl, ctx = details_ctx(t, u, req["clinic_id"], req["service_id"], req["provider_id"], req["slot_id"], v)
         if not sl:
             return W.redirect(f"/t/{slug}/book/provider?clinic={req['clinic_id']}&service={req['service_id']}&provider={req['provider_id']}&notice=That time is no longer available. Please pick another.")
         hidden = [("clinic", req["clinic_id"]), ("service", req["service_id"]), ("provider", req["provider_id"]), ("slot", req["slot_id"]), ("patient_id", dec["patient_id"]), ("reason", v["reason"]),
                   ("modality", v["modality"]), ("patient_state", v["patient_state"]), ("referral_ref", v["referral_ref"]), ("interpreter_language", v["interpreter_language"]),
-                  ("accommodations", v["accommodations"]), ("consent", v["consent"]), ("none_apply", "1" if v["none_apply"] else ""), ("key", secrets.token_urlsafe(16))]
-        hidden += [("flag", x) for x in v["flags"]]
-        if dec["emergency"]:
-            W.audit(request, t, "user", "booking.emergency_warning", actor_id=u["id"])
-        return W.render(request, "book_review.html", t=t, user=u, nav="book", clinic=ctx["clinic"], visit=ctx["visit"], provider=ctx["provider"], slot=sl, dec=dec, hidden=hidden, urgent=dec["emergency"], notice_minutes=c.booking.notice)
+                  ("accommodations", v["accommodations"]), ("consent", v["consent"]), ("key", secrets.token_urlsafe(16))]
+        return W.render(request, "book_review.html", t=t, user=u, nav="book", clinic=ctx["clinic"], visit=ctx["visit"], provider=ctx["provider"], slot=sl, dec=dec, hidden=hidden, notice_minutes=c.booking.notice)
 
     @app.post(P + "/book/confirm")
     def confirm(slug: str, request: Request, f: dict = Depends(form)):
@@ -206,7 +205,7 @@ def register(app: FastAPI, W: Web) -> None:
             W.audit(request, t, "user", "booking.create", actor_id=u["id"], target_type="appointment", target_id=o["booking_id"])
             W.notify_now(o["booking_id"])
         status = {"confirmed": 201, "slot_unavailable": 409}.get(o["status"], 503 if o.get("retryable") else 409)
-        return W.render(request, "book_result.html", status, t=t, user=u, nav="book", o=o, clinic_id=req["clinic_id"], service_id=req["service_id"], urgent=urgent(v))
+        return W.render(request, "book_result.html", status, t=t, user=u, nav="book", o=o, clinic_id=req["clinic_id"], service_id=req["service_id"])
 
     # ------------------------------------------------------------------ waiting list
     @app.post(P + "/waitlist/join")

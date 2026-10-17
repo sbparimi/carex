@@ -1,10 +1,9 @@
 {% extends "base.html" %}
-{% from "_macros.html" import steps, banner, emergency %}
+{% from "_macros.html" import steps, banner, care911 %}
 {% block title %}Review · {{ brand.display_name }}{% endblock %}
 {% block content %}
 {{ steps(5) }}
 <h1 id="h1" class="largetitle">Review and confirm</h1>
-{% if urgent %}{{ emergency() }}{% endif %}
 <div class="apptcard vt-{{ vtc[visit.id] }}"><span class="vtag">{{ visit.label }}</span><strong>{{ when(slot.starts_at, slot.time_zone) }}</strong><span>{{ provider.display_name }} · {{ clinic.name }}</span></div>
 <dl class="summary">
   <dt>Visit</dt><dd>{{ visit.label }} ({{ visit.duration_min }} min)</dd>
