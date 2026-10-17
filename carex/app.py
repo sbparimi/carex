@@ -120,6 +120,22 @@ def create_app(ctx: Ctx | None = None) -> FastAPI:
             raise HTTPException(401, "Unauthorized")
         return JSONResponse(ctx.notifier.dispatch(limit=200), headers={"cache-control": "no-store"})
 
+    @app.post("/internal/seed-demo")
+    def seed_demo_route(request: Request):
+        """One-off: load the invented demo data into an EMPTY database (used to set up a hosted demo). Needs the CRON_SECRET; refuses if tenants exist."""
+        if not ctx.cron_secret:
+            raise HTTPException(404, "Not found")
+        given = request.headers.get("authorization", "")
+        if not hmac.compare_digest(given.encode(), f"Bearer {ctx.cron_secret}".encode()):
+            raise HTTPException(401, "Unauthorized")
+        if int(ctx.db.get("SELECT COUNT(*) AS n FROM tenants")["n"]) > 0:
+            return JSONResponse({"status": "refused", "reason": "this database already has tenants"}, status_code=409, headers={"cache-control": "no-store"})
+        from .seed_demo import load_demo, seed_demo_people
+        load_demo(ctx.db)
+        seed_demo_people(ctx.db)
+        n = int(ctx.db.get("SELECT COUNT(*) AS n FROM clinics")["n"])
+        return JSONResponse({"status": "seeded", "clinics": n}, headers={"cache-control": "no-store"})
+
     pages_auth.register(app, W)
     pages_patient.register(app, W)
     pages_staff.register(app, W)

@@ -53,6 +53,23 @@ def test_dispatch_endpoint_is_off_when_no_secret_is_configured(ctx):
     assert c.post("/internal/dispatch", headers={"authorization": "Bearer anything"}).status_code == 404
 
 
+def test_seed_demo_endpoint_is_protected_and_only_fills_an_empty_database(web, cx):
+    assert web.post("/internal/seed-demo").status_code == 401
+    assert web.post("/internal/seed-demo", headers={"authorization": "Bearer wrong"}).status_code == 401
+    r = web.post("/internal/seed-demo", headers={"authorization": f"Bearer {SECRET}"})
+    assert r.status_code == 409 and r.json()["status"] == "refused"      # the test database already has tenants
+
+
+def test_seed_demo_endpoint_seeds_an_empty_database(monkeypatch):
+    from carex.context import build
+    from carex.db import open_db
+    c = build(db=open_db(path=":memory:"), env={"CRON_SECRET": SECRET})
+    w = TestClient(create_app(c), base_url="http://testserver")
+    r = w.post("/internal/seed-demo", headers={"authorization": f"Bearer {SECRET}"})
+    assert r.status_code == 200 and r.json()["status"] == "seeded" and r.json()["clinics"] > 1000
+    assert w.post("/internal/seed-demo", headers={"authorization": f"Bearer {SECRET}"}).status_code == 409
+
+
 def test_admin_api_requires_a_key_for_that_tenant_only(web, cx):
     key = cx.admin_keys.create("tn-north", "ci")
     h = {"authorization": f"Bearer {key}"}

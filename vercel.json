@@ -3,9 +3,16 @@
   "functions": {
     "api/index.py": {
       "includeFiles": "carex/{templates,static}/**",
-      "maxDuration": 15
+      "maxDuration": 60
     }
   },
-  "rewrites": [{ "source": "/(.*)", "destination": "/api/index" }],
-  "regions": ["iad1"]
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/api/index"
+    }
+  ],
+  "regions": [
+    "iad1"
+  ]
 }

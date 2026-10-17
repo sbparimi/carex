@@ -101,9 +101,28 @@ def _b(v: Any) -> int:
     return 1 if v else 0
 
 
+class _Batcher:
+    """Buffers consecutive runs of the same statement and sends them as one batch, keeping statement order."""
+
+    def __init__(self, t):
+        self.t, self.sql, self.rows = t, None, []
+
+    def run(self, sql, *params):
+        if sql != self.sql:
+            self.flush()
+            self.sql = sql
+        self.rows.append(params)
+
+    def flush(self):
+        if self.rows:
+            self.t.many(self.sql, self.rows)
+        self.sql, self.rows = None, []
+
+
 def seed_db(db, d: dict) -> None:
     """Load catalog data (the synthetic seed, the demo seed, or an admin import). `d` uses snake_case keys; every list is optional."""
-    with db.tx() as t:
+    with db.tx() as raw:
+        t = _Batcher(raw)
         for x in d.get("tenants", []):
             t.run("INSERT INTO tenants (id, slug, status, display_name, primary_color, logo_url, support_email, support_phone, analytics_enabled) VALUES (?,?,?,?,?,?,?,?,?)",
                   x["id"], x["slug"], x.get("status", "active"), x["display_name"], x["primary_color"], x.get("logo_url"), x.get("support_email"), x.get("support_phone"), _b(x.get("analytics_enabled", True)))
@@ -153,3 +172,4 @@ def seed_db(db, d: dict) -> None:
         for c in d.get("coverage", []):
             t.run("INSERT INTO coverage_rules (tenant_id, visit_type_id, employer_id, insurer_id, covered, copay_cents) VALUES (?,?,?,?,?,?)",
                   c["tenant_id"], c["service_id"], c.get("employer_id"), c.get("insurer_id"), _b(c.get("covered", True)), c.get("copay_cents", 0))
+        t.flush()

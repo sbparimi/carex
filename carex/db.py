@@ -46,6 +46,13 @@ class Conn:
         rows = self.all(sql, *params)
         return rows[0] if rows else None
 
+    def many(self, sql: str, rows: list[tuple]) -> None:
+        """Run one statement for many parameter rows (batched on Postgres, so large imports need few round trips)."""
+        if not rows:
+            return
+        with self._cur() as cur:
+            cur.executemany(self._sql(sql), rows)
+
     def run(self, sql: str, *params: Any) -> int:
         with self._cur() as cur:
             cur.execute(self._sql(sql), params)
