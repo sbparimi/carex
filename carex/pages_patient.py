@@ -6,9 +6,10 @@ import zlib
 import secrets
 
 from fastapi import Depends, FastAPI, HTTPException, Request
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import PlainTextResponse, Response
 
 from .booking import DomainError
+from .ics import appointment_ics
 from .fmt import clock, day_label, day_parts, time_label
 from .intake import IntakeError
 from .states import US_STATES as STATES56
@@ -25,6 +26,11 @@ def group_days(slots: list[dict], limit: int = 200) -> list[dict]:
             days.append({"label": lab, "slots": []})
         days[-1]["slots"].append({"id": sl["id"], "time": time_label(sl["starts_at"], sl["time_zone"])})
     return days
+
+
+def local_hour(iso_ts: str, tz: str) -> int:
+    from .util import parse, zone
+    return parse(iso_ts).astimezone(zone(tz)).hour
 
 
 def peek_days(slots: list[dict], full: bool = False, days: int = 3, per_day: int = 8) -> dict:
@@ -68,49 +74,75 @@ def register(app: FastAPI, W: Web) -> None:
         return W.redirect(f"/t/{slug}/book" if W.user(request, t) else f"/t/{slug}/login")
 
     # ------------------------------------------------------------------ booking steps
+    def log_event(t, name, ref=""):
+        c.events.log(t["id"], name, ref)
+
     @app.get(P + "/book")
-    def book(slug: str, request: Request, state: str = "", notice: str = ""):
+    def book(slug: str, request: Request, state: str = "", q: str = "", notice: str = ""):
         t = W.tenant(slug)
-        u = W.need_user(request, t)
+        u = W.user(request, t)                                  # browsing needs no account
         state = state.upper()[:2]
         known = dict(STATES56)
-        clinics = c.catalog.clinics(t["id"], state) if state in known else []        # headquarters first, then prominent, then the other locations
-        return W.render(request, "book_state.html", t=t, user=u, nav="book", states=STATES56, state=state if state in known else "", state_name=known.get(state, ""),
-                        clinics=clinics, notice=notice[:120] if notice else "")
+        q = q.strip()[:60]
+        if q:
+            log_event(t, "search")
+        clinics = c.catalog.clinics(t["id"], state) if state in known and not q else (c.catalog.search_clinics(t["id"], q, state if state in known else "", 30) if q else [])
+        return W.render(request, "book_state.html", t=t, user=u, nav="book", states=STATES56, state=state if state in known else "", state_name=known.get(state, ""), q=q,
+                        clinics=clinics, notice=notice[:120] if notice else "", kinds=c.catalog.visit_kinds(t["id"]))
+
+    @app.get(P + "/book/find")
+    def book_find(slug: str, request: Request, kind: str = "", state: str = "", q: str = ""):
+        t = W.tenant(slug)
+        u = W.user(request, t)
+        state = state.upper()[:2]
+        known = dict(STATES56)
+        kinds = c.catalog.visit_kinds(t["id"])
+        kind = kind if any(k["kind"] == kind for k in kinds) else ""
+        results = c.discover.find(t["id"], kind, state if state in known else "", q.strip()[:60], 12, u["id"] if u else None) if kind else []
+        if kind:
+            log_event(t, "find", kind)
+        return W.render(request, "book_find.html", t=t, user=u, nav="book", kinds=kinds, kind=kind, states=STATES56, state=state if state in known else "", q=q.strip()[:60],
+                        results=results, kind_label=next((k["label"] for k in kinds if k["kind"] == kind), ""))
 
     @app.get(P + "/book/visit")
     def book_visit(slug: str, request: Request, clinic: str = ""):
         t = W.tenant(slug)
-        W.need_user(request, t)
         bad_id(clinic)
         return W.redirect(f"/t/{slug}/book/provider?clinic={clinic}")
 
+    PARTS = {"morning": (0, 12), "afternoon": (12, 17), "evening": (17, 24)}
+
     @app.get(P + "/book/provider")
-    def book_provider(slug: str, request: Request, clinic: str = "", service: str = "", provider: str = "", joined: str = "", notice: str = ""):
+    def book_provider(slug: str, request: Request, clinic: str = "", service: str = "", provider: str = "", joined: str = "", notice: str = "", part: str = "", lang: str = ""):
         t = W.tenant(slug)
-        u = W.need_user(request, t)
+        u = W.user(request, t)
+        uid = u["id"] if u else None
         bad_id(clinic, *([service] if service else []))
         cl = c.catalog.clinic(t["id"], clinic)
         if not cl:
             raise HTTPException(404, "Not found")
         visits = c.catalog.visit_types(t["id"], clinic)
-        # Soonest opening first: visit types are ordered by their earliest open time, and the default is the one that can be seen soonest.
-        soonest: dict[str, dict] = {}
-        for v in visits:
-            best = None
-            for pv in c.catalog.providers(t["id"], clinic, v["id"]):
-                sl = c.booking.slots(t["id"], clinic, v["id"], pv["id"], u["id"])
-                if sl and (best is None or sl[0]["starts_at"] < best["starts_at"]):
-                    best = sl[0]
-            if best:
-                soonest[v["id"]] = {**day_parts(best["starts_at"], best["time_zone"]), "time": clock(best["starts_at"], best["time_zone"]), "starts_at": best["starts_at"]}
+        # Soonest opening first: visit types are ordered by their earliest open time.
+        soonest = {v["id"]: n for v in visits if (n := c.discover.soonest(t["id"], clinic, v["id"], uid))}
         visits = sorted(visits, key=lambda v: (soonest[v["id"]]["starts_at"] if v["id"] in soonest else "9", v["label"]))
         visit = next((v for v in visits if v["id"] == service), None)          # nothing is shown until a visit type is chosen
         if service and not visit:
             raise HTTPException(404, "Not found")
-        providers, cards = [], []
+        log_event(t, "visit_chosen" if visit else "clinic_viewed", clinic)
+        part = part if part in PARTS else ""
+        coverage = {}
+        if u:
+            for v in visits:
+                try:
+                    pv = c.intake.preview(t["id"], u["id"], clinic, v["id"])
+                    coverage[v["id"]] = {"covered": bool(pv["covered"]), "copay": pv.get("copay_cents") or 0}
+                except Exception:           # noqa: BLE001 - coverage is a hint; the details step has the authoritative answer
+                    pass
+        providers, cards, langs = [], [], []
         if visit:
             providers = c.catalog.providers(t["id"], clinic, visit["id"])
+            langs = sorted({x for p in providers for x in p["languages"]})
+            lang = lang if lang in langs else ""
             if provider:
                 bad_id(provider)
                 if not any(x["id"] == provider for x in providers):
@@ -118,7 +150,12 @@ def register(app: FastAPI, W: Web) -> None:
             for p in providers:
                 if provider and p["id"] != provider:
                     continue
-                slots = c.booking.slots(t["id"], clinic, visit["id"], p["id"], u["id"])
+                if lang and lang not in p["languages"]:
+                    continue
+                slots = c.booking.slots(t["id"], clinic, visit["id"], p["id"], uid)
+                if part:
+                    lo, hi = PARTS[part]
+                    slots = [x for x in slots if lo <= local_hour(x["starts_at"], x["time_zone"]) < hi]
                 cards.append({"p": p, **peek_days(slots, full=bool(provider))})
             cards.sort(key=lambda x: x["first"]["starts"] if x.get("first") else "9")
         firsts = [(x["first"]["starts"], x["first"], x["p"]) for x in cards if x.get("first")]
@@ -127,7 +164,8 @@ def register(app: FastAPI, W: Web) -> None:
             _, f, p = min(firsts, key=lambda z: z[0])
             nxt = {**f, "provider": p}
         return W.render(request, "book_provider.html", t=t, user=u, nav="book", clinic=cl, visits=visits, visit=visit, cards=cards, only=provider, joined=bool(joined), notice=notice[:120],
-                        any_open=any(x["days"] for x in cards), nxt=nxt, soonest=soonest, overall=min(soonest.values(), key=lambda z: z["starts_at"], default=None), n_providers=len(providers), tint=W.env.globals["tint_of"](cl["id"]))
+                        any_open=any(x["days"] for x in cards), nxt=nxt, soonest=soonest, overall=min(soonest.values(), key=lambda z: z["starts_at"], default=None), n_providers=len(providers),
+                        tint=W.env.globals["tint_of"](cl["id"]), part=part, lang=lang, langs=langs, coverage=coverage, maps_q=f"{cl['address']}, {cl['city']}, {cl['state_code']}")
 
     def details_ctx(t, u, clinic, service, provider, slot_id, v, **extra):
         elig = c.catalog.eligible(t["id"], clinic, service, provider)
@@ -165,7 +203,11 @@ def register(app: FastAPI, W: Web) -> None:
     @app.get(P + "/book/details")
     def details(slug: str, request: Request, clinic: str = "", service: str = "", provider: str = "", slot: str = "", choice: str = ""):
         t = W.tenant(slug)
-        u = W.need_user(request, t)
+        u = W.user(request, t)
+        if not u:                                                # a time was chosen as a guest: sign in or sign up, then come straight back here
+            from urllib.parse import quote
+            back = f"/t/{slug}/book/details?clinic={quote(clinic)}&service={quote(service)}&provider={quote(provider)}&slot={quote(slot)}" + (f"&choice={quote(choice)}" if choice else "")
+            return W.redirect(f"/t/{slug}/login?next={quote(back, safe='')}")
         if choice and "|" in choice:
             provider, slot = choice.split("|", 1)
             return W.redirect(f"/t/{slug}/book/details?clinic={clinic}&service={service}&provider={provider}&slot={slot}")
@@ -227,8 +269,68 @@ def register(app: FastAPI, W: Web) -> None:
         if o["status"] == "confirmed":
             W.audit(request, t, "user", "booking.create", actor_id=u["id"], target_type="appointment", target_id=o["booking_id"])
             W.notify_now(o["booking_id"])
+            log_event(t, "booked", req["clinic_id"])
         status = {"confirmed": 201, "slot_unavailable": 409}.get(o["status"], 503 if o.get("retryable") else 409)
-        return W.render(request, "book_result.html", status, t=t, user=u, nav="book", o=o, clinic_id=req["clinic_id"], service_id=req["service_id"])
+        return W.render(request, "book_result.html", status, t=t, user=u, nav="book", o=o, clinic_id=req["clinic_id"], service_id=req["service_id"],
+                        maps_q=(lambda cl: f"{cl['address']}, {cl['city']}, {cl['state_code']}")(o["summary"]["clinic"]) if o["status"] == "confirmed" else "")
+
+    # ------------------------------------------------------------------ calendar file and manage-by-link
+    def ics_response(t, bid, summary, status="confirmed"):
+        body = appointment_ics(bid, summary, request_host(t), iso(c.clock()), status)
+        return Response(body, media_type="text/calendar; charset=utf-8", headers={"content-disposition": f'attachment; filename="appointment-{bid[:12]}.ics"', "cache-control": "no-store", "x-content-type-options": "nosniff"})
+
+    def request_host(t):
+        return t["slug"] + ".carex"
+
+    @app.get(P + "/appointments/{bid}/calendar.ics")
+    def my_ics(slug: str, bid: str, request: Request):
+        t = W.tenant(slug)
+        u = W.need_user(request, t)
+        bad_id(bid)
+        m = c.booking.managed(t["id"], u["id"], bid)
+        if not m:
+            raise HTTPException(404, "Not found")
+        return ics_response(t, bid, m["summary"], m["status"])
+
+    def by_token(t, token):
+        if not token or len(token) > 64 or not all(ch.isalnum() or ch in "-_" for ch in token):
+            raise HTTPException(404, "Not found")
+        row = c.db.get("SELECT id FROM appointments WHERE tenant_id = ? AND manage_token = ?", t["id"], token)
+        b = c.sched.get_booking(t["id"], row["id"]) if row else None
+        m = c.booking._managed(t["id"], b) if b else None
+        if not m:
+            raise HTTPException(404, "Not found")
+        return m
+
+    @app.get(P + "/m/{token}")
+    def manage_link(slug: str, token: str, request: Request, n: str = ""):
+        t = W.tenant(slug)
+        W.allow("auth", W.client(request))
+        m = by_token(t, token)
+        log_event(t, "manage_link")
+        return W.render(request, "manage.html", t=t, user=W.user(request, t), nav="appts", a=m, token=token, notice={"cancelled": "Your appointment was cancelled.", "late": "This appointment can no longer be changed online. Please call the clinic."}.get(n, ""), notice_ok=n == "cancelled")
+
+    @app.get(P + "/m/{token}/calendar.ics")
+    def manage_ics(slug: str, token: str, request: Request):
+        t = W.tenant(slug)
+        W.allow("auth", W.client(request))
+        m = by_token(t, token)
+        return ics_response(t, m["booking_id"], m["summary"], m["status"])
+
+    @app.post(P + "/m/{token}/cancel")
+    def manage_cancel(slug: str, token: str, request: Request):
+        t = W.tenant(slug)
+        W.allow("auth", W.client(request))
+        m = by_token(t, token)
+        try:
+            c.sched.cancel(t["id"], m["booking_id"], "", "patient")
+        except Exception as e:                       # noqa: BLE001
+            if "ChangeWindow" in type(e).__name__:
+                return W.redirect(f"/t/{slug}/m/{token}?n=late")
+            raise
+        W.audit(request, t, "patient", "booking.cancel_by_link", target_type="appointment", target_id=m["booking_id"])
+        W.notify_now(m["booking_id"])
+        return W.redirect(f"/t/{slug}/m/{token}?n=cancelled")
 
     # ------------------------------------------------------------------ waiting list
     @app.post(P + "/waitlist/join")
@@ -282,6 +384,7 @@ def register(app: FastAPI, W: Web) -> None:
                 return W.redirect(f"/t/{slug}/appointments?n=late")
             raise HTTPException(404, "Not found")
         W.audit(request, t, "user", "booking.cancel", actor_id=u["id"], target_type="appointment", target_id=bid)
+        log_event(t, "cancelled")
         W.notify_now(bid)
         return W.redirect(f"/t/{slug}/appointments?n=cancelled")
 

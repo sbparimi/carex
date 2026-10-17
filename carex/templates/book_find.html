@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% from "_macros.html" import steps %}
+{% block title %}Soonest {{ kind_label }} · {{ brand.display_name }}{% endblock %}
+{% block content %}
+{{ steps(1) }}
+<p class="back"><a class="backlink" href="/t/{{ slug }}/book">Find care</a></p>
+<h1 id="h1" class="largetitle">{% if kind %}Soonest {{ kind_label }}{% else %}Soonest available{% endif %}</h1>
+<form class="sheet statepick" method="get" action="/t/{{ slug }}/book/find">
+  <label for="kind">Kind of visit</label>
+  <div class="selectwrap"><select id="kind" name="kind" required>
+    <option value="">Choose&hellip;</option>
+    {% for k in kinds %}<option value="{{ k.kind }}"{% if k.kind == kind %} selected{% endif %}>{{ k.label }}</option>{% endfor %}
+  </select></div>
+  <label for="state">State (optional)</label>
+  <div class="selectwrap"><select id="state" name="state">
+    <option value="">Anywhere</option>
+    {% for code, name in states %}<option value="{{ code }}"{% if code == state %} selected{% endif %}>{{ name }}</option>{% endfor %}
+  </select></div>
+  <label for="q">Clinic or city (optional)</label>
+  <input id="q" name="q" type="search" value="{{ q }}" maxlength="60" autocomplete="off">
+  <button class="primary wide" type="submit">Show openings</button>
+</form>
+{% if kind %}
+{% if not results %}<div class="sheet empty"><strong>Nothing is open right now</strong><p class="hint">Try another state or a different kind of visit.</p></div>{% endif %}
+<div class="clinics">
+{% for r in results %}
+  <a class="clinic" href="/t/{{ slug }}/book/provider?clinic={{ r.clinic.id }}&amp;service={{ r.visit.id }}">
+    <span class="thumb th-{{ tint_of(r.clinic.id) }}" aria-hidden="true">{{ r.clinic.name[:1] }}</span>
+    <span class="clinic-body"><strong>{{ r.clinic.name }}</strong><small>{{ r.clinic.city }}, {{ r.clinic.state_code }}</small>
+      {% if r.next %}<em class="nextup">{{ r.next.weekday }} {{ r.next.month }} {{ r.next.day }} · {{ r.next.time }} {{ r.next.tz }}</em>{% endif %}</span>
+    <span class="chev" aria-hidden="true"></span>
+  </a>
+{% endfor %}
+</div>
+{% endif %}
+{% endblock %}

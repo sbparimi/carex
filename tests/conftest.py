@@ -58,7 +58,7 @@ def clock():
 @pytest.fixture
 def ctx(db, clock):
     seed_db(db, synthetic_catalog())
-    return build(db=db, env={}, clock=clock, mailer=Outbox())
+    return build(db=db, env={"CAREX_SOONEST_TTL": "0"}, clock=clock, mailer=Outbox())
 
 
 class Outbox:
@@ -129,7 +129,7 @@ def demo(db, clock):
     from carex.seed_demo import DEMO_PASSWORD, load_demo, seed_demo_people
     load_demo(db)
     seed_demo_people(db, clock)
-    c = build(db=db, env={}, clock=clock, mailer=Outbox())
+    c = build(db=db, env={"CAREX_SOONEST_TTL": "0"}, clock=clock, mailer=Outbox())
     cl = TestClient(create_app(c), base_url="http://testserver", follow_redirects=True)
     r = cl.post(S + "/login", data={"email": "alex.demo@example.test", "password": DEMO_PASSWORD})
     assert r.status_code == 200

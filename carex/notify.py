@@ -50,7 +50,7 @@ def skip_pending_reminders(tx: Conn, appointment_id: str) -> None:
 
 _SELECT = """
   SELECT o.id, o.tenant_id, o.kind, o.channel, o.appointment_id, o.waitlist_id, o.attempts,
-         a.status AS a_status, a.starts_at, a.modality, a.join_url, a.copay_cents, a.patient_first_name, a.cancel_reason, a.late_cancel,
+         a.status AS a_status, a.manage_token, a.starts_at, a.modality, a.join_url, a.copay_cents, a.patient_first_name, a.cancel_reason, a.late_cancel,
          t.display_name AS tenant_name, t.slug, t.support_email, t.support_phone, t.policy_text, t.late_cancel_hours,
          COALESCE(c.name, wc.name) AS clinic_name, COALESCE(c.address, wc.address) AS address, COALESCE(c.time_zone, wc.time_zone) AS time_zone,
          COALESCE(v.label, wv.label) AS visit_label, COALESCE(p.display_name, wp.display_name) AS provider_name,
@@ -68,7 +68,7 @@ _SELECT = """
 def render(r: dict, base_url: str) -> dict | None:
     """Plain-text message for one outbox row. Rendered at send time so it always shows the booking as it is NOW."""
     base = base_url.rstrip("/")
-    manage = f"{base}/t/{r['slug']}/appointments"
+    manage = f"{base}/t/{r['slug']}/m/{r['manage_token']}" if r.get("manage_token") else f"{base}/t/{r['slug']}/appointments"
     where = f"Video visit{': ' + r['join_url'] if r['join_url'] else ''}" if r["modality"] == "telehealth" else f"{r['clinic_name']}, {r['address']}"
     sign = f"\n\n{r['tenant_name']}" + (f" · {r['support_phone']}" if r["support_phone"] else "") + (f" · {r['support_email']}" if r["support_email"] else "")
     hello = f"Hi {r['first_name'] or 'there'},"

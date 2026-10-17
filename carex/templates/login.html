@@ -12,20 +12,22 @@
 {% if challenge %}
 <p class="lead">We emailed a 6-digit code to your address. Enter it to finish signing in.</p>
 <form method="post" action="/t/{{ slug }}/login/verify" novalidate>
-  <input type="hidden" name="challenge" value="{{ challenge }}">
+  <input type="hidden" name="challenge" value="{{ challenge }}">{% if nxt %}<input type="hidden" name="next" value="{{ nxt }}">{% endif %}
   {{ field('code', 'Sign-in code', '', 'text', '', 'one-time-code') }}
   <button class="primary wide" type="submit">Verify</button>
 </form>
 {% else %}
 <p class="lead">Use your {{ brand.display_name }} account to book and manage visits.</p>
 <form method="post" action="/t/{{ slug }}/login" novalidate>
+  {% if nxt %}<input type="hidden" name="next" value="{{ nxt }}">{% endif %}
   {{ field('email', 'Email', email or (demo.email if demo else ''), 'email', '', 'email') }}
   {{ field('password', 'Password', demo.password if demo else '', 'password', '', 'current-password') }}
   <button class="primary wide" type="submit">Sign in</button>
 </form>
 {% if demo %}<div class="demobox" role="note"><strong>Demo account</strong> (invented data). Already filled in: just press Sign in.<br>Email: <code>{{ demo.email }}</code><br>Password: <code>{{ demo.password }}</code><br><a href="/t/{{ slug }}/staff/login">Clinic staff sign in</a></div>{% endif %}
 <p class="links"><a href="/t/{{ slug }}/forgot">Forgot password?</a></p>
-<p class="alt">New here? <a href="/t/{{ slug }}/signup">Create an account</a></p>
+<p class="alt">New here? <a href="/t/{{ slug }}/signup{% if nxt %}?next={{ nxt|urlencode }}{% endif %}">Create an account</a></p>
+<p class="alt">Just looking? <a href="/t/{{ slug }}/book">Browse clinics and times without an account</a></p>
 {% endif %}
 </section>
 {% endblock %}

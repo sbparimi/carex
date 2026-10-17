@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% from "_macros.html" import banner, cover, facts with context %}
+{% block title %}Your appointment · {{ brand.display_name }}{% endblock %}
+{% block content %}
+{% set sm = a.summary %}
+<div class="evt tint-{{ tint_of(sm.clinic.id) }}">
+<aside class="evt-side">{{ cover(sm.clinic) }}</aside>
+<div class="evt-main vt-{{ vtc[sm.visit_type.id] }}">
+<h1 id="h1" class="largetitle">{% if a.status == 'cancelled' %}Appointment cancelled{% else %}Your appointment{% endif %}</h1>
+{% if notice %}{{ banner('success' if notice_ok else 'warning', notice, 'status') }}{% endif %}
+{{ facts(sm.starts_at, sm.time_zone, 'By video' if sm.modality == 'telehealth' else sm.clinic.name, sm.clinic.address ~ ('' if sm.clinic.city in sm.clinic.address else ', ' ~ sm.clinic.city) if sm.modality != 'telehealth' else 'Link below') }}
+<section class="regcard">
+  <h2 class="regbar">Details <span class="statuschip">{{ a.status|replace('_', ' ')|capitalize }}</span></h2>
+  <div class="regbody">
+    <p class="regline"><span class="vtag">{{ sm.visit_type.label }}</span> with {{ sm.provider.display_name }}</p>
+    <dl class="kv"><dt>Reference</dt><dd class="reference">{{ a.booking_id }}</dd>{% if sm.join_url %}<dt>Video link</dt><dd><a href="{{ sm.join_url }}" rel="noopener">Join your video visit</a></dd>{% endif %}</dl>
+    {% if a.status == 'confirmed' %}
+    <p><a href="/t/{{ slug }}/m/{{ token }}/calendar.ics">Add to your calendar</a></p>
+    {% if a.can_change %}
+    <div class="statusrow">
+      <a class="button small" href="/t/{{ slug }}/login?next={{ ('/t/' ~ slug ~ '/appointments/' ~ a.booking_id ~ '/reschedule')|urlencode }}">Change time (sign in)</a>
+      <form method="post" action="/t/{{ slug }}/m/{{ token }}/cancel"><button class="small danger" type="submit">Cancel appointment</button></form>
+    </div>
+    {% else %}<p class="hint">This visit starts soon, so it can no longer be changed online. Please call the clinic{% if brand.support_phone %} on {{ brand.support_phone }}{% endif %}.</p>{% endif %}
+    {% endif %}
+  </div>
+</section>
+</div>
+</div>
+{% endblock %}

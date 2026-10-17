@@ -19,7 +19,7 @@
       <p class="tix-sub">Ref <span class="reference">{{ a.booking_id }}</span></p>
     </div>
   </div>
-  {% if sm.join_url %}<p class="tix-sub"><a href="{{ sm.join_url }}" rel="noopener">Join video visit</a></p>{% endif %}
+  <p class="tix-sub">{% if sm.join_url %}<a href="{{ sm.join_url }}" rel="noopener">Join video visit</a> &middot; {% endif %}<a href="/t/{{ slug }}/appointments/{{ a.booking_id }}/calendar.ics">Add to calendar</a>{% if sm.modality != 'telehealth' %} &middot; <a href="https://www.google.com/maps/search/?api=1&amp;query={{ (sm.clinic.address ~ ', ' ~ sm.clinic.city ~ ', ' ~ sm.clinic.state_code)|urlencode }}" rel="noopener noreferrer">Directions</a>{% endif %}</p>
   {% if a.can_change %}
   <div class="statusrow">
     <a class="button small" href="/t/{{ slug }}/appointments/{{ a.booking_id }}/reschedule">Change time</a>

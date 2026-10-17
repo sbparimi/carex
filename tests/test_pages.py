@@ -22,7 +22,8 @@ def test_pages_set_strict_headers_and_never_use_inline_script_or_style(signed_in
 
 
 def test_signup_then_login_and_logout(client):
-    assert client.get(S + "/book").url.path.endswith("/login")                    # protected
+    assert client.get(S + "/book").status_code == 200                              # browsing needs no account
+    assert client.get(S + "/appointments").url.path.endswith("/login")            # personal pages are protected
     r = client.post(S + "/signup", data=SIGNUP)
     assert h1(r) == "Find care"
     client.post(S + "/logout")
@@ -245,3 +246,62 @@ def test_visit_type_cards_are_ordered_by_soonest_opening(demo):
     assert key == sorted(key)
     headline = re.search(r"Next opening ([^<]+?) [A-Z]{3,4}<", t).group(1)
     assert headline == cards[0][3].strip()
+
+
+# ---------------------------------------------------------------- batch 1: guest browsing, finding care, one-tap booking, manage links
+def test_guests_can_browse_clinics_and_times_without_an_account(demo):
+    _, ctx = demo
+    from fastapi.testclient import TestClient
+    from carex.app import create_app
+    g = TestClient(create_app(ctx), base_url="http://testserver", follow_redirects=True)
+    r = g.get(S + "/book?state=TX")
+    assert r.status_code == 200 and "Sign in" in r.text and "Create account" in r.text and "tabbar" not in r.text
+    p = g.get(S + "/book/provider?clinic=cl-tx00")
+    assert p.status_code == 200 and "Next opening" in p.text and "quickbook" in p.text
+    link = re.search(r'class="quickbook" href="([^"]+)"', p.text).group(1).replace("&amp;", "&")
+    r = g.get(link)
+    assert r.url.path.endswith("/login") and "next=" in str(r.url)                      # booking needs an account; the way back is kept
+
+
+def test_search_by_name_or_city_and_find_soonest(demo):
+    cl, _ = demo
+    r = cl.get(S + "/book?q=austin")
+    assert "Results for" in r.text and "Austin" in r.text
+    assert "No clinics match" in cl.get(S + "/book?q=zzzzqq").text
+    f = cl.get(S + "/book/find?kind=primary_care&state=TX")
+    assert f.status_code == 200 and "Soonest" in f.text and f.text.count('class="clinic"') >= 5
+
+
+def test_one_tap_booking_link_goes_to_the_details_step(demo):
+    cl, _ = demo
+    p = cl.get(S + "/book/provider?clinic=cl-tx00").text
+    link = re.search(r'class="quickbook" href="([^"]+)"', p).group(1).replace("&amp;", "&")
+    r = cl.get(link)
+    assert r.status_code == 200 and "Review" in r.text or "details" in str(r.url)
+
+
+def test_clinic_page_has_about_section_filters_and_calendar_links(demo):
+    cl, _ = demo
+    t = cl.get(S + "/book/provider?clinic=cl-tx00").text
+    assert "About this clinic" in t and "tel:" in t and "google.com/maps" in t
+    v = re.search(r"service=([\w-]+)", t).group(1)
+    t2 = cl.get(S + f"/book/provider?clinic=cl-tx00&service={v}&part=morning").text
+    assert 'name="part"' in t2 and "Visit &amp; time" in t2 or "Visit & time" in t2
+
+
+def test_confirmation_has_calendar_file_and_manage_link_works(signed_in, ctx):
+    r, _ = book_through_pages(signed_in)
+    assert h1(r) == "You're booked" and "calendar.ics" in r.text and "Get directions" in r.text
+    row = ctx.db.get("SELECT id, manage_token FROM appointments WHERE manage_token IS NOT NULL")
+    ics = signed_in.get(S + f"/appointments/{row['id']}/calendar.ics")
+    assert ics.status_code == 200 and ics.text.startswith("BEGIN:VCALENDAR") and "text/calendar" in ics.headers["content-type"]
+    from fastapi.testclient import TestClient
+    from carex.app import create_app
+    g = TestClient(create_app(ctx), base_url="http://testserver", follow_redirects=True)           # no cookies: the link itself is the key
+    m = g.get(S + f"/m/{row['manage_token']}")
+    assert m.status_code == 200 and "Your appointment" in m.text
+    assert g.get(S + "/m/not-a-real-token").status_code == 404
+    assert g.get(S + f"/m/{row['manage_token']}/calendar.ics").text.startswith("BEGIN:VCALENDAR")
+    done = g.post(S + f"/m/{row['manage_token']}/cancel")
+    assert done.status_code == 200 and "cancelled" in done.text.lower()
+    assert ctx.db.get("SELECT status FROM appointments WHERE id = ?", row["id"])["status"] == "cancelled"

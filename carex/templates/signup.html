@@ -10,14 +10,15 @@
 {% if not door %}
 <div class="progress" aria-hidden="true"><div class="bar step1"></div></div>
 <p class="lead">Step 1 of 2. How do you get care?</p>
-<a class="choice-link" href="/t/{{ slug }}/signup?door=employer"><span>Through my employer<small>Choose your employer from the list</small></span></a>
-<a class="choice-link" href="/t/{{ slug }}/signup?door=insurer"><span>Through my insurance provider<small>Choose your plan from the list</small></span></a>
+<a class="choice-link" href="/t/{{ slug }}/signup?door=employer{% if nxt %}&amp;next={{ nxt|urlencode }}{% endif %}"><span>Through my employer<small>Choose your employer from the list</small></span></a>
+<a class="choice-link" href="/t/{{ slug }}/signup?door=insurer{% if nxt %}&amp;next={{ nxt|urlencode }}{% endif %}"><span>Through my insurance provider<small>Choose your plan from the list</small></span></a>
 <p class="alt">Already have an account? <a href="/t/{{ slug }}/login">Sign in</a></p>
 {% else %}
 <div class="progress" aria-hidden="true"><div class="bar step2"></div></div>
 <p class="lead">Step 2 of 2. Your details.</p>
 {% if errors %}{{ banner('error', 'Please check the highlighted fields.', 'alert') }}{% endif %}
 <form method="post" action="/t/{{ slug }}/signup" novalidate>
+  {% if nxt %}<input type="hidden" name="next" value="{{ nxt }}">{% endif %}
   <input type="hidden" name="door" value="{{ door }}">
   <div class="mb-md">
     <label class="field" for="f-access">{% if door == 'employer' %}Your employer{% else %}Your insurance provider{% endif %}<span aria-hidden="true"> *</span></label>
@@ -35,7 +36,7 @@
   {{ field('password', 'Password', '', 'password', errors.password, 'new-password', hint='At least 10 characters.') }}
   <button class="primary wide" type="submit">Create account</button>
 </form>
-<p class="links"><a href="/t/{{ slug }}/signup">Back</a></p>
+<p class="links"><a href="/t/{{ slug }}/signup{% if nxt %}?next={{ nxt|urlencode }}{% endif %}">Back</a></p>
 <p class="alt">Already have an account? <a href="/t/{{ slug }}/login">Sign in</a></p>
 {% endif %}
 </section>

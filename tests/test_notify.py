@@ -54,7 +54,7 @@ def test_email_goes_out_but_sms_needs_opt_in(world):
     res = n.dispatch()
     assert res["sent"] == 1 and len(sink.emails) == 1 and sink.texts == []
     to, subject, text = sink.emails[0]
-    assert to == "u@x.com" and subject.startswith("Appointment confirmed") and rec["booking_id"] not in text and "/t/northwind-health/appointments" in text and "911" in text
+    assert to == "u@x.com" and subject.startswith("Appointment confirmed") and rec["booking_id"] not in text and "/t/northwind-health/m/" in text and "911" in text
     ctx.accounts.set_notify("tn-north", p["id"], sms=True)
     book(ctx, p, 41, "k-notify-0002")
     n.dispatch()

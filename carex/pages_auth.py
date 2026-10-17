@@ -14,19 +14,20 @@ def register(app: FastAPI, W: Web) -> None:
     c = W.c
     P = "/t/{slug}"
 
-    def done(request, t, profile, token):
+    def done(request, t, profile, token, nxt=""):
         W.audit(request, t, "user", "user.login", actor_id=profile["id"])
-        r = W.redirect(f"/t/{t['slug']}/book")
+        r = W.redirect(W.safe_next(t["slug"], nxt) or f"/t/{t['slug']}/book")
         W.set_cookie(r, COOKIE, token, t["slug"], SESSION_SECONDS)
         return r
 
     @app.get(P + "/login")
-    def login_page(slug: str, request: Request, notice: str = ""):
+    def login_page(slug: str, request: Request, notice: str = "", next: str = ""):
         t = W.tenant(slug)
+        nxt = W.safe_next(slug, next)
         if W.user(request, t):
-            return W.redirect(f"/t/{slug}/book")
+            return W.redirect(nxt or f"/t/{slug}/book")
         msgs = {"reset": "Your password was changed. Sign in with the new one.", "out": "You have been signed out."}
-        return W.render(request, "login.html", t=t, notice=msgs.get(notice, ""))
+        return W.render(request, "login.html", t=t, notice=msgs.get(notice, ""), nxt=nxt)
 
     @app.post(P + "/login")
     def login(slug: str, request: Request, f: dict = Depends(form)):
@@ -38,10 +39,10 @@ def register(app: FastAPI, W: Web) -> None:
             r = c.accounts.begin_login(t["id"], email, f.get("password") or "")
         except AccountError as e:
             W.audit(request, t, "anonymous", "user.login_failed", detail={"email": hashlib.sha256(email.encode()).hexdigest()[:12]})
-            return W.render(request, "login.html", 401 if e.code != "locked" else 423, t=t, error=str(e), email=email)
+            return W.render(request, "login.html", 401 if e.code != "locked" else 423, t=t, error=str(e), email=email, nxt=W.safe_next(slug, s(f, "next", 600)))
         if r.get("mfa"):
-            return W.render(request, "login.html", t=t, challenge=r["mfa"]["challenge"])
-        return done(request, t, r["profile"], r["token"])
+            return W.render(request, "login.html", t=t, challenge=r["mfa"]["challenge"], nxt=W.safe_next(slug, s(f, "next", 600)))
+        return done(request, t, r["profile"], r["token"], s(f, "next", 600))
 
     @app.post(P + "/login/verify")
     def verify(slug: str, request: Request, f: dict = Depends(form)):
@@ -50,8 +51,8 @@ def register(app: FastAPI, W: Web) -> None:
         try:
             profile, token = c.accounts.verify_login(t["id"], s(f, "challenge", 100), s(f, "code", 10))
         except AccountError as e:
-            return W.render(request, "login.html", 401, t=t, error=str(e))
-        return done(request, t, profile, token)
+            return W.render(request, "login.html", 401, t=t, error=str(e), nxt=W.safe_next(slug, s(f, "next", 600)))
+        return done(request, t, profile, token, s(f, "next", 600))
 
     @app.post(P + "/logout")
     def logout(slug: str, request: Request):
@@ -65,9 +66,9 @@ def register(app: FastAPI, W: Web) -> None:
         return r
 
     @app.get(P + "/signup")
-    def signup_page(slug: str, request: Request, door: str = ""):
+    def signup_page(slug: str, request: Request, door: str = "", next: str = ""):
         t = W.tenant(slug)
-        return W.render(request, "signup.html", t=t, **_signup_ctx(t, door, {}, {}))
+        return W.render(request, "signup.html", t=t, nxt=W.safe_next(slug, next), **_signup_ctx(t, door, {}, {}))
 
     def _signup_ctx(t, door, v, errors):
         door = door if door in ("employer", "insurer") else ""
@@ -89,9 +90,9 @@ def register(app: FastAPI, W: Web) -> None:
         except AccountError as e:
             v = {k: s(f, k, 254) for k in ("first_name", "last_name", "date_of_birth", "phone", "email", "access_id")}
             errors = dict(e.fields) or {"email": str(e)}
-            return W.render(request, "signup.html", 400 if e.code == "invalid_input" else 409, t=t, **_signup_ctx(t, door, v, errors))
+            return W.render(request, "signup.html", 400 if e.code == "invalid_input" else 409, t=t, nxt=W.safe_next(slug, s(f, "next", 600)), **_signup_ctx(t, door, v, errors))
         W.audit(request, t, "user", "user.signup", actor_id=profile["id"])
-        r = W.redirect(f"/t/{slug}/book")
+        r = W.redirect(W.safe_next(slug, s(f, "next", 600)) or f"/t/{slug}/book")
         W.set_cookie(r, COOKIE, token, slug, SESSION_SECONDS)
         return r
 

@@ -2,10 +2,32 @@
 {% from "_macros.html" import steps, banner %}
 {% block title %}Find care · {{ brand.display_name }}{% endblock %}
 {% block content %}
+{% macro card(c, i) %}
+  <a class="clinic" href="/t/{{ slug }}/book/provider?clinic={{ c.id }}">
+    <span class="thumb th-{{ tint_of(c.id) }}" aria-hidden="true">{{ c.name[:1] }}</span>
+    <span class="clinic-body"><strong>{{ c.name }}</strong><small>{{ c.address }}{% if c.city not in c.address %}, {{ c.city }}{% endif %}</small><small class="zone">{{ zone_name(c.time_zone) }}</small></span>
+    <span class="chev" aria-hidden="true"></span>
+  </a>
+{% endmacro %}
 {{ steps(1) }}
 <h1 id="h1" class="largetitle">Find care</h1>
-<p class="lead">Choose your state to see clinics near you.</p>
+<p class="lead">Search by clinic or city, pick your state, or find the soonest visit of a kind.</p>
 {% if notice %}{{ banner('warning', notice, 'status') }}{% endif %}
+{% if kinds %}
+<form class="sheet statepick" method="get" action="/t/{{ slug }}/book/find">
+  <label for="kind">Soonest available</label>
+  <div class="selectwrap"><select id="kind" name="kind" required>
+    <option value="">What kind of visit?</option>
+    {% for k in kinds %}<option value="{{ k.kind }}">{{ k.label }}</option>{% endfor %}
+  </select></div>
+  <button class="primary wide" type="submit">Show the soonest openings</button>
+</form>
+{% endif %}
+<form class="sheet statepick" method="get" action="/t/{{ slug }}/book" role="search">
+  <label for="q">Search clinics</label>
+  <input id="q" name="q" type="search" value="{{ q }}" maxlength="60" placeholder="Clinic name or city" autocomplete="off">
+  <button class="primary wide" type="submit">Search</button>
+</form>
 <form class="sheet statepick" method="get" action="/t/{{ slug }}/book">
   <label for="state">State or territory</label>
   <div class="selectwrap">
@@ -16,15 +38,13 @@
   </div>
   <button class="primary wide" type="submit">Show clinics</button>
 </form>
-{% if state %}
+{% if q %}
+<h2 class="section" id="clinics">Results for &ldquo;{{ q }}&rdquo;</h2>
+{% if not clinics %}<div class="sheet empty"><strong>No clinics match</strong><p class="hint">Try a city name or a shorter search.</p></div>{% endif %}
+<div class="clinics">{% for c in clinics %}{{ card(c, loop.index) }}{% endfor %}</div>
+{% elif state %}
 <h2 class="section" id="clinics">Clinics in {{ state_name }}</h2>
-{% macro card(c, i) %}
-  <a class="clinic" href="/t/{{ slug }}/book/provider?clinic={{ c.id }}">
-    <span class="thumb th-{{ tint_of(c.id) }}" aria-hidden="true">{{ c.name[:1] }}</span>
-    <span class="clinic-body"><strong>{{ c.name }}</strong><small>{{ c.address }}{% if c.city not in c.address %}, {{ c.city }}{% endif %}</small><small class="zone">{{ zone_name(c.time_zone) }}</small></span>
-    <span class="chev" aria-hidden="true"></span>
-  </a>
-{% endmacro %}
+
 {% set hq = clinics | selectattr('tier', 'equalto', 'hq') | list %}
 {% set major = clinics | selectattr('tier', 'equalto', 'major') | list %}
 {% set other = clinics | selectattr('tier', 'equalto', 'other') | list %}

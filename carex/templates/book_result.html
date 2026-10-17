@@ -23,6 +23,16 @@
     <p class="hint">We also sent you a confirmation.</p>
   </div>
 </section>
+<section class="sheet" aria-labelledby="next-h">
+  <h2 id="next-h" class="section">Before your visit</h2>
+  <ul class="todo">
+    <li><a href="/t/{{ slug }}/appointments/{{ o.booking_id }}/calendar.ics">Add to your calendar</a></li>
+    {% if sm.modality != 'telehealth' %}<li><a href="https://www.google.com/maps/search/?api=1&amp;query={{ maps_q|urlencode }}" rel="noopener noreferrer">Get directions</a></li>{% endif %}
+    <li><a href="mailto:?subject={{ ('Appointment: ' ~ sm.visit_type.label ~ ' at ' ~ sm.clinic.name)|urlencode }}&amp;body={{ (day_parts(sm.starts_at, sm.time_zone).full ~ ' at ' ~ clock(sm.starts_at, sm.time_zone) ~ ' - ' ~ sm.clinic.name ~ ', ' ~ sm.clinic.address)|urlencode }}">Share with family</a></li>
+    <li>Bring photo ID, your insurance card and your medicine list. Arrive 10 minutes early.</li>
+    <li>Need to change it? You can cancel or move it up to 2 hours before the visit.</li>
+  </ul>
+</section>
 <div class="actions"><a class="button primary" href="/t/{{ slug }}/appointments">My appointments</a><a class="button" href="/t/{{ slug }}/book">Book another</a></div>
 {{ care911() }}
 </div>

@@ -143,8 +143,9 @@ class Web:
         return {r["id"]: i % 10 for i, r in enumerate(rows)}
 
     def render(self, request: Request, name: str, status: int = 200, t: dict | None = None, **ctx) -> HTMLResponse:
-        if name.startswith(("book_", "appointments", "reschedule", "staff_day", "staff_reschedule", "staff_book")):
+        if name.startswith(("book_", "appointments", "manage", "reschedule", "staff_day", "staff_reschedule", "staff_book")):
             ctx["vtc"] = self.visit_colors(t)
+        ctx.setdefault("guest_nav", name.startswith("book_") and not ctx.get("user") and not ctx.get("staff"))
         if name in ("login.html", "staff_login.html") and "demo" not in ctx:
             ctx["demo"] = self.demo(t, "staff" if name == "staff_login.html" else "patient")
         html = self.env.get_template(name).render(request=request, t=t, slug=t["slug"] if t else None, brand=t["brand"] if t else {"display_name": "CareX"}, **ctx)
@@ -152,6 +153,13 @@ class Web:
 
     def set_cookie(self, resp: Response, name: str, value: str | None, slug: str, seconds: int, samesite: str = "lax") -> None:
         resp.set_cookie(name, value or "", max_age=seconds if value else 0, path=f"/t/{slug}", httponly=True, samesite=samesite, secure=self.c.secure_cookies)
+
+    @staticmethod
+    def safe_next(slug: str, nxt: str | None) -> str:
+        """Where to go after signing in: only a page inside this organisation's patient area, never another site."""
+        n = (nxt or "")[:600]
+        ok = n.startswith(f"/t/{slug}/") and "//" not in n[1:] and "\\" not in n and "\r" not in n and "\n" not in n and ":" not in n.split("?")[0]
+        return n if ok else ""
 
     def redirect(self, url: str) -> RedirectResponse:
         return RedirectResponse(url, status_code=303, headers={**SECURITY_HEADERS, "cache-control": "no-store"})

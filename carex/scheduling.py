@@ -1,6 +1,8 @@
 """CareX-native scheduling engine (ADR-002, ADR-005). Every query is bound-parameter and tenant-scoped; writers are serialised per provider."""
 from __future__ import annotations
 
+import secrets
+
 import json
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
@@ -143,13 +145,13 @@ class Scheduling:
                 tx.run("""INSERT INTO appointments (id, tenant_id, clinic_id, visit_type_id, provider_id, starts_at, ends_at, status, idempotency_key, request_hash,
                             patient_first_name, patient_last_name, patient_email, patient_phone, created_at, user_id, resource_id,
                             patient_id, reason, modality, patient_state, interpreter_language, accommodations, referral_ref, copay_cents, join_url,
-                            booked_by, booked_by_staff_id, patient_dob, contact_sms_ok)
-                          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                            booked_by, booked_by_staff_id, patient_dob, contact_sms_ok, manage_token)
+                          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                        bid, i.tenant_id, i.clinic_id, i.service_id, i.provider_id, slot["starts_at"], slot["ends_at"], "confirmed", i.idempotency_key, h,
                        i.first_name, i.last_name, i.email, i.phone, iso(nowd), i.user_id, cand["resource_id"],
                        it.get("patient_id") or None, it.get("reason"), it.get("modality") or "in_person", it.get("patient_state"), it.get("interpreter_language"),
                        it.get("accommodations"), it.get("referral_ref"), it.get("copay_cents") or 0, join,
-                       i.booked_by, i.staff_id, i.patient_dob, 1 if i.sms_ok else 0)
+                       i.booked_by, i.staff_id, i.patient_dob, 1 if i.sms_ok else 0, secrets.token_urlsafe(18))
                 if it.get("consent_version") and (i.user_id or i.staff_id):
                     tx.run("INSERT INTO consent_records (tenant_id, user_id, patient_id, kind, version, accepted_at, appointment_id, recorded_by) VALUES (?,?,?,?,?,?,?,?)",
                            i.tenant_id, i.user_id, it.get("patient_id") or None, "treatment_verbal" if i.staff_id else "treatment", it["consent_version"], iso(nowd), bid, i.staff_id)

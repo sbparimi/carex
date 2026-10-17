@@ -616,3 +616,15 @@ li.appt { box-shadow: var(--shadow); border-radius: var(--r-sm); background: col
 .tix .statusrow .statusrow { flex: 1; margin: 0; padding: 0; border: 0; flex-wrap: nowrap; min-width: 0; }
 .tix .statusrow input { flex: 1; min-width: 0; min-height: 2.75rem; }
 @media (max-width: 40rem) { .tix .statusrow .statusrow { flex-wrap: wrap; flex-basis: 100%; } }
+
+/* ---- Batch 1: guest browsing, quick book, about, filters */
+.navcta { background: var(--ink); color: #fff !important; padding: .375rem .875rem; border-radius: 999px; text-decoration: none; }
+.vcardwrap { display: grid; gap: .375rem; }
+.quickbook { justify-self: start; margin-left: 1rem; padding: .5rem 1rem; border-radius: 999px; background: var(--ink); color: #fff; font-weight: 600; font-size: .9375rem; text-decoration: none; min-height: 2.75rem; display: inline-flex; align-items: center; }
+.quickbook:hover, .quickbook:focus-visible { background: color-mix(in srgb, var(--ink) 80%, var(--accent, #000)); }
+.covchip { font-weight: 600; }
+.filters { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin: 1rem 0; }
+.filters select { min-height: 2.75rem; }
+.morelnk { font-weight: 600; text-decoration: underline; }
+.todo { margin: 0; padding-left: 1.25rem; display: grid; gap: .5rem; }
+.about .kv { margin-top: .5rem; }

@@ -73,17 +73,27 @@ def demo_catalog() -> dict:
     last = ["Example", "Sample", "Placeholder", "Demo", "Fictional", "Mockridge", "Testwell", "Samplewood"]
     existing = {(c["state_code"], c["city"]): c for c in d["clinics"] if c["tenant_id"] == N and c.get("status") == "active" and c.get("bookable")}
     n = 0
+    streets = ["Maple Avenue", "Harbor Street", "Oak Boulevard", "Cedar Lane", "Main Street", "Park Road", "Lakeview Drive", "Summit Way", "River Street", "Elm Court"]
+    hours = ["Mon-Fri 8:00 AM - 5:00 PM", "Mon-Fri 7:30 AM - 6:00 PM, Sat 9:00 AM - 1:00 PM", "Mon-Thu 8:00 AM - 7:00 PM, Fri 8:00 AM - 4:00 PM", "Mon-Fri 9:00 AM - 5:30 PM"]
+    abouts = ["Free parking in the lot behind the building. Step-free entrance and an accessible restroom.", "Street parking and a garage one block away. Wheelchair accessible, with an elevator to all floors.",
+              "Short-term parking at the front door. Quiet waiting room; ask us about sensory-friendly visits.", "Two minutes from the bus stop. Step-free entrance. Interpreters available on request."]
+
+    def details(c, i, st):
+        c.update(phone=f"({200 + (i * 37 + len(st) * 11) % 700}) 555-01{i % 100:02d}", hours_text=hours[i % len(hours)], about=abouts[(i // 2) % len(abouts)])
+
     xprofiles = []
     for st, _name in US_STATES:
         for p in places(st):
             have = existing.get((st, p["city"]))
             if have and p["label"] == p["city"]:
                 have.update(tier=p["tier"], sort_order=p["sort_order"])
+                details(have, p["sort_order"], st)
                 continue
             cid = f"cl-{st.lower()}{p['sort_order']:02d}"
             c = clinic(cid, N, st, f"{p['label']} Clinic", p["city"], p["time_zone"])
-            c["address"] = f"{10 + p['sort_order'] * 7} Example Way, {p['label']}" + (f", {p['city']}" if p["label"] != p["city"] else "")
+            c["address"] = f"{10 + p['sort_order'] * 7} {streets[(p['sort_order'] + len(st)) % len(streets)]}, {p['label']}" + (f", {p['city']}" if p["label"] != p["city"] else "")
             c.update(tier=p["tier"], sort_order=p["sort_order"])
+            details(c, p["sort_order"], st)
             d["clinics"].append(c)
             chosen = kinds if p["tier"] != "other" else [kinds[0], kinds[1 + p["sort_order"] % 4]]
             for sid, title, spec, h0, h1 in chosen:

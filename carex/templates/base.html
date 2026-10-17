@@ -21,6 +21,10 @@
     <a href="/t/{{ slug }}/appointments"{% if nav == 'appts' %} aria-current="page"{% endif %}>My appointments</a>
     <span class="who">{{ user.first_name }}</span>
     <form class="inline" method="post" action="/t/{{ slug }}/logout"><button class="linkish" type="submit">Sign out</button></form>
+    {% elif guest_nav %}
+    <a href="/t/{{ slug }}/book"{% if nav == 'book' %} aria-current="page"{% endif %}>Find care</a>
+    <a href="/t/{{ slug }}/login">Sign in</a>
+    <a class="navcta" href="/t/{{ slug }}/signup">Create account</a>
     {% elif staff %}
     <a href="/t/{{ slug }}/staff"{% if nav == 'day' %} aria-current="page"{% endif %}>Schedule</a>
     {% if staff.role != 'provider' %}<a href="/t/{{ slug }}/staff/book"{% if nav == 'sbook' %} aria-current="page"{% endif %}>Book a patient</a>{% endif %}

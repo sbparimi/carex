@@ -12,6 +12,8 @@ from .audit import Audit
 from .booking import BookingService
 from .catalog import Catalog
 from .db import Db, open_db
+from .discover import Discover
+from .events import Events
 from .intake import Intake
 from .mailer import AccountMailer, channels_from_env
 from .notify import Channels, Notifier
@@ -42,6 +44,8 @@ class Ctx:
     cron_secret: str | None = None
     default_tenant: str | None = None
     trust_proxy: bool = False
+    discover: Discover | None = None
+    events: Events | None = None
 
 
 def build(db: Db | None = None, env: Mapping[str, str] | None = None, clock: Callable[[], datetime] = _now, channels: Channels | None = None,
@@ -56,4 +60,5 @@ def build(db: Db | None = None, env: Mapping[str, str] | None = None, clock: Cal
     return Ctx(db=db, clock=clock, catalog=catalog, sched=sched, intake=intake, booking=BookingService(catalog, sched, intake, clock),
                accounts=Accounts(db, clock, mailer or AccountMailer(ch, prod)), waitlist=Waitlist(db, clock), audit=Audit(db, clock), notifier=Notifier(db, ch, clock),
                staff_accounts=StaffAccounts(db, clock), desk=StaffDesk(db, sched, intake, clock), admin=Admin(db, clock), admin_keys=AdminKeys(db, clock), channels=ch,
-               secure_cookies=prod, cron_secret=env.get("CRON_SECRET") or None, default_tenant=env.get("DEFAULT_TENANT") or None, trust_proxy=bool(env.get("VERCEL")) or env.get("CAREX_TRUST_PROXY") == "1")
+               secure_cookies=prod, cron_secret=env.get("CRON_SECRET") or None, default_tenant=env.get("DEFAULT_TENANT") or None, trust_proxy=bool(env.get("VERCEL")) or env.get("CAREX_TRUST_PROXY") == "1",
+               discover=Discover(catalog, BookingService(catalog, sched, intake, clock), float(env.get("CAREX_SOONEST_TTL", "15") or 0)), events=Events(db, clock))

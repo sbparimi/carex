@@ -187,4 +187,18 @@ V2 = [
     "ALTER TABLE clinics ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 100",
 ]
 
-MIGRATIONS = [V1, V2]
+# Version 3: clinic details shown to patients, one-tap manage links in messages, and anonymous funnel events (no personal data).
+V3 = [
+    "ALTER TABLE clinics ADD COLUMN phone TEXT",
+    "ALTER TABLE clinics ADD COLUMN hours_text TEXT",
+    "ALTER TABLE clinics ADD COLUMN about TEXT",
+    "ALTER TABLE clinics ADD COLUMN image_url TEXT",
+    "ALTER TABLE appointments ADD COLUMN manage_token TEXT",
+    "CREATE UNIQUE INDEX appointments_manage_token ON appointments(manage_token) WHERE manage_token IS NOT NULL",
+    """CREATE TABLE events (
+        id {ID}, tenant_id TEXT NOT NULL, at TEXT NOT NULL, name TEXT NOT NULL, ref TEXT
+    )""",
+    "CREATE INDEX events_tenant_time ON events(tenant_id, at)",
+]
+
+MIGRATIONS = [V1, V2, V3]

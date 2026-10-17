@@ -20,7 +20,7 @@
 {% endmacro %}
 
 {% macro steps(current) %}
-{% set names = ['Location', 'Provider & time', 'Details', 'Review'] %}
+{% set names = ['Location', 'Visit & time', 'Details', 'Review'] %}
 {% set cur = {1: 1, 2: 1, 3: 2, 4: 3, 5: 4}[current] %}
 <ol class="steps" aria-label="Booking steps, step {{ cur }} of 4">
 {% for n in names %}<li{% if loop.index == cur %} aria-current="step"{% elif loop.index < cur %} class="done"{% endif %}><span class="n">{{ loop.index }}</span><span class="t">{{ n }}</span></li>{% endfor %}
