@@ -9,7 +9,7 @@
 <h2 class="section">Upcoming</h2>
 {% for a in upcoming %}
 {% set sm = a.summary %}{% set dp = day_parts(sm.starts_at, sm.time_zone) %}
-<article class="tix vt-{{ vtc[sm.visit_type.id] }}">
+<article class="tix vt-brand">
   <div class="tix-head">
     <span class="thumb th-{{ tint_of(sm.clinic.id) }}" aria-hidden="true">{{ sm.clinic.name[:1] }}</span>
     <div class="tix-body">
@@ -36,7 +36,7 @@
 {% if past %}
 <h2 class="section">Past and cancelled</h2>
 <ul class="appts">
-{% for a in past %}<li class="appt vt-{{ vtc[a.summary.visit_type.id] }}"><span>{{ a.summary.visit_type.label }} · {{ a.summary.provider.display_name }}<br><small>{{ when(a.summary.starts_at, a.summary.time_zone) }}</small></span><span class="tag {{ 'bad' if a.status in ('cancelled', 'no_show') else 'ok' }}">{{ a.status|replace('_', ' ')|capitalize }}</span></li>{% endfor %}
+{% for a in past %}<li class="appt vt-brand"><span>{{ a.summary.visit_type.label }} · {{ a.summary.provider.display_name }}<br><small>{{ when(a.summary.starts_at, a.summary.time_zone) }}</small></span><span class="tag {{ 'bad' if a.status in ('cancelled', 'no_show') else 'ok' }}">{{ a.status|replace('_', ' ')|capitalize }}</span></li>{% endfor %}
 </ul>
 {% endif %}
 

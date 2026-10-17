@@ -5,7 +5,7 @@
 {% set sm = a.summary %}
 <div class="evt tint-{{ tint_of(sm.clinic.id) }}">
 <aside class="evt-side">{{ cover(sm.clinic) }}</aside>
-<div class="evt-main vt-{{ vtc[sm.visit_type.id] }}">
+<div class="evt-main vt-brand">
 <h1 id="h1" class="largetitle">{% if a.status == 'cancelled' %}Appointment cancelled{% else %}Your appointment{% endif %}</h1>
 {% if notice %}{{ banner('success' if notice_ok else 'warning', notice, 'status') }}{% endif %}
 {{ facts(sm.starts_at, sm.time_zone, 'By video' if sm.modality == 'telehealth' else sm.clinic.name, sm.clinic.address ~ ('' if sm.clinic.city in sm.clinic.address else ', ' ~ sm.clinic.city) if sm.modality != 'telehealth' else 'Link below') }}

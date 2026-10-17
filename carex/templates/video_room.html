@@ -5,7 +5,7 @@
 {% set sm = a.summary %}
 <div class="evt tint-{{ tint_of(sm.clinic.id) }}">
 <aside class="evt-side">{{ cover(sm.clinic) }}</aside>
-<div class="evt-main vt-{{ vtc[sm.visit_type.id] }}">
+<div class="evt-main vt-brand">
 <p class="back"><a class="backlink" href="/t/{{ slug }}/appointments">My appointments</a></p>
 <h1 id="h1" class="largetitle">Video waiting room</h1>
 {{ facts(sm.starts_at, sm.time_zone, sm.visit_type.label ~ ' with ' ~ sm.provider.display_name, sm.clinic.name) }}
