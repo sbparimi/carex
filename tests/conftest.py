@@ -97,14 +97,19 @@ SIGNUP = dict(door="employer", access_id="em-n-1", first_name="Ann", last_name="
 @pytest.fixture
 def signed_in(client):
     r = client.post(S + "/signup", data=SIGNUP)
-    assert r.status_code == 200 and h1(r) == "Where would you like care?"
+    assert r.status_code == 200 and h1(r) == "Find care"
     return client
+
+
+def first_slot(c, clinic="cl-sb", service="sv-physio-n", provider="pr-b"):
+    from urllib.parse import unquote
+    page = c.get(f"{S}/book/provider?clinic={clinic}&service={service}&provider={provider}")
+    return unquote(re.findall(r'slot=([^"&]+)', page.text)[0])
 
 
 def book_through_pages(c, intake=True, **over):
     """Drives details -> review -> confirm for pr-b physio at San Bernardo; returns (confirm response, form values)."""
-    slots = c.get(S + "/book/provider?clinic=cl-sb&service=sv-physio-n&provider=pr-b")
-    slot = re.findall(r'name="slot" value="([^"]+)"', slots.text)[0]
+    slot = first_slot(c)
     d = dict(clinic="cl-sb", service="sv-physio-n", provider="pr-b", slot=slot, none_apply="1", reason="Sore knee", modality="in_person", consent="v1")
     d.update(over)
     review = c.post(S + "/book/review", data=d)

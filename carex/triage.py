@@ -1,5 +1,5 @@
-"""Emergency screening (server-enforced). The patient is asked about red-flag symptoms before booking; any positive answer, or an emergency
-phrase in the free-text reason, stops the booking and shows emergency instructions. Booking never proceeds past a positive screen.
+"""Emergency screening. The patient is asked about red-flag symptoms before booking; any positive answer, or an emergency phrase in the free-text
+reason, shows an urgent warning to call 911 / 988 right away. The warning never blocks booking: the person may still book the visit.
 
 CLINICAL SIGN-OFF REQUIRED: this list is a conservative starting set. A licensed clinician must review and own it before production use
 (docs/product/08-adr-clinical-intake-and-operations.md)."""
@@ -25,8 +25,8 @@ PHRASES = [re.compile(p, re.I) for p in (
     r"severe bleeding|won'?t stop bleeding|anaphyla",
 )]
 
-EMERGENCY_MESSAGE = ("Based on your answers, this may be an emergency. Do not book online: call 911 now or go to the nearest emergency room. "
-                     "If you are thinking about harming yourself, call or text 988 (Suicide & Crisis Lifeline) right away.")
+EMERGENCY_MESSAGE = ("Based on your answers, this may be an emergency. Please call 911 now or go to the nearest emergency room; do not wait for this appointment. "
+                     "If you are thinking about harming yourself, call or text 988 (Suicide & Crisis Lifeline) right away. You can still book this visit.")
 
 
 def screen(reason: str | None, flags: list[str] | None) -> dict:

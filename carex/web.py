@@ -13,6 +13,7 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 from . import fmt
 from .context import Ctx
 from .ratelimit import RateLimiter
+from .states import US_STATES as STATES56
 from .triage import RED_FLAGS
 
 log = logging.getLogger("carex.web")
@@ -69,7 +70,7 @@ class Web:
         self.c = ctx
         self.env = Environment(loader=FileSystemLoader(str(HERE / "templates")), autoescape=select_autoescape(["html"]), trim_blocks=True, lstrip_blocks=True)
         self.env.filters["money"] = money
-        self.env.globals.update(day_label=fmt.day_label, time_label=fmt.time_label, when=fmt.when, red_flags=RED_FLAGS, US_STATES=US_STATES)
+        self.env.globals.update(day_label=fmt.day_label, time_label=fmt.time_label, when=fmt.when, red_flags=RED_FLAGS, US_STATES=US_STATES, clock=fmt.clock, day_parts=fmt.day_parts, zone_name=fmt.zone_name, STATES56=STATES56)
         self.lim = {"read": RateLimiter(300, 60_000), "write": RateLimiter(90, 60_000), "auth": RateLimiter(30, 60_000), "login_id": RateLimiter(10, 60_000), "admin": RateLimiter(60, 60_000)}
 
     # ---- request identity and limits
@@ -132,7 +133,16 @@ class Web:
                 return {"email": r["email"], "password": DEMO_PASSWORD}
         return None
 
+    def visit_colors(self, t: dict | None) -> dict:
+        """Each visit type of an organisation gets its own colour (0-9), stable and the same on every screen: its card, dates, times and appointments."""
+        if not t:
+            return {}
+        rows = self.c.db.all("SELECT id FROM visit_types WHERE tenant_id = ? ORDER BY id", t["id"])
+        return {r["id"]: i % 10 for i, r in enumerate(rows)}
+
     def render(self, request: Request, name: str, status: int = 200, t: dict | None = None, **ctx) -> HTMLResponse:
+        if name.startswith(("book_", "appointments", "reschedule", "staff_day", "staff_reschedule", "staff_book")):
+            ctx["vtc"] = self.visit_colors(t)
         if name in ("login.html", "staff_login.html") and "demo" not in ctx:
             ctx["demo"] = self.demo(t, "staff" if name == "staff_login.html" else "patient")
         html = self.env.get_template(name).render(request=request, t=t, slug=t["slug"] if t else None, brand=t["brand"] if t else {"display_name": "CareX"}, **ctx)

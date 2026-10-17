@@ -35,9 +35,12 @@ def test_screening_flags_and_phrases():
     assert not screen("annual physical", [])["emergency"]
 
 
-def test_a_positive_screen_blocks_booking_even_if_everything_else_is_fine(ctx, user):
-    assert code(ctx, user, red_flags=["breathing"]) == "emergency_redirect"
-    assert code(ctx, user, reason="chest pain since morning") == "emergency_redirect"
+def test_a_positive_screen_warns_but_never_blocks_booking(ctx, user):
+    for kw in ({"red_flags": ["breathing"]}, {"reason": "chest pain since morning"}):
+        req = {"clinic_id": "cl-sb", "service_id": "sv-pc-n", "provider_id": "pr-a", "reason": "Cough", "red_flags": [], "consent_version": "v1", **kw}
+        assert ctx.intake.prepare("tn-north", user["id"], req)["emergency"] is True
+    ok = {"clinic_id": "cl-sb", "service_id": "sv-pc-n", "provider_id": "pr-a", "reason": "Cough", "red_flags": [], "consent_version": "v1"}
+    assert ctx.intake.prepare("tn-north", user["id"], ok)["emergency"] is False
 
 
 def test_required_intake_fields(ctx, user):
@@ -127,9 +130,7 @@ def test_staff_intake_requires_attested_consent_and_screening(ctx):
     with pytest.raises(IntakeError) as e:
         ctx.intake.prepare_for_staff("tn-north", pt, base)
     assert e.value.code == "consent_required"
-    with pytest.raises(IntakeError) as e:
-        ctx.intake.prepare_for_staff("tn-north", pt, {**base, "consent_attested": True, "red_flags": ["stroke"]})
-    assert e.value.code == "emergency_redirect"
+    assert ctx.intake.prepare_for_staff("tn-north", pt, {**base, "consent_attested": True, "red_flags": ["stroke"]})["emergency"] is True
     with pytest.raises(IntakeError) as e:
         ctx.intake.prepare_for_staff("tn-north", pt, {**base, "consent_attested": True, "red_flags": None})
     assert e.value.code == "screening_required"

@@ -4,7 +4,9 @@
 {% block content %}
 {% if o.status == 'confirmed' %}
 <h1 id="h1" tabindex="-1">You're booked</h1>
+{% if urgent %}{{ emergency() }}{% endif %}
 {{ banner('success', 'Your appointment is confirmed. We also sent you a confirmation.', 'status') }}
+<div class="apptcard vt-{{ vtc[o.summary.visit_type.id] }}"><span class="vtag">{{ o.summary.visit_type.label }}</span><strong>{{ when(o.summary.starts_at, o.summary.time_zone) }}</strong><span>{{ o.summary.provider.display_name }}</span></div>
 <dl class="summary">
   <dt>Reference</dt><dd class="reference">{{ o.booking_id }}</dd>
   <dt>Visit</dt><dd>{{ o.summary.visit_type.label }}</dd>
@@ -21,9 +23,6 @@
 {{ banner('warning', o.message, 'alert') }}
 {% for sl in o.alternatives %}<a class="choice-link" href="/t/{{ slug }}/book/details?clinic={{ sl.clinic_id }}&amp;service={{ sl.service_id }}&amp;provider={{ sl.provider_id }}&amp;slot={{ sl.id }}"><span>{{ day_label(sl.starts_at, sl.time_zone) }} · {{ time_label(sl.starts_at, sl.time_zone) }}</span></a>{% endfor %}
 <p><a href="/t/{{ slug }}/book/provider?clinic={{ clinic_id }}&amp;service={{ service_id }}">See all times</a></p>
-{% elif o.code == 'emergency_redirect' %}
-<h1 id="h1" tabindex="-1">Please get help now</h1>
-{{ emergency() }}
 {% else %}
 <h1 id="h1" tabindex="-1">We couldn't book that</h1>
 {{ banner('error', o.message, 'alert') }}

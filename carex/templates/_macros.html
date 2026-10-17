@@ -16,12 +16,13 @@
 {% endmacro %}
 
 {% macro emergency() %}
-<div class="banner error emergency" role="alert"><span class="icon" aria-hidden="true">!</span><span class="text"><strong>This may be an emergency.</strong> Do not book online: call <a href="tel:911">911</a> now or go to the nearest emergency room. If you are thinking about harming yourself, call or text <a href="tel:988">988</a> (Suicide &amp; Crisis Lifeline) right away.</span></div>
+<div class="banner warning emergency" role="alert"><span class="icon" aria-hidden="true">!</span><span class="text"><strong>This may be an emergency.</strong> Please call <a href="tel:911">911</a> now or go to the nearest emergency room; do not wait for this appointment. If you are thinking about harming yourself, call or text <a href="tel:988">988</a> (Suicide &amp; Crisis Lifeline) right away. You can still book this visit.</span></div>
 {% endmacro %}
 
 {% macro steps(current) %}
-{% set names = ['Location', 'Visit', 'Provider & time', 'Details', 'Review'] %}
-<ol class="steps" aria-label="Booking steps">
-{% for n in names %}<li{% if loop.index == current %} aria-current="step"{% elif loop.index < current %} class="done"{% endif %}>{{ loop.index }}. {{ n }}</li>{% endfor %}
+{% set names = ['Location', 'Provider & time', 'Details', 'Review'] %}
+{% set cur = {1: 1, 2: 1, 3: 2, 4: 3, 5: 4}[current] %}
+<ol class="steps" aria-label="Booking steps, step {{ cur }} of 4">
+{% for n in names %}<li{% if loop.index == cur %} aria-current="step"{% elif loop.index < cur %} class="done"{% endif %}><span class="n">{{ loop.index }}</span><span class="t">{{ n }}</span></li>{% endfor %}
 </ol>
 {% endmacro %}

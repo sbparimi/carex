@@ -136,3 +136,10 @@ def test_staff_cannot_cross_tenants(ctx, staff):
     if other:
         r = c.get(f"/t/{other['slug']}/staff")
         assert r.url.path.endswith("/staff/login")
+
+
+def test_phone_booking_with_emergency_symptoms_still_books_and_tells_staff_to_advise_911(ctx, staff):
+    c = login(ctx, "desk@x.com")
+    r, slot = phone_book(c, ctx, 36, reason="severe chest pain")
+    assert r.status_code == 200 and "call 911 now" in r.text
+    assert ctx.db.get("SELECT COUNT(*) AS n FROM appointments WHERE starts_at = ?", slot["starts_at"])["n"] == 1

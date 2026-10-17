@@ -63,6 +63,26 @@ def demo_catalog() -> dict:
     d["availability"] = base["availability"] + (wk(N, "pr-d", "cl-sea", [1, 2, 3, 4, 5], 8, 16) + wk(N, "pr-e", "cl-sea", [2, 3, 4], 9, 17) + wk(N, "pr-f", "cl-sea", [1, 3, 5], 10, 15)
                                                  + wk(N, "pr-g", "cl-den", [1, 2, 3, 4, 5], 9, 17) + wk(N, "pr-b", "cl-den", [2, 4], 8, 12) + wk(N, "pr-f", "cl-den", [2, 4], 13, 17)
                                                  + wk(B, "pr-y", "cl-sj", [1, 2, 3, 4, 5], 9, 17) + wk(B, "pr-x", "cl-oak", [1, 3, 5], 10, 16))
+    # More prominent California clinics (Bay Area, Santa Clara, Los Angeles, San Diego) and clinics in other states, each with every visit type so the colour coding shows.
+    PT = "America/Los_Angeles"
+    more = [("cl-ba", "CA", "Bay Area Clinic", "San Francisco", PT), ("cl-scl", "CA", "Santa Clara Clinic", "Santa Clara", PT), ("cl-la", "CA", "Los Angeles Clinic", "Los Angeles", PT),
+            ("cl-sd", "CA", "San Diego Clinic", "San Diego", PT), ("cl-ny", "NY", "Manhattan Clinic", "New York", "America/New_York"), ("cl-bk", "NY", "Brooklyn Clinic", "Brooklyn", "America/New_York"),
+            ("cl-mia", "FL", "Miami Clinic", "Miami", "America/New_York"), ("cl-orl", "FL", "Orlando Clinic", "Orlando", "America/New_York"), ("cl-hou", "TX", "Houston Clinic", "Houston", "America/Chicago")]
+    kinds = [("sv-pc-n", "Dr.", "Primary care", 8, 16), ("sv-physio-n", "", "Physiotherapy", 8, 15), ("sv-vision-n", "", "Vision care", 9, 17), ("sv-coach-n", "", "Health coaching", 10, 18), ("sv-fit-n", "", "Fitness", 7, 12)]
+    first = ["Avery", "Blake", "Casey", "Devon", "Emerson", "Finley", "Harper", "Jamie", "Kendall", "Logan", "Morgan", "Parker", "Quinn", "Reese", "Sage", "Taylor"]
+    n = 0
+    xprofiles = []
+    for cid, st, cname, city, tz in more:
+        d["clinics"].append(clinic(cid, N, st, cname, city, tz))
+        for sid, title, spec, h0, h1 in kinds:
+            pid = f"pr-x{n}"
+            nm = f"{first[n % len(first)]} Example{', ' + {'sv-physio-n': 'PT', 'sv-vision-n': 'OD', 'sv-coach-n': 'Health Coach', 'sv-fit-n': 'Trainer'}[sid] if sid != 'sv-pc-n' else ''}"
+            d["providers"].append({"id": pid, "tenant_id": N, "display_name": ("Dr. " + nm) if sid == "sv-pc-n" else nm, "status": "active"})
+            d["clinic_services"].append({"tenant_id": N, "clinic_id": cid, "service_id": sid, "active": True})
+            d["eligibility"].append(el(N, cid, sid, pid))
+            d["availability"] += wk(N, pid, cid, [1, 2, 3, 4, 5], h0, h1)
+            xprofiles.append({"tenant_id": N, "provider_id": pid, "specialty": spec, "languages": ["English", "Spanish"] if n % 2 else ["English"], "licensed_states": [st], "accepting_new": True})
+            n += 1
     d["employers"] = base["employers"] + named("em-n-", N, ["Vandelay Industries", "Stark Engineering", "Wayne Logistics", "Hooli Cloud", "Soylent Foods", "Wonka Confections", "Cyberdyne Systems",
                                                           "Gringotts Bank", "Pied Piper Labs", "Dunder Mifflin Paper"], 5) + named("em-b-", B, ["Oceanic Airlines", "Tyrell Biotech", "Bluth Construction", "Prestige Worldwide", "Sterling Cooper"], 3)
     d["insurers"] = base["insurers"] + named("in-n-", N, ["Demo Care Alliance", "Northstar Example Insurance", "Evergreen Sample Health", "Summit Placeholder Plan", "Riverbend Mutual"], 4) \
@@ -74,6 +94,7 @@ def demo_catalog() -> dict:
     d["profiles"] = [{"tenant_id": N, "provider_id": "pr-a", "specialty": "Primary care", "languages": ["English", "Spanish"], "licensed_states": ["CA", "WA", "CO"], "accepting_new": True},
                      {"tenant_id": N, "provider_id": "pr-g", "specialty": "Primary care", "languages": ["English"], "licensed_states": ["CO"], "accepting_new": True},
                      {"tenant_id": N, "provider_id": "pr-d", "specialty": "Primary care", "languages": ["English", "Mandarin"], "licensed_states": ["WA", "CA"], "accepting_new": False}]
+    d["profiles"] += xprofiles
     d["coverage"] = [{"tenant_id": N, "service_id": "sv-pc-n", "covered": True, "copay_cents": 2500}]
     return d
 

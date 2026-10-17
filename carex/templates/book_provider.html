@@ -1,50 +1,54 @@
 {% extends "base.html" %}
-{% from "_macros.html" import steps %}
+{% from "_macros.html" import steps, banner %}
 {% block title %}Choose a time · {{ brand.display_name }}{% endblock %}
 {% block content %}
 {{ steps(3) }}
-<p class="back"><a href="/t/{{ slug }}/book/visit?clinic={{ clinic.id }}">&larr; Back</a></p>
-<h1 id="h1">Pick a provider and time</h1>
-<p class="lead">{{ visit.label }} · {{ clinic.name }}. Times are shown in the clinic's time zone. Availability is provisional until you confirm.</p>
-{% if notice %}<div class="banner warning" role="status"><span class="icon" aria-hidden="true">!</span><span class="text">{{ notice }}</span></div>{% endif %}
-{% if joined %}<div class="banner success" role="status"><span class="icon" aria-hidden="true">✓</span><span class="text">You're on the waiting list. We will message you when a time opens up.</span></div>{% endif %}
+<p class="back"><a class="backlink" href="{% if only %}/t/{{ slug }}/book/provider?clinic={{ clinic.id }}&amp;service={{ visit.id }}{% else %}/t/{{ slug }}/book?state={{ clinic.state_code }}{% endif %}">{% if only %}All providers{% else %}Clinics{% endif %}</a></p>
+<h1 id="h1" class="largetitle">{{ clinic.name }}</h1>
+<p class="lead">{{ clinic.address }}{% if clinic.city not in clinic.address %}, {{ clinic.city }}{% endif %}<br><span class="zonepill">All times in {{ zone_name(clinic.time_zone) }}</span></p>
+{% if notice %}{{ banner('warning', notice, 'status') }}{% endif %}
+{% if joined %}{{ banner('success', "You're on the waiting list. We will message you when a time opens up.", 'status') }}{% endif %}
 
-{% if provider %}
-<h2 class="h2-md">{{ provider.display_name }}</h2>
-<p class="hint">{{ provider.specialty }}{% if provider.languages %} · Speaks {{ provider.languages|join(', ') }}{% endif %}</p>
-{% if days %}
-<form method="get" action="/t/{{ slug }}/book/details">
-  <input type="hidden" name="clinic" value="{{ clinic.id }}"><input type="hidden" name="service" value="{{ visit.id }}"><input type="hidden" name="provider" value="{{ provider.id }}">
-  <fieldset><legend class="sr-only">Available times</legend>
-  {% for d in days %}
-    <div class="daylabel">{{ d.label }}</div>
-    <div class="slots">{% for sl in d.slots %}<label class="choice"><input type="radio" name="slot" value="{{ sl.id }}" required><span class="card">{{ sl.time }}</span></label>{% endfor %}</div>
+{% if visits %}
+<nav class="vtabs" aria-label="Type of visit">
+{% for v in visits %}<a class="vchip vt-{{ vtc[v.id] }}{% if v.id == visit.id %} on{% endif %}" href="/t/{{ slug }}/book/provider?clinic={{ clinic.id }}&amp;service={{ v.id }}"{% if v.id == visit.id %} aria-current="true"{% endif %}><span class="dot" aria-hidden="true"></span><span>{{ v.label }}<small>{{ v.duration_min }} min{% if v.modality == 'telehealth' %} · video{% elif v.modality == 'either' %} · in person or video{% endif %}</small></span></a>{% endfor %}
+</nav>
+
+<div class="vt-{{ vtc[visit.id] }}">
+{% for card in cards %}
+<article class="prov" aria-labelledby="p-{{ card.p.id }}">
+  <header>
+    <span class="avatar" aria-hidden="true">{{ card.p.display_name.replace('Dr. ', '')[:1] }}</span>
+    <div><h2 id="p-{{ card.p.id }}">{{ card.p.display_name }}</h2>
+    <p class="meta">{{ card.p.specialty or visit.label }}{% if card.p.languages %} · Speaks {{ card.p.languages|join(', ') }}{% endif %}{% if not card.p.accepting_new %} · Not accepting new patients{% endif %}</p></div>
+  </header>
+  <p class="atclinic"><span class="vtag">{{ visit.label }}</span> at {{ clinic.name }}</p>
+  {% for d in card.days %}
+  <div class="dayrow">
+    <div class="datebadge" aria-hidden="true"><b>{{ d.weekday }}</b><span>{{ d.day }}</span><i>{{ d.month }}</i></div>
+    <div class="dayinfo">
+      <div class="daylabel">{{ d.full }} <span class="tzabbr">{{ d.tz }}</span></div>
+      <div class="slots">
+      {% for sl in d.slots %}<a class="slot" href="/t/{{ slug }}/book/details?clinic={{ clinic.id }}&amp;service={{ visit.id }}&amp;provider={{ card.p.id }}&amp;slot={{ sl.id|urlencode }}" aria-label="{{ d.full }} at {{ sl.time }} {{ d.tz }} with {{ card.p.display_name }}">{{ sl.time }}</a>{% endfor %}
+      {% if d.hidden %}<span class="hint">+{{ d.hidden }} more</span>{% endif %}
+      </div>
+    </div>
+  </div>
+  {% else %}
+  <p class="hint">No times are open for {{ card.p.display_name }} right now.</p>
   {% endfor %}
-  </fieldset>
-  <div class="actions"><button class="primary" type="submit">Continue</button></div>
-</form>
+  {% if not only and (card.more or card.days) %}<p class="morelink"><a href="/t/{{ slug }}/book/provider?clinic={{ clinic.id }}&amp;service={{ visit.id }}&amp;provider={{ card.p.id }}">See all times for {{ card.p.display_name }}</a></p>{% endif %}
+</article>
 {% else %}
-<div class="banner info" role="status"><span class="icon" aria-hidden="true">i</span><span class="text">No times are open for {{ provider.display_name }} right now.</span></div>
-{% endif %}
-<p><a href="/t/{{ slug }}/book/provider?clinic={{ clinic.id }}&amp;service={{ visit.id }}">See all providers</a></p>
-{% else %}
-{% if soonest %}
-<h2 class="h2-md">Soonest available (any provider)</h2>
-<form method="get" action="/t/{{ slug }}/book/details">
-  <input type="hidden" name="clinic" value="{{ clinic.id }}"><input type="hidden" name="service" value="{{ visit.id }}">
-  <fieldset><legend class="sr-only">Soonest openings</legend>
-  {% for sl in soonest %}<label class="choice"><input type="radio" name="choice" value="{{ sl.provider_id }}|{{ sl.id }}" required><span class="card"><span>{{ day_label(sl.starts_at, sl.time_zone) }} · {{ time_label(sl.starts_at, sl.time_zone) }}<small>{{ sl.provider_name }}</small></span><span class="badge">Selected</span></span></label>{% endfor %}
-  </fieldset>
-  <div class="actions"><button class="primary" type="submit">Continue</button></div>
-</form>
-{% endif %}
-<h2 class="h2-md">Or choose a provider</h2>
-{% for p in providers %}<a class="choice-link" href="/t/{{ slug }}/book/provider?clinic={{ clinic.id }}&amp;service={{ visit.id }}&amp;provider={{ p.id }}"><span>{{ p.display_name }}<small>{{ p.specialty }}{% if p.languages %} · Speaks {{ p.languages|join(', ') }}{% endif %}{% if not p.accepting_new %} · Not accepting new patients{% endif %}</small></span></a>
-{% else %}<p>No providers are available for this visit.</p>{% endfor %}
-{% if not soonest and providers %}
-<div class="card-block"><h2>Nothing open right now</h2>
+<div class="sheet empty"><strong>No providers for this visit yet</strong></div>
+{% endfor %}
+</div>
+{% if not any_open and cards %}
+<div class="sheet"><h2 class="section">Nothing open right now</h2>
 <p>Join the waiting list and we'll message you when a time opens up.</p>
-<form method="post" action="/t/{{ slug }}/waitlist/join"><input type="hidden" name="clinic_id" value="{{ clinic.id }}"><input type="hidden" name="service_id" value="{{ visit.id }}"><button class="primary" type="submit">Join the waiting list</button></form></div>
+<form method="post" action="/t/{{ slug }}/waitlist/join"><input type="hidden" name="clinic_id" value="{{ clinic.id }}"><input type="hidden" name="service_id" value="{{ visit.id }}"><button class="primary wide" type="submit">Join the waiting list</button></form></div>
 {% endif %}
+{% else %}
+<div class="sheet empty"><strong>No visit types are offered at this clinic right now.</strong></div>
 {% endif %}
 {% endblock %}

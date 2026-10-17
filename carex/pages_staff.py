@@ -12,7 +12,7 @@ from .admin import AdminNotFoundError, AdminValidationError
 from .intake import CONSENT_TEXT, INTERPRETER_LANGUAGES
 from .pages_patient import group_days
 from .staff import StaffError, to_csv
-from .triage import KEYS
+from .triage import KEYS, screen
 from .util import iso, local_parts, now as _now, parse, zoned_to_utc
 from .web import CSP_API, ID, SECURITY_HEADERS, STAFF_COOKIE, STAFF_SECONDS, Web, form, s
 
@@ -107,7 +107,7 @@ def register(app: FastAPI, W: Web) -> None:
         d = parse(date + "T00:00:00Z")
         provs = {p["id"]: p for cl in cat["clinics"] for p in cl["providers"]}
         back = f"/t/{slug}/staff?date={date}&clinic={quote(clinic)}&provider={quote(provider)}"
-        notices = {"done": ("Updated.", True), "moved": ("Appointment moved.", True), "booked": ("Appointment booked.", True), "cancelled": ("Appointment cancelled.", True)}
+        notices = {"done": ("Updated.", True), "moved": ("Appointment moved.", True), "booked": ("Appointment booked.", True), "booked_urgent": ("Appointment booked, but the patient reported possible emergency symptoms. Make sure they have been told to call 911 now.", False), "cancelled": ("Appointment cancelled.", True)}
         msg, ok = notices.get(n, ("", True))
         return W.render(request, "staff_day.html", t=t, staff=st, nav="day", cat=cat, rows=rows, date=date, clinic=clinic, provider=provider, providers=list(provs.values()),
                         prev=(d - timedelta(days=1)).date().isoformat(), next=(d + timedelta(days=1)).date().isoformat(), back=back, transitions=TRANSITIONS, labels=LABELS, notice=msg, notice_ok=ok)
@@ -221,18 +221,19 @@ def register(app: FastAPI, W: Web) -> None:
                 "date_of_birth": v["date_of_birth"], "phone": v["phone"], "email": v["email"], "sms_ok": v["sms_ok"], "reason": v["reason"], "red_flags": flags if (flags or none) else None,
                 "modality": v["modality"], "patient_state": v["patient_state"], "referral_ref": v["referral_ref"], "interpreter_language": v["interpreter_language"],
                 "accommodations": v["accommodations"], "consent_attested": v["consent_attested"]}
+        urgent = bool(screen(v["reason"], flags if (flags or none) else None)["emergency"])
         try:
             row = c.desk.book(t["id"], st, body)
         except StaffError as e:
-            emergency = e.code == "conflict" and "emergency" in str(e).lower()
+            emergency = urgent
             status = 409 if e.code == "conflict" else 400
             if e.code == "forbidden":
                 raise HTTPException(403, str(e))
-            return W.render(request, "staff_book.html", status, **book_ctx(t, st, q, v, error=None if emergency else str(e), emergency_stop=emergency))
-        W.audit(request, t, "staff", "staff.booking_create", actor_id=st["id"], target_type="appointment", target_id=row["id"])
+            return W.render(request, "staff_book.html", status, **book_ctx(t, st, q, v, error=str(e), emergency_stop=emergency))
+        W.audit(request, t, "staff", "staff.booking_create", actor_id=st["id"], target_type="appointment", target_id=row["id"], detail={"emergency_warning": True} if urgent else None)
         W.notify_now(row["id"])
         l = local_parts(parse(row["starts_at"]), row["time_zone"])
-        return W.redirect(f"/t/{slug}/staff?date={l['year']:04d}-{l['month']:02d}-{l['day']:02d}&n=booked")
+        return W.redirect(f"/t/{slug}/staff?date={l['year']:04d}-{l['month']:02d}-{l['day']:02d}&n={'booked_urgent' if urgent else 'booked'}")
 
     # ------------------------------------------------------------------ hours, time off, closures
     def own(st, provider_id):

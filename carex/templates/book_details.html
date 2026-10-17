@@ -4,8 +4,8 @@
 {% block content %}
 {{ steps(4) }}
 <p class="back"><a href="/t/{{ slug }}/book/provider?clinic={{ clinic.id }}&amp;service={{ visit.id }}&amp;provider={{ provider.id }}">&larr; Change time</a></p>
-<h1 id="h1">Visit details</h1>
-<p class="lead">{{ visit.label }} with {{ provider.display_name }}<br>{{ when(slot.starts_at, slot.time_zone) }} · {{ clinic.name }}</p>
+<h1 id="h1" class="largetitle">Visit details</h1>
+<div class="apptcard vt-{{ vtc[visit.id] }}"><span class="vtag">{{ visit.label }}</span><strong>{{ when(slot.starts_at, slot.time_zone) }}</strong><span>{{ provider.display_name }} · {{ clinic.name }}</span></div>
 {% if emergency_stop %}{{ emergency() }}{% endif %}
 {% if error %}{{ banner('error', error, 'alert') }}{% endif %}
 {% if cfg.coverage_notice %}{{ banner('info' if cfg.coverage_notice.covered else 'error', cfg.coverage_notice.text, 'status') }}{% endif %}

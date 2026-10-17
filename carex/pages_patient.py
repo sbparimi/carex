@@ -7,9 +7,10 @@ from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.responses import PlainTextResponse
 
 from .booking import DomainError
-from .fmt import day_label, time_label
+from .fmt import clock, day_label, day_parts, time_label
 from .intake import IntakeError
-from .triage import KEYS
+from .states import US_STATES as STATES56
+from .triage import KEYS, screen
 from .util import iso
 from .waitlist import WaitlistError
 from .web import ID, Web, form, ink_for, s
@@ -23,6 +24,22 @@ def group_days(slots: list[dict], limit: int = 200) -> list[dict]:
             days.append({"label": lab, "slots": []})
         days[-1]["slots"].append({"id": sl["id"], "time": time_label(sl["starts_at"], sl["time_zone"])})
     return days
+
+
+def peek_days(slots: list[dict], full: bool = False, days: int = 3, per_day: int = 8) -> dict:
+    """Groups open times by clinic-local date. The overview shows the next few days; `full` shows everything the engine offers."""
+    out: list[dict] = []
+    for sl in slots:
+        parts = day_parts(sl["starts_at"], sl["time_zone"])
+        if not out or out[-1]["full"] != parts["full"]:
+            if not full and len(out) >= days:
+                break
+            out.append({**parts, "slots": [], "hidden": 0})
+        if full or len(out[-1]["slots"]) < per_day:
+            out[-1]["slots"].append({"id": sl["id"], "time": clock(sl["starts_at"], sl["time_zone"])})
+        else:
+            out[-1]["hidden"] += 1
+    return {"days": out, "more": (not full) and len(slots) > sum(len(d["slots"]) for d in out)}
 
 
 def register(app: FastAPI, W: Web) -> None:
@@ -50,40 +67,45 @@ def register(app: FastAPI, W: Web) -> None:
     def book(slug: str, request: Request, state: str = "", notice: str = ""):
         t = W.tenant(slug)
         u = W.need_user(request, t)
-        states = c.catalog.states(t["id"])
-        clinics = c.catalog.clinics(t["id"], state) if state in states else []
-        return W.render(request, "book_state.html", t=t, user=u, nav="book", states=states, state=state if state in states else "", clinics=clinics, notice=notice[:120] if notice else "")
+        state = state.upper()[:2]
+        known = dict(STATES56)
+        clinics = c.catalog.clinics(t["id"], state)[:5] if state in known else []        # the 5 most prominent clinics in the state
+        return W.render(request, "book_state.html", t=t, user=u, nav="book", states=STATES56, state=state if state in known else "", state_name=known.get(state, ""),
+                        clinics=clinics, notice=notice[:120] if notice else "")
 
     @app.get(P + "/book/visit")
     def book_visit(slug: str, request: Request, clinic: str = ""):
         t = W.tenant(slug)
-        u = W.need_user(request, t)
+        W.need_user(request, t)
         bad_id(clinic)
-        cl = c.catalog.clinic(t["id"], clinic)
-        if not cl:
-            raise HTTPException(404, "Not found")
-        return W.render(request, "book_visit.html", t=t, user=u, nav="book", clinic=cl, visits=c.catalog.visit_types(t["id"], clinic))
+        return W.redirect(f"/t/{slug}/book/provider?clinic={clinic}")
 
     @app.get(P + "/book/provider")
     def book_provider(slug: str, request: Request, clinic: str = "", service: str = "", provider: str = "", joined: str = "", notice: str = ""):
         t = W.tenant(slug)
         u = W.need_user(request, t)
-        bad_id(clinic, service)
+        bad_id(clinic, *([service] if service else []))
         cl = c.catalog.clinic(t["id"], clinic)
-        visit = next((v for v in c.catalog.visit_types(t["id"], clinic) if v["id"] == service), None)
-        if not cl or not visit:
+        if not cl:
             raise HTTPException(404, "Not found")
-        providers = c.catalog.providers(t["id"], clinic, service)
-        ctx = dict(t=t, user=u, nav="book", clinic=cl, visit=visit, providers=providers, joined=bool(joined), notice=notice[:120], provider=None, days=[], soonest=[])
-        if provider:
-            bad_id(provider)
-            p = next((x for x in providers if x["id"] == provider), None)
-            if not p:
-                raise HTTPException(404, "Not found")
-            ctx.update(provider=p, days=group_days(c.booking.slots(t["id"], clinic, service, provider, u["id"])))
-        else:
-            ctx["soonest"] = c.booking.first_available(t["id"], clinic, service, u["id"])
-        return W.render(request, "book_provider.html", **ctx)
+        visits = c.catalog.visit_types(t["id"], clinic)
+        visit = next((v for v in visits if v["id"] == service), visits[0] if visits and not service else None)
+        if visits and not visit:
+            raise HTTPException(404, "Not found")
+        providers, cards = [], []
+        if visit:
+            providers = c.catalog.providers(t["id"], clinic, visit["id"])
+            if provider:
+                bad_id(provider)
+                if not any(x["id"] == provider for x in providers):
+                    raise HTTPException(404, "Not found")
+            for p in providers:
+                if provider and p["id"] != provider:
+                    continue
+                slots = c.booking.slots(t["id"], clinic, visit["id"], p["id"], u["id"])
+                cards.append({"p": p, **peek_days(slots, full=bool(provider))})
+        return W.render(request, "book_provider.html", t=t, user=u, nav="book", clinic=cl, visits=visits, visit=visit, cards=cards, only=provider, joined=bool(joined), notice=notice[:120],
+                        any_open=any(x["days"] for x in cards))
 
     def details_ctx(t, u, clinic, service, provider, slot_id, v, **extra):
         elig = c.catalog.eligible(t["id"], clinic, service, provider)
@@ -123,7 +145,12 @@ def register(app: FastAPI, W: Web) -> None:
             return W.redirect(f"/t/{slug}/book/provider?clinic={clinic}&service={service}&provider={provider}&notice=That time is no longer available. Please pick another.")
         return W.render(request, "book_details.html", **ctx)
 
-    def redisplay(request, t, u, f, v, error=None, emergency_stop=False, status=422):
+    def urgent(v) -> bool:
+        return bool(screen(v["reason"], v["flags"])["emergency"])
+
+    def redisplay(request, t, u, f, v, error=None, emergency_stop=None, status=422):
+        if emergency_stop is None:
+            emergency_stop = urgent(v)
         clinic, service, provider = s(f, "clinic", 64), s(f, "service", 64), s(f, "provider", 64)
         bad_id(clinic, service, provider)
         sl, ctx = details_ctx(t, u, clinic, service, provider, s(f, "slot", 120), v, error=error, emergency_stop=emergency_stop)
@@ -151,10 +178,7 @@ def register(app: FastAPI, W: Web) -> None:
             req = build_req(f, v)
             dec = c.intake.prepare(t["id"], u["id"], req)
         except IntakeError as e:
-            if e.code == "emergency_redirect":
-                W.audit(request, t, "user", "booking.emergency_redirect", actor_id=u["id"])
-                return redisplay(request, t, u, f, v, error=None, emergency_stop=True)
-            return redisplay(request, t, u, f, v, error=str(e))
+            return redisplay(request, t, u, f, v, error=str(e), emergency_stop=urgent(v))
         sl, ctx = details_ctx(t, u, req["clinic_id"], req["service_id"], req["provider_id"], req["slot_id"], v)
         if not sl:
             return W.redirect(f"/t/{slug}/book/provider?clinic={req['clinic_id']}&service={req['service_id']}&provider={req['provider_id']}&notice=That time is no longer available. Please pick another.")
@@ -162,7 +186,9 @@ def register(app: FastAPI, W: Web) -> None:
                   ("modality", v["modality"]), ("patient_state", v["patient_state"]), ("referral_ref", v["referral_ref"]), ("interpreter_language", v["interpreter_language"]),
                   ("accommodations", v["accommodations"]), ("consent", v["consent"]), ("none_apply", "1" if v["none_apply"] else ""), ("key", secrets.token_urlsafe(16))]
         hidden += [("flag", x) for x in v["flags"]]
-        return W.render(request, "book_review.html", t=t, user=u, nav="book", clinic=ctx["clinic"], visit=ctx["visit"], provider=ctx["provider"], slot=sl, dec=dec, hidden=hidden, notice_minutes=c.booking.notice)
+        if dec["emergency"]:
+            W.audit(request, t, "user", "booking.emergency_warning", actor_id=u["id"])
+        return W.render(request, "book_review.html", t=t, user=u, nav="book", clinic=ctx["clinic"], visit=ctx["visit"], provider=ctx["provider"], slot=sl, dec=dec, hidden=hidden, urgent=dec["emergency"], notice_minutes=c.booking.notice)
 
     @app.post(P + "/book/confirm")
     def confirm(slug: str, request: Request, f: dict = Depends(form)):
@@ -179,10 +205,8 @@ def register(app: FastAPI, W: Web) -> None:
         if o["status"] == "confirmed":
             W.audit(request, t, "user", "booking.create", actor_id=u["id"], target_type="appointment", target_id=o["booking_id"])
             W.notify_now(o["booking_id"])
-        elif o.get("code") == "emergency_redirect":
-            W.audit(request, t, "user", "booking.emergency_redirect", actor_id=u["id"])
-        status = {"confirmed": 201, "slot_unavailable": 409}.get(o["status"], 200 if o.get("code") == "emergency_redirect" else (503 if o.get("retryable") else 409))
-        return W.render(request, "book_result.html", status, t=t, user=u, nav="book", o=o, clinic_id=req["clinic_id"], service_id=req["service_id"])
+        status = {"confirmed": 201, "slot_unavailable": 409}.get(o["status"], 503 if o.get("retryable") else 409)
+        return W.render(request, "book_result.html", status, t=t, user=u, nav="book", o=o, clinic_id=req["clinic_id"], service_id=req["service_id"], urgent=urgent(v))
 
     # ------------------------------------------------------------------ waiting list
     @app.post(P + "/waitlist/join")

@@ -2,14 +2,14 @@
 {% from "_macros.html" import banner %}
 {% block title %}My appointments · {{ brand.display_name }}{% endblock %}
 {% block content %}
-<h1 id="h1">My appointments</h1>
+<h1 id="h1" class="largetitle">My appointments</h1>
 {% if notice %}{{ banner('success' if notice_ok else 'warning', notice, 'status') }}{% endif %}
 <p><a class="button primary" href="/t/{{ slug }}/book">Book a visit</a></p>
 
 <h2 class="h2-md">Upcoming</h2>
 {% for a in upcoming %}
-<div class="card-block">
-  <p><strong>{{ a.summary.visit_type.label }}</strong> with {{ a.summary.provider.display_name }}{% if a.status == 'arrived' %} <span class="tag ok">Checked in</span>{% endif %}<br>
+<div class="card-block apptcard vt-{{ vtc[a.summary.visit_type.id] }}">
+  <p><span class="vtag">{{ a.summary.visit_type.label }}</span> <strong>{{ a.summary.provider.display_name }}</strong>{% if a.status == 'arrived' %} <span class="tag ok">Checked in</span>{% endif %}<br>
   {{ when(a.summary.starts_at, a.summary.time_zone) }}<br>
   <small>{% if a.summary.modality == 'telehealth' %}By video{% else %}{{ a.summary.clinic.name }}, {{ a.summary.clinic.address }}{% endif %}{% if a.summary.patient_name %} · {{ a.summary.patient_name }}{% endif %} · Ref <span class="reference">{{ a.booking_id }}</span></small></p>
   {% if a.summary.join_url %}<p><a href="{{ a.summary.join_url }}" rel="noopener">Join video visit</a></p>{% endif %}
@@ -29,7 +29,7 @@
 {% if past %}
 <h2 class="h2-md">Past and cancelled</h2>
 <ul class="appts">
-{% for a in past %}<li class="appt"><span>{{ a.summary.visit_type.label }} · {{ a.summary.provider.display_name }}<br><small>{{ when(a.summary.starts_at, a.summary.time_zone) }}</small></span><span class="tag {{ 'bad' if a.status in ('cancelled', 'no_show') else 'ok' }}">{{ a.status|replace('_', ' ')|capitalize }}</span></li>{% endfor %}
+{% for a in past %}<li class="appt vt-{{ vtc[a.summary.visit_type.id] }}"><span>{{ a.summary.visit_type.label }} · {{ a.summary.provider.display_name }}<br><small>{{ when(a.summary.starts_at, a.summary.time_zone) }}</small></span><span class="tag {{ 'bad' if a.status in ('cancelled', 'no_show') else 'ok' }}">{{ a.status|replace('_', ' ')|capitalize }}</span></li>{% endfor %}
 </ul>
 {% endif %}
 

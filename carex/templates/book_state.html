@@ -1,18 +1,33 @@
 {% extends "base.html" %}
-{% from "_macros.html" import steps %}
-{% block title %}Book a visit · {{ brand.display_name }}{% endblock %}
+{% from "_macros.html" import steps, banner %}
+{% block title %}Find care · {{ brand.display_name }}{% endblock %}
 {% block content %}
 {{ steps(1) }}
-<h1 id="h1">Where would you like care?</h1>
-{% if notice %}<div class="banner warning" role="status"><span class="icon" aria-hidden="true">!</span><span class="text">{{ notice }}</span></div>{% endif %}
-<h2 class="h2-md">1. Choose a state</h2>
-{% if not states %}<p>No locations are open for booking right now. Please contact {{ brand.support_email or 'the clinic' }}.</p>{% endif %}
-<ul class="appts">
-{% for st in states %}<li><a class="choice-link" href="/t/{{ slug }}/book?state={{ st }}"{% if st == state %} aria-current="true"{% endif %}><span>{{ st }}</span></a></li>{% endfor %}
-</ul>
+<h1 id="h1" class="largetitle">Find care</h1>
+<p class="lead">Choose your state to see clinics near you.</p>
+{% if notice %}{{ banner('warning', notice, 'status') }}{% endif %}
+<form class="sheet statepick" method="get" action="/t/{{ slug }}/book">
+  <label for="state">State or territory</label>
+  <div class="selectwrap">
+    <select id="state" name="state" required>
+      <option value="">Choose a state&hellip;</option>
+      {% for code, name in states %}<option value="{{ code }}"{% if code == state %} selected{% endif %}>{{ name }}</option>{% endfor %}
+    </select>
+  </div>
+  <button class="primary wide" type="submit">Show clinics</button>
+</form>
 {% if state %}
-<h2 class="h2-md" id="clinics">2. Choose a clinic in {{ state }}</h2>
-{% for c in clinics %}<a class="choice-link" href="/t/{{ slug }}/book/visit?clinic={{ c.id }}"><span>{{ c.name }}<small>{{ c.address }}, {{ c.city }}</small></span></a>
-{% else %}<p>No clinics are open for booking in {{ state }}.</p>{% endfor %}
+<h2 class="section" id="clinics">Clinics in {{ state_name }}</h2>
+<div class="clinics">
+{% for c in clinics %}
+  <a class="clinic" href="/t/{{ slug }}/book/provider?clinic={{ c.id }}">
+    <span class="tile t{{ loop.index0 % 5 }}" aria-hidden="true"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-5.7 7-11a7 7 0 1 0-14 0c0 5.3 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg></span>
+    <span class="clinic-body"><strong>{{ c.name }}</strong><small>{{ c.address }}{% if c.city not in c.address %}, {{ c.city }}{% endif %}</small><small class="zone">{{ zone_name(c.time_zone) }}</small></span>
+    <span class="chev" aria-hidden="true"></span>
+  </a>
+{% else %}
+  <div class="sheet empty"><strong>No clinics open in {{ state_name }} yet</strong><p class="hint">Try another state, or contact {{ brand.support_email or 'the clinic' }}.</p></div>
+{% endfor %}
+</div>
 {% endif %}
 {% endblock %}
