@@ -208,6 +208,7 @@ def register(app: FastAPI, W: Web) -> None:
             from urllib.parse import quote
             back = f"/t/{slug}/book/details?clinic={quote(clinic)}&service={quote(service)}&provider={quote(provider)}&slot={quote(slot)}" + (f"&choice={quote(choice)}" if choice else "")
             return W.redirect(f"/t/{slug}/login?next={quote(back, safe='')}")
+        log_event(t, "details_opened", clinic)
         if choice and "|" in choice:
             provider, slot = choice.split("|", 1)
             return W.redirect(f"/t/{slug}/book/details?clinic={clinic}&service={service}&provider={provider}&slot={slot}")

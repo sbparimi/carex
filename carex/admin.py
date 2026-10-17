@@ -126,6 +126,18 @@ class Admin:
         n = self.db.get("SELECT COUNT(*) AS n FROM appointments WHERE tenant_id = ? AND clinic_id = ? AND status = 'confirmed' AND starts_at > ?", tenant_id, clinic_id, iso(self.now()))
         return {**clinic, "affected_future_appointments": int(n["n"])}
 
+    def update_clinic_details(self, tenant_id: str, clinic_id: str, p: dict) -> None:
+        """What patients see on the clinic page: phone, opening hours, a short note (parking, access) and an optional https photo."""
+        self._clinic(tenant_id, clinic_id)
+        phone, hours, about, img = ((p.get(k) or "").strip() for k in ("phone", "hours_text", "about", "image_url"))
+        if phone and not re.fullmatch(r"[0-9+()\-. ]{5,30}", phone):
+            _bad("phone is invalid")
+        if len(hours) > 200 or len(about) > 400:
+            _bad("hours or notes are too long")
+        if img and not re.fullmatch(r"https://\S{1,500}", img):
+            _bad("photo must be an https URL")
+        self.db.run("UPDATE clinics SET phone = ?, hours_text = ?, about = ?, image_url = ? WHERE tenant_id = ? AND id = ?", phone or None, hours or None, about or None, img or None, tenant_id, clinic_id)
+
     def set_clinic_visit_type(self, tenant_id: str, clinic_id: str, visit_type_id: str, active: bool) -> None:
         self._clinic(tenant_id, clinic_id)
         if not self.db.get("SELECT 1 AS ok FROM visit_types WHERE tenant_id = ? AND id = ?", tenant_id, visit_type_id):

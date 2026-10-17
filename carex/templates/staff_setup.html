@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% from "_macros.html" import banner %}
+{% block title %}Setup · {{ brand.display_name }}{% endblock %}
+{% block content %}
+<h1 id="h1">Practice setup</h1>
+{% if notice %}{{ banner('success', notice, 'status') }}{% endif %}
+{% if error %}{{ banner('error', error, 'alert') }}{% endif %}
+<section class="sheet" aria-labelledby="b-h"><h2 id="b-h" class="section">Branding and contact</h2>
+<form method="post" action="/t/{{ slug }}/staff/setup/brand" class="stack">
+  <input type="hidden" name="state" value="{{ state }}">
+  <label class="field" for="dn">Display name</label><input id="dn" name="display_name" value="{{ tenant.display_name }}" maxlength="80" required>
+  <label class="field" for="pc">Brand colour (#rrggbb)</label><input id="pc" name="primary_color" value="{{ tenant.primary_color }}" maxlength="7" pattern="#[0-9a-fA-F]{6}" required>
+  <label class="field" for="lu">Logo address (https)</label><input id="lu" name="logo_url" type="url" value="{{ tenant.logo_url or '' }}" maxlength="500">
+  <label class="field" for="se">Support email</label><input id="se" name="support_email" type="email" value="{{ tenant.support_email or '' }}">
+  <label class="field" for="sp">Support phone</label><input id="sp" name="support_phone" value="{{ tenant.support_phone or '' }}" maxlength="30">
+  <button class="primary" type="submit">Save branding</button>
+</form></section>
+<section class="sheet" aria-labelledby="c-h"><h2 id="c-h" class="section">Clinics</h2>
+<form method="get" action="/t/{{ slug }}/staff/setup" class="filters"><label class="sr-only" for="st">State</label>
+  <select id="st" name="state">{% for code, name in states %}<option value="{{ code }}"{% if code == state %} selected{% endif %}>{{ name }}</option>{% endfor %}</select><button type="submit">Show</button></form>
+{% for cl in clinics %}
+<details class="setupclinic"><summary><strong>{{ cl.name }}</strong> <span class="tag {{ 'ok' if cl.status == 'active' and cl.bookable else 'warn' }}">{{ 'Visible to patients' if cl.status == 'active' and cl.bookable else 'Hidden' }}</span></summary>
+  <form method="post" action="/t/{{ slug }}/staff/setup/clinic/{{ cl.id }}" class="statusrow"><input type="hidden" name="state" value="{{ state }}"><input type="hidden" name="op" value="{{ 'off' if cl.status == 'active' and cl.bookable else 'on' }}"><button class="small" type="submit">{{ 'Hide from patients' if cl.status == 'active' and cl.bookable else 'Show to patients' }}</button></form>
+  <form method="post" action="/t/{{ slug }}/staff/setup/clinic/{{ cl.id }}" class="stack">
+    <input type="hidden" name="state" value="{{ state }}"><input type="hidden" name="op" value="details">
+    <label class="field" for="ph-{{ cl.id }}">Phone</label><input id="ph-{{ cl.id }}" name="phone" value="{{ cl.phone or '' }}" maxlength="30">
+    <label class="field" for="hr-{{ cl.id }}">Opening hours</label><input id="hr-{{ cl.id }}" name="hours_text" value="{{ cl.hours_text or '' }}" maxlength="200">
+    <label class="field" for="ab-{{ cl.id }}">Good to know (parking, access)</label><input id="ab-{{ cl.id }}" name="about" value="{{ cl.about or '' }}" maxlength="400">
+    <label class="field" for="im-{{ cl.id }}">Photo address (https)</label><input id="im-{{ cl.id }}" name="image_url" type="url" value="{{ cl.image_url or '' }}" maxlength="500">
+    <button class="small primary" type="submit">Save details</button>
+  </form>
+</details>
+{% else %}<p class="hint">No clinics in this state yet.</p>{% endfor %}
+<h3 class="tierhead">Add a clinic</h3>
+<form method="post" action="/t/{{ slug }}/staff/setup/clinic" class="stack">
+  <label class="field" for="nn">Name</label><input id="nn" name="name" maxlength="120" required>
+  <label class="field" for="nc">City</label><input id="nc" name="city" maxlength="120" required>
+  <label class="field" for="na">Street address</label><input id="na" name="address" maxlength="200" required>
+  <label class="field" for="ns">State</label><select id="ns" name="state_code">{% for code, name in states %}<option value="{{ code }}"{% if code == state %} selected{% endif %}>{{ name }}</option>{% endfor %}</select>
+  <label class="field" for="nz">Time zone</label><select id="nz" name="time_zone">{% for z in ['America/New_York','America/Chicago','America/Denver','America/Phoenix','America/Los_Angeles','America/Anchorage','Pacific/Honolulu','America/Puerto_Rico','Pacific/Guam'] %}<option>{{ z }}</option>{% endfor %}</select>
+  <p class="hint">New clinics start hidden. Add visit types, providers and hours, then show the clinic to patients.</p>
+  <button class="primary" type="submit">Add clinic</button>
+</form></section>
+{% endblock %}

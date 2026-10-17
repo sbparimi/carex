@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Share · {{ brand.display_name }}{% endblock %}
+{% block content %}
+<h1 id="h1">Share your booking link</h1>
+<p class="lead">Put the link or QR code on your website, in emails, on posters or at the front desk.</p>
+<form method="get" action="/t/{{ slug }}/staff/share" class="filters card-block">
+  <div><label class="field" for="st">State</label><select id="st" name="state">{% for code, name in states %}<option value="{{ code }}"{% if code == state %} selected{% endif %}>{{ name }}</option>{% endfor %}</select></div>
+  <div><label class="field" for="cl">Clinic</label><select id="cl" name="clinic"><option value="">All clinics</option>{% for x in clinics %}<option value="{{ x.id }}"{% if x.id == clinic %} selected{% endif %}>{{ x.name }}</option>{% endfor %}</select></div>
+  <div class="statusrow"><button type="submit">Update</button></div>
+</form>
+<section class="sheet"><h2 class="section">Link</h2>
+  <p><a class="reference" href="{{ link }}">{{ link }}</a></p>
+  <p class="hint">Patients can browse times without an account and sign in only when they book.</p></section>
+<section class="sheet"><h2 class="section">QR code</h2>
+  <img class="qr" src="/t/{{ slug }}/qr.svg{% if clinic %}?clinic={{ clinic }}{% endif %}" alt="QR code for {{ sel.name if sel else 'online booking' }}" width="192" height="192">
+  <p class="hint">Print or save it: <a href="/t/{{ slug }}/qr.svg{% if clinic %}?clinic={{ clinic }}{% endif %}" download="booking-qr.svg">download the image</a>.</p></section>
+<section class="sheet"><h2 class="section">Button for your website</h2>
+  <p class="hint">Copy this and paste it into your page. It opens booking in a new page.</p>
+  <textarea class="snippet" readonly rows="4" aria-label="Button code">{{ snippet }}</textarea></section>
+{% endblock %}

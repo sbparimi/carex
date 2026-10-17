@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% from "_macros.html" import banner %}
+{% block title %}Waiting list · {{ brand.display_name }}{% endblock %}
+{% block content %}
+<h1 id="h1">Waiting list</h1>
+{% if notice %}{{ banner('success', notice, 'status') }}{% endif %}
+<form method="get" action="/t/{{ slug }}/staff/waitlist" class="filters card-block">
+  <div><label class="field" for="clinic">Clinic</label><select id="clinic" name="clinic"><option value="">All clinics</option>{% for x in clinics %}<option value="{{ x.id }}"{% if x.id == clinic %} selected{% endif %}>{{ x.name }}</option>{% endfor %}</select></div>
+  <div class="statusrow"><button type="submit">Show</button></div>
+</form>
+<p class="hint">{{ rows|length }} {{ 'person' if rows|length == 1 else 'people' }} waiting. People are messaged automatically, longest waiting first, when a time opens.</p>
+{% if rows %}
+<div class="tablewrap"><table class="grid"><caption class="sr-only">Waiting list</caption>
+<thead><tr><th scope="col">Patient</th><th scope="col">Wants</th><th scope="col">Clinic</th><th scope="col">Waiting since</th><th scope="col">Status</th><th scope="col">Actions</th></tr></thead>
+<tbody>{% for r in rows %}
+<tr><td><strong>{{ r.first_name }} {{ r.last_name[:1] }}.</strong></td><td>{{ r.visit_label }}{% if r.provider_name %}<br><small>{{ r.provider_name }}</small>{% endif %}</td><td>{{ r.clinic_name }}</td><td>{{ r.created_at[:10] }}</td>
+<td><span class="tag {{ 'ok' if r.status == 'notified' else '' }}">{{ 'Messaged' if r.status == 'notified' else 'Waiting' }}</span></td>
+<td><form class="inline" method="post" action="/t/{{ slug }}/staff/waitlist/{{ r.id }}/remove"><button class="small danger" type="submit">Remove</button></form></td></tr>
+{% endfor %}</tbody></table></div>
+{% else %}<div class="sheet empty"><strong>Nobody is waiting.</strong></div>{% endif %}
+{% endblock %}

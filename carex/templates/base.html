@@ -28,7 +28,12 @@
     {% elif staff %}
     <a href="/t/{{ slug }}/staff"{% if nav == 'day' %} aria-current="page"{% endif %}>Schedule</a>
     {% if staff.role != 'provider' %}<a href="/t/{{ slug }}/staff/book"{% if nav == 'sbook' %} aria-current="page"{% endif %}>Book a patient</a>{% endif %}
+    <a href="/t/{{ slug }}/staff/calendar"{% if nav == 'cal' %} aria-current="page"{% endif %}>Calendar</a>
     <a href="/t/{{ slug }}/staff/hours"{% if nav == 'hours' %} aria-current="page"{% endif %}>Hours &amp; time off</a>
+    {% if staff.role != 'provider' %}<a href="/t/{{ slug }}/staff/waitlist"{% if nav == 'wl' %} aria-current="page"{% endif %}>Waiting list</a>
+    <a href="/t/{{ slug }}/staff/insights"{% if nav == 'ins' %} aria-current="page"{% endif %}>Insights</a>
+    <a href="/t/{{ slug }}/staff/share"{% if nav == 'share' %} aria-current="page"{% endif %}>Share</a>{% endif %}
+    {% if staff.role == 'admin' %}<a href="/t/{{ slug }}/staff/setup"{% if nav == 'setup' %} aria-current="page"{% endif %}>Setup</a>{% endif %}
     <span class="who">{{ staff.name }}</span>
     <form class="inline" method="post" action="/t/{{ slug }}/staff/logout"><button class="linkish" type="submit">Sign out</button></form>
     {% endif %}

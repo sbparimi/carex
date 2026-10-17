@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Insights · {{ brand.display_name }}{% endblock %}
+{% block content %}
+<h1 id="h1">Insights</h1>
+<form method="get" action="/t/{{ slug }}/staff/insights" class="filters card-block">
+  <div><label class="field" for="days">Period</label><select id="days" name="days">{% for d in (7, 30, 90) %}<option value="{{ d }}"{% if d == days %} selected{% endif %}>Last {{ d }} days</option>{% endfor %}</select></div>
+  <div><label class="field" for="clinic">Clinic</label><select id="clinic" name="clinic"><option value="">All clinics</option>{% for x in clinics %}<option value="{{ x.id }}"{% if x.id == clinic %} selected{% endif %}>{{ x.name }}</option>{% endfor %}</select></div>
+  <div class="statusrow"><button type="submit">Show</button></div>
+</form>
+<div class="stats">
+  <div class="stat"><b>{{ m.total }}</b><span>Visits in period</span></div>
+  <div class="stat"><b>{{ m.no_show_rate }}%</b><span>No-show rate</span></div>
+  <div class="stat"><b>{{ m.cancel_rate }}%</b><span>Cancelled</span></div>
+  <div class="stat"><b>{{ m.lead_days }}</b><span>Days booked ahead (average)</span></div>
+  <div class="stat"><b>{{ m.upcoming_booked }}</b><span>Booked, next 14 days</span></div>
+  <div class="stat"><b>{% if m.utilisation is none %}&ndash;{% else %}{{ m.utilisation }}%{% endif %}</b><span>{% if m.utilisation is none %}Choose a clinic for how full it is{% else %}Calendar full, next 14 days{% endif %}</span></div>
+</div>
+<section class="sheet" aria-labelledby="f-h"><h2 id="f-h" class="section">Where patients drop off</h2>
+  <p class="hint">Counts only, with no personal details. {{ m.booked_rate }}% of people who looked for care went on to book.</p>
+  {% for f in m.funnel %}<div class="funrow"><label for="fn{{ loop.index }}">{{ f.label }}</label><meter id="fn{{ loop.index }}" min="0" max="100" value="{{ f.pct_of_top }}">{{ f.n }}</meter><b>{{ f.n }}</b></div>{% endfor %}
+</section>
+<section class="sheet"><h2 class="section">Visit outcomes</h2>
+  <dl class="kv">{% for k, label in [('completed','Completed'),('arrived','Checked in'),('no_show','No-show'),('cancelled','Cancelled'),('confirmed','Still confirmed')] %}<dt>{{ label }}</dt><dd>{{ m.by_status[k] }}</dd>{% endfor %}</dl>
+</section>
+{% endblock %}

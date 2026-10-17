@@ -139,3 +139,65 @@ def test_phone_booking_never_screens_symptom_words(ctx, staff):
     r, slot = phone_book(c, ctx, 36, reason="severe chest pain")
     assert r.status_code == 200 and "Appointment booked" in r.text
     assert ctx.db.get("SELECT COUNT(*) AS n FROM appointments WHERE starts_at = ?", slot["starts_at"])["n"] == 1
+
+
+# ---------------------------------------------------------------- batch 3: calendar, waiting list, insights, setup, share
+def test_calendar_grid_shows_booked_visits_by_provider(ctx, staff):
+    c = login(ctx, "desk@x.com")
+    r, slot = phone_book(c, ctx, 30)
+    date = slot["starts_at"][:10]
+    page = c.get(S + f"/staff/calendar?date={date}&clinic=cl-sb")
+    assert page.status_code == 200 and "calblk" in page.text and "Phil Phone" in page.text and " style=" not in page.text
+    assert re.search(r'class="calblk st-confirmed rs-\d+ rl-\d+ col-\d+"', page.text)
+    doc = login(ctx, "doc@x.com").get(S + f"/staff/calendar?date={date}&clinic=cl-sb")
+    assert doc.status_code == 200
+
+
+def test_waiting_list_and_insights_and_setup_are_role_limited(ctx, staff):
+    desk, doc, boss = login(ctx, "desk@x.com"), login(ctx, "doc@x.com"), login(ctx, "boss@x.com")
+    for path in ("/staff/waitlist", "/staff/insights", "/staff/share"):
+        assert desk.get(S + path).status_code == 200
+        assert doc.get(S + path).status_code == 403
+    assert desk.get(S + "/staff/setup").status_code == 403 and boss.get(S + "/staff/setup").status_code == 200
+
+
+def test_staff_can_remove_a_waiting_list_entry(ctx, staff):
+    from carex.accounts import Accounts
+    p, _ = Accounts(ctx.db, ctx.clock).signup("tn-north", email="w@x.com", password="correct horse 1", first_name="Wil", last_name="Wait", date_of_birth="1990-01-01", phone="555-111-3333", access_type="employer", access_id="em-n-1")
+    e = ctx.waitlist.join("tn-north", p["id"], "cl-sb", "sv-pc-n")
+    desk = login(ctx, "desk@x.com")
+    assert "Wil W." in desk.get(S + "/staff/waitlist").text
+    assert desk.post(S + f"/staff/waitlist/{e['id']}/remove").status_code == 200
+    assert "Wil W." not in desk.get(S + "/staff/waitlist").text
+
+
+def test_insights_counts_and_funnel(ctx, staff, signed_in_factory=None):
+    ctx.events.log("tn-north", "search"); ctx.events.log("tn-north", "booked", "cl-sb")
+    ctx.events.log("tn-north", "not-a-real-event")                       # ignored: only known names are stored
+    m = ctx.insights.summary("tn-north", 30, "cl-sb")
+    assert m["funnel"][3]["n"] == 1 and m["funnel"][0]["n"] == 1 and m["utilisation"] is not None
+    assert ctx.db.get("SELECT COUNT(*) AS n FROM events")["n"] == 2
+    page = login(ctx, "desk@x.com").get(S + "/staff/insights?days=90&clinic=cl-sb")
+    assert page.status_code == 200 and "No-show rate" in page.text and "<meter" in page.text
+
+
+def test_admin_setup_changes_branding_and_clinic_details_and_keeps_new_clinics_hidden(ctx, staff):
+    boss = login(ctx, "boss@x.com")
+    r = boss.post(S + "/staff/setup/brand", data={"state": "CA", "display_name": "Northwind Care", "primary_color": "#112233", "logo_url": "", "support_email": "help@x.com", "support_phone": "555-000-1111"})
+    assert "Branding saved" in r.text and ctx.db.get("SELECT display_name FROM tenants WHERE id = 'tn-north'")["display_name"] == "Northwind Care"
+    assert "https" in boss.post(S + "/staff/setup/brand", data={"state": "CA", "display_name": "X", "primary_color": "#112233", "logo_url": "http://insecure.example/x.png"}).text
+    r = boss.post(S + "/staff/setup/clinic", data={"name": "Pop-up", "city": "Austin", "address": "1 Test St", "state_code": "TX", "time_zone": "America/Chicago"})
+    assert "Clinic added" in r.text
+    new = ctx.db.get("SELECT id, status, bookable FROM clinics WHERE name = 'Pop-up'")
+    assert new["status"] == "inactive" and new["bookable"] == 0
+    r = boss.post(S + f"/staff/setup/clinic/{new['id']}", data={"state": "TX", "op": "details", "phone": "(512) 555-0100", "hours_text": "Mon-Fri 9-5", "about": "Free parking", "image_url": "https://img.example/x.jpg"})
+    assert "details saved" in r.text.lower() and ctx.db.get("SELECT phone FROM clinics WHERE id = ?", new["id"])["phone"] == "(512) 555-0100"
+
+
+def test_share_page_and_qr_code(ctx, staff):
+    desk = login(ctx, "desk@x.com")
+    page = desk.get(S + "/staff/share?state=CA&clinic=cl-sb")
+    assert page.status_code == 200 and "qr.svg?clinic=cl-sb" in page.text and "Button for your website" in page.text
+    q = TestClient(create_app(ctx), base_url="http://testserver").get(S + "/qr.svg?clinic=cl-sb")                 # public: it only encodes a public link
+    assert q.status_code == 200 and q.headers["content-type"].startswith("image/svg+xml") and "<svg" in q.text
+    assert TestClient(create_app(ctx), base_url="http://testserver").get(S + "/qr.svg?clinic=nope-nope").status_code == 404

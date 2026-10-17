@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Calendar · {{ brand.display_name }}{% endblock %}
+{% block content %}
+<h1 id="h1">Calendar</h1>
+<form method="get" action="/t/{{ slug }}/staff/calendar" class="filters card-block">
+  <div><label class="field" for="date">Date</label><input id="date" name="date" type="date" value="{{ date }}" required></div>
+  <div><label class="field" for="clinic">Clinic</label><select id="clinic" name="clinic">{% for x in pick %}<option value="{{ x.id }}"{% if x.id == cl.id %} selected{% endif %}>{{ x.name }}{% if x.state_code %} ({{ x.state_code }}){% endif %}</option>{% endfor %}</select></div>
+  <div class="statusrow"><button class="primary" type="submit">Show</button>
+  <a class="button" href="/t/{{ slug }}/staff/calendar?date={{ prev }}&amp;clinic={{ cl.id }}">&larr; Previous</a>
+  <a class="button" href="/t/{{ slug }}/staff/calendar?date={{ next }}&amp;clinic={{ cl.id }}">Next &rarr;</a>
+  <a class="button" href="/t/{{ slug }}/staff?date={{ date }}&amp;clinic={{ cl.id }}">List view</a></div>
+</form>
+<p class="hint">{{ blocks|length }} appointment{{ '' if blocks|length == 1 else 's' }} on {{ date }} at {{ cl.name }} (times in {{ cl.time_zone }}).{% if skipped %} Showing the first 12 providers.{% endif %}</p>
+{% if provs %}
+<div class="calwrap">
+<div class="cal ncols-{{ ncols }}" role="group" aria-label="Appointments by provider for {{ date }}">
+  <div class="calhead calcorner" aria-hidden="true"></div>
+  {% for p in provs %}<div class="calhead col-{{ loop.index + 1 }}">{{ p.display_name }}</div>{% endfor %}
+  {% for h in hours %}<div class="calhour rs-{{ h.row }}">{{ h.label }}</div><div class="calline rs-{{ h.row }}"></div>{% endfor %}
+  {% for b in blocks %}
+  <a class="calblk st-{{ b.status }} rs-{{ b.row }} rl-{{ b.span }} col-{{ b.col }}" href="/t/{{ slug }}/staff?date={{ date }}&amp;clinic={{ cl.id }}&amp;provider={{ b.provider_id }}">
+    <strong>{{ b.start_label }}</strong> {{ b.patient_name }}<small>{{ b.visit_label }}{% if b.modality == 'telehealth' %} · video{% endif %}</small>
+  </a>
+  {% endfor %}
+</div>
+</div>
+<p class="hint">Cancelled visits are hidden. Select a visit to open that provider's day list and change its status.</p>
+{% else %}<div class="sheet empty"><strong>No providers at this clinic yet.</strong></div>{% endif %}
+{% endblock %}
