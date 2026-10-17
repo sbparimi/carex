@@ -192,6 +192,11 @@ class Accounts:
             return {"mfa": {"challenge": self._start_challenge(tenant_id, u["id"], em, t["display_name"])}}
         return {"profile": self.profile_by_id(tenant_id, u["id"]), "token": self._new_session(tenant_id, u["id"])}
 
+    def confirm_password(self, tenant_id: str, user_id: str, password: str) -> bool:
+        """Re-check the signed-in person's password before something that cannot be undone (closing the account)."""
+        u = self.db.get("SELECT password_hash FROM users WHERE tenant_id = ? AND id = ?", tenant_id, user_id)
+        return bool(u and isinstance(password, str) and len(password) <= 128 and verify_password(password, u["password_hash"]))
+
     def logout(self, tenant_id: str, token: str | None) -> None:
         if token:
             self.db.run("DELETE FROM sessions WHERE token_hash = ? AND tenant_id = ?", sha256(token), tenant_id)

@@ -12,7 +12,7 @@
 </form>
 <p class="hint">{{ blocks|length }} appointment{{ '' if blocks|length == 1 else 's' }} on {{ date }} at {{ cl.name }} (times in {{ cl.time_zone }}).{% if skipped %} Showing the first 12 providers.{% endif %}</p>
 {% if provs %}
-<div class="calwrap">
+<div class="calwrap" tabindex="0" role="region" aria-label="Calendar grid, scrollable">
 <div class="cal ncols-{{ ncols }}" role="group" aria-label="Appointments by provider for {{ date }}">
   <div class="calhead calcorner" aria-hidden="true"></div>
   {% for p in provs %}<div class="calhead col-{{ loop.index + 1 }}">{{ p.display_name }}</div>{% endfor %}

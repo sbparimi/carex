@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Privacy policy · {{ brand.display_name }}{% endblock %}
+{% block content %}
+<h1 id="h1" class="largetitle">Privacy policy</h1>
+<p class="infonote"><span class="i" aria-hidden="true">i</span><span>This is a starting template, not legal advice. {{ brand.display_name }} must have it reviewed by its own counsel, and complete the bracketed details, before real patients use the service.</span></p>
+<section class="sheet prose">
+<h2 class="section">What we collect</h2>
+<p>To book and manage your visits we keep your name, date of birth, email, phone number, the people you book for, your appointments, and the reason you give for a visit. We keep a record of who viewed or changed your appointments.</p>
+<h2 class="section">How we use it</h2>
+<p>We use it to schedule care, send confirmations and reminders you have asked for, and keep the service safe. We do not sell your information and we do not use it for advertising.</p>
+<h2 class="section">Who sees it</h2>
+<p>Your clinic's staff see the details of your appointments. Our service providers (for example email and text delivery) receive only what they need to send a message. We share information when the law requires it.</p>
+<h2 class="section">Your choices</h2>
+<p>You can download your data, see activity on your account, change reminder choices, or close your account from <a href="/t/{{ slug }}/account">your account page</a>. Closing your account removes your personal details and cancels future visits. The clinic may keep an anonymous visit record for its own books.</p>
+<h2 class="section">Cookies</h2>
+<p>We use one sign-in cookie that is needed for the site to work. We do not use advertising or tracking cookies.</p>
+<h2 class="section">Contact</h2>
+<p>Questions: {% if brand.support_email %}<a href="mailto:{{ brand.support_email }}">{{ brand.support_email }}</a>{% else %}[privacy contact email]{% endif %}. Operator: [legal entity name and address].</p>
+</section>
+{% endblock %}

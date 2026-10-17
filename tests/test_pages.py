@@ -359,3 +359,35 @@ def test_video_waiting_room_opens_fifteen_minutes_before(signed_in, ctx, clock):
     from carex.util import iso
     ctx.db.run("UPDATE appointments SET starts_at = ?, ends_at = ? WHERE id = ?", iso(clock() + timedelta(minutes=5)), iso(clock() + timedelta(minutes=35)), row["id"])
     assert "ready" in signed_in.get(S + f"/appointments/{row['id']}/video").text
+
+
+# ---------------------------------------------------------------- batch 4: legal pages, my data, closing an account
+def test_legal_pages_are_public_and_flagged_as_templates(client):
+    for doc, h in (("privacy", "Privacy policy"), ("terms", "Terms of use"), ("notice-of-privacy-practices", "Notice of privacy practices")):
+        r = client.get(S + f"/legal/{doc}")
+        assert r.status_code == 200 and h1(r) == h and "not legal advice" in r.text
+    assert client.get(S + "/legal/nope").status_code == 404
+    assert "/legal/privacy" in client.get(S + "/login").text                    # linked from every page footer
+
+
+def test_account_page_download_activity_and_close_account(signed_in, ctx):
+    r, _ = book_through_pages(signed_in)
+    assert h1(r) == "You're booked"
+    acct = signed_in.get(S + "/account")
+    assert h1(acct) == "Your account" and "You booked an appointment" in acct.text
+    dl = signed_in.get(S + "/account/export.json")
+    assert dl.status_code == 200 and "attachment" in dl.headers["content-disposition"]
+    data = dl.json()
+    assert data["account"]["email"] == SIGNUP["email"] and len(data["appointments"]) == 1 and "password" not in dl.text.lower()
+    uid = data["account"]["id"]
+    wrong = signed_in.post(S + "/account/delete", data={"confirm": "DELETE", "password": "wrong"})
+    assert "Type DELETE" in wrong.text and ctx.db.get("SELECT email FROM users WHERE id = ?", uid)["email"] == SIGNUP["email"]
+    done = signed_in.post(S + "/account/delete", data={"confirm": "DELETE", "password": SIGNUP["password"]})
+    assert "account was closed" in done.text
+    row = ctx.db.get("SELECT email, first_name FROM users WHERE id = ?", uid)
+    assert row["first_name"] == "Former" and row["email"].endswith("@erased.invalid")
+    a = ctx.db.get("SELECT status, patient_first_name, patient_email, user_id, manage_token FROM appointments")
+    assert a["status"] == "cancelled" and a["patient_first_name"] == "Former" and a["patient_email"] is None and a["user_id"] is None and a["manage_token"] is None
+    assert signed_in.get(S + "/appointments").url.path.endswith("/login")                         # signed out everywhere
+    assert signed_in.post(S + "/login", data={"email": SIGNUP["email"], "password": SIGNUP["password"]}).status_code in (200, 401)
+    assert ctx.db.get("SELECT COUNT(*) AS n FROM outbox WHERE to_email IS NOT NULL AND user_id IS NOT NULL")["n"] == 0

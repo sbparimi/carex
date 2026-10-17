@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% from "_macros.html" import banner %}
+{% block title %}Your account · {{ brand.display_name }}{% endblock %}
+{% block content %}
+<h1 id="h1" class="largetitle">Your account</h1>
+{% if error %}{{ banner('error', error, 'alert') }}{% endif %}
+<section class="sheet"><h2 class="section">Details</h2>
+  <dl class="kv"><dt>Name</dt><dd>{{ user.first_name }} {{ user.last_name }}</dd><dt>Email</dt><dd>{{ user.email }}</dd></dl>
+  <p class="hint">To change reminder choices or family members, go to <a href="/t/{{ slug }}/appointments">My appointments</a>.</p></section>
+<section class="sheet"><h2 class="section">Your data</h2>
+  <p>Download everything we hold about you as a file you can keep.</p>
+  <p><a class="button" href="/t/{{ slug }}/account/export.json">Download my data</a></p></section>
+<section class="sheet"><h2 class="section">Activity on your account</h2>
+  <p class="hint">Recent actions on your appointments, by you and by clinic staff.</p>
+  {% for a in activity %}<div class="dayrow"><div class="dayinfo"><strong>{{ a.what }}</strong><small>{{ a.by }} · {{ a.at[:16]|replace('T', ' ') }} UTC</small></div></div>
+  {% else %}<p class="hint">Nothing yet.</p>{% endfor %}</section>
+<section class="sheet"><h2 class="section">Close my account</h2>
+  <p>This removes your personal details, signs you out everywhere and cancels future visits. It cannot be undone.</p>
+  <form method="post" action="/t/{{ slug }}/account/delete" class="stack">
+    <label class="field" for="cf">Type DELETE to confirm</label><input id="cf" name="confirm" autocomplete="off" required>
+    <label class="field" for="pw">Your password</label><input id="pw" name="password" type="password" autocomplete="current-password" required>
+    <button class="danger" type="submit">Close my account</button>
+  </form></section>
+{% endblock %}

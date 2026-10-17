@@ -26,7 +26,7 @@ def register(app: FastAPI, W: Web) -> None:
         nxt = W.safe_next(slug, next)
         if W.user(request, t):
             return W.redirect(nxt or f"/t/{slug}/book")
-        msgs = {"reset": "Your password was changed. Sign in with the new one.", "out": "You have been signed out."}
+        msgs = {"reset": "Your password was changed. Sign in with the new one.", "out": "You have been signed out.", "closed": "Your account was closed and your personal details were removed."}
         return W.render(request, "login.html", t=t, notice=msgs.get(notice, ""), nxt=nxt)
 
     @app.post(P + "/login")

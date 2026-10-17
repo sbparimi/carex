@@ -272,7 +272,8 @@ select, input[type=text], input[type=email], input[type=tel], input[type=passwor
 .vchip { flex: none; scroll-snap-align: start; display: flex; align-items: center; gap: .625rem; min-height: 3.25rem; padding: .5rem 1rem; border-radius: 16px; background: var(--vt-bg); color: var(--vt-ink); text-decoration: none; font-weight: 700; border: 2px solid transparent; }
 .vchip small { display: block; font-weight: 500; font-size: .75rem; opacity: .85; }
 .vchip .dot { width: .75rem; height: .75rem; border-radius: 50%; background: var(--vt); }
-.vchip.on { background: var(--vt); color: #fff; box-shadow: 0 6px 16px color-mix(in srgb, var(--vt) 35%, transparent); }
+.vchip.on { background: var(--vt-ink); color: #fff; box-shadow: 0 6px 16px color-mix(in srgb, var(--vt) 35%, transparent); }
+.vchip.on small, .vchip.on .nextup { opacity: 1; }
 .vchip.on .dot { background: #fff; }
 
 /* providers, dates and times, all in the visit type's colour */
@@ -764,3 +765,10 @@ li.appt { box-shadow: var(--shadow); border-radius: var(--r-sm); background: col
 .rl-14 { grid-row-end: span 14; }
 .rl-15 { grid-row-end: span 15; }
 .rl-16 { grid-row-end: span 16; }
+
+/* ---- Batch 4: footer, prose, accessibility */
+footer.site { max-width: 60rem; margin: 3rem auto 6rem; padding: 0 1rem; color: var(--muted); font-size: .875rem; }
+footer.site nav { display: flex; flex-wrap: wrap; gap: .25rem 1.25rem; margin-bottom: .5rem; }
+footer.site a { color: var(--muted); text-decoration: underline; min-height: 2.75rem; display: inline-flex; align-items: center; }
+.prose p, .prose li { max-width: 42rem; line-height: 1.6; }
+@media (max-width: 720px) { body:not(.has-tabs) .stickybook { bottom: calc(1rem + env(safe-area-inset-bottom)); } }

@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Terms of use · {{ brand.display_name }}{% endblock %}
+{% block content %}
+<h1 id="h1" class="largetitle">Terms of use</h1>
+<p class="infonote"><span class="i" aria-hidden="true">i</span><span>This is a starting template, not legal advice. {{ brand.display_name }} must have it reviewed by its own counsel, and complete the bracketed details, before real patients use the service.</span></p>
+<section class="sheet prose">
+<h2 class="section">Using this service</h2>
+<p>You can use this site to find clinics, book, change and cancel planned visits for yourself and for people you are allowed to book for. Give accurate details and keep your sign-in private.</p>
+<h2 class="section">Not for emergencies</h2>
+<p>This service is for planned visits. If you think you are having an emergency, call 911 or go to the nearest emergency room. In a mental health crisis, call or text 988. Booking here does not give medical advice.</p>
+<h2 class="section">Changes and missed visits</h2>
+<p>You can cancel or change a visit online up to 2 hours before it starts. After that, please call the clinic. A clinic may have its own policy for missed visits; it will tell you.</p>
+<h2 class="section">Payments</h2>
+<p>Any copay shown is an estimate based on your plan and is paid at the clinic.</p>
+<h2 class="section">Availability and changes</h2>
+<p>Times shown can change before you confirm. We may update the service or these terms; the date below shows the latest version.</p>
+<p class="hint">Last updated: [date]. Governing law and operator: [jurisdiction, legal entity].</p>
+</section>
+{% endblock %}

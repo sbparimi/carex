@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Notice of privacy practices · {{ brand.display_name }}{% endblock %}
+{% block content %}
+<h1 id="h1" class="largetitle">Notice of privacy practices</h1>
+<p class="infonote"><span class="i" aria-hidden="true">i</span><span>This is a starting template, not legal advice. {{ brand.display_name }} must have it reviewed by its own counsel, and complete the bracketed details, before real patients use the service.</span></p>
+<section class="sheet prose">
+<p>This notice describes how medical information about you may be used and shared, and how you can get access to it. Healthcare providers in the United States who are covered by HIPAA must give patients a notice with specific required wording; counsel must replace this outline with the clinic's approved text.</p>
+<h2 class="section">How the clinic may use and share your information</h2>
+<p>For your treatment, for payment, and for the clinic's operations. When the law requires or allows it. With your permission.</p>
+<h2 class="section">Your rights</h2>
+<p>You may ask to see or get a copy of your records, ask for corrections, ask for a list of who it was shared with, ask for limits or confidential contact, and get a paper copy of this notice.</p>
+<h2 class="section">Complaints</h2>
+<p>If you believe your privacy rights were violated you may complain to the clinic{% if brand.support_email %} at <a href="mailto:{{ brand.support_email }}">{{ brand.support_email }}</a>{% endif %} or to the U.S. Department of Health and Human Services. You will not be penalised for filing a complaint.</p>
+<p class="hint">Effective date: [date]. Privacy officer: [name and contact].</p>
+</section>
+{% endblock %}
