@@ -214,3 +214,14 @@ def test_video_visits_show_the_state_question_and_in_person_only_visits_do_not(s
     assert 'value="telehealth"' in page.text and 'class="tele"' in page.text and "licensed" in page.text
     inperson = signed_in.get(f"{S}/book/details?clinic=cl-sb&service=sv-physio-n&provider=pr-b&slot={first_slot(signed_in)}")
     assert 'class="tele' not in inperson.text and 'value="in_person"' in inperson.text
+
+
+def test_clinic_page_is_an_event_style_page_with_next_opening_book_card_and_tint(signed_in):
+    page = signed_in.get(S + "/book/provider?clinic=cl-sb")
+    t = page.text
+    assert 'class="cover"' in t and "Hosted by" in t and 'class="facts"' in t and 'class="regcard"' in t and 'class="stickybook"' in t
+    assert re.search(r'class="evt tint-[0-7]"', t) and "Next opening" in t
+    book = re.search(r'<a class="cta" href="([^"]+)">Book ', t)
+    assert book and "/book/details?" in book.group(1)
+    assert signed_in.get(book.group(1).replace("&amp;", "&")).status_code == 200      # the Book card leads straight to the details step
+    assert re.search(r'class="evt tint-[0-7]"', signed_in.get(S + "/book/provider?clinic=cl-sb").text).group(0) == re.search(r'class="evt tint-[0-7]"', t).group(0)   # tint is stable per clinic

@@ -1,6 +1,8 @@
 """Patient pages: booking steps, my appointments, family members, waiting list, reminder choices."""
 from __future__ import annotations
 
+import zlib
+
 import secrets
 
 from fastapi import Depends, FastAPI, HTTPException, Request
@@ -38,7 +40,11 @@ def peek_days(slots: list[dict], full: bool = False, days: int = 3, per_day: int
             out[-1]["slots"].append({"id": sl["id"], "time": clock(sl["starts_at"], sl["time_zone"])})
         else:
             out[-1]["hidden"] += 1
-    return {"days": out, "more": (not full) and len(slots) > sum(len(d["slots"]) for d in out)}
+    first = None
+    if slots:
+        parts = day_parts(slots[0]["starts_at"], slots[0]["time_zone"])
+        first = {**parts, "id": slots[0]["id"], "time": clock(slots[0]["starts_at"], slots[0]["time_zone"]), "starts": slots[0]["starts_at"]}
+    return {"days": out, "more": (not full) and len(slots) > sum(len(d["slots"]) for d in out), "first": first}
 
 
 def register(app: FastAPI, W: Web) -> None:
@@ -103,8 +109,13 @@ def register(app: FastAPI, W: Web) -> None:
                     continue
                 slots = c.booking.slots(t["id"], clinic, visit["id"], p["id"], u["id"])
                 cards.append({"p": p, **peek_days(slots, full=bool(provider))})
+        firsts = [(x["first"]["starts"], x["first"], x["p"]) for x in cards if x.get("first")]
+        nxt = None
+        if firsts:
+            _, f, p = min(firsts, key=lambda z: z[0])
+            nxt = {**f, "provider": p}
         return W.render(request, "book_provider.html", t=t, user=u, nav="book", clinic=cl, visits=visits, visit=visit, cards=cards, only=provider, joined=bool(joined), notice=notice[:120],
-                        any_open=any(x["days"] for x in cards))
+                        any_open=any(x["days"] for x in cards), nxt=nxt, n_providers=len(providers), tint=zlib.crc32(cl["id"].encode()) % 8)
 
     def details_ctx(t, u, clinic, service, provider, slot_id, v, **extra):
         elig = c.catalog.eligible(t["id"], clinic, service, provider)

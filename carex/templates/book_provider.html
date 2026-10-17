@@ -3,12 +3,38 @@
 {% block title %}Choose a time · {{ brand.display_name }}{% endblock %}
 {% block content %}
 {{ steps(3) }}
+<div class="evt tint-{{ tint }}">
+<aside class="evt-side">
+  <div class="cover" aria-hidden="true"><span class="cover-mark">{{ clinic.name[:1] }}</span><span class="cover-city">{{ clinic.city }}, {{ clinic.state_code }}</span></div>
+  <p class="sidelabel">Hosted by</p>
+  <p class="hostrow"><span class="hostmark" aria-hidden="true"></span><strong>{{ brand.display_name }}</strong></p>
+  <p class="sidestat">{{ n_providers }} provider{{ '' if n_providers == 1 else 's' }}{% if visits %} · {{ visits|length }} visit type{{ '' if visits|length == 1 else 's' }}{% endif %}</p>
+  {% if brand.support_email %}<p class="sidelink"><a href="mailto:{{ brand.support_email }}">Contact the clinic</a></p>{% endif %}
+</aside>
+<div class="evt-main">
 <p class="back"><a class="backlink" href="{% if only %}/t/{{ slug }}/book/provider?clinic={{ clinic.id }}&amp;service={{ visit.id }}{% else %}/t/{{ slug }}/book?state={{ clinic.state_code }}{% endif %}">{% if only %}All providers{% else %}Clinics{% endif %}</a></p>
 <h1 id="h1" class="largetitle">{{ clinic.name }}</h1>
-<p class="lead">{{ clinic.address }}{% if clinic.city not in clinic.address %}, {{ clinic.city }}{% endif %}<br><span class="zonepill">All times in {{ zone_name(clinic.time_zone) }}</span></p>
-{% if notice %}{{ banner('warning', notice, 'status') }}{% endif %}
-{% if joined %}{{ banner('success', "You're on the waiting list. We will message you when a time opens up.", 'status') }}{% endif %}
-
+<ul class="facts">
+  <li><span class="factbadge">{% if nxt %}<b>{{ nxt.month }}</b><span>{{ nxt.day }}</span>{% else %}<b>&ndash;</b><span>&ndash;</span>{% endif %}</span>
+    <span class="facttext">{% if nxt %}<strong>{{ nxt.full }}</strong><small>Next opening {{ nxt.time }} {{ nxt.tz }}</small>{% else %}<strong>No openings right now</strong><small>Join the waiting list below</small>{% endif %}</span></li>
+  <li><span class="factbadge pin" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-5.7 7-11a7 7 0 1 0-14 0c0 5.3 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg></span>
+    <span class="facttext"><strong>{{ clinic.address }}</strong><small>{{ clinic.city }}, {{ clinic.state_code }} · All times in {{ zone_name(clinic.time_zone) }}</small></span></li>
+</ul>
+{% if visit %}
+<section class="regcard" aria-labelledby="reg-h">
+  <h2 id="reg-h" class="regbar">Book a visit</h2>
+  <div class="regbody">
+  {% if nxt %}
+    <p class="regline"><span class="vtag">{{ visit.label }}</span> with {{ nxt.provider.display_name }}</p>
+    <a class="cta" href="/t/{{ slug }}/book/details?clinic={{ clinic.id }}&amp;service={{ visit.id }}&amp;provider={{ nxt.provider.id }}&amp;slot={{ nxt.id|urlencode }}">Book {{ nxt.time }} on {{ nxt.weekday }} {{ nxt.month }} {{ nxt.day }}</a>
+    <p class="hint">Or choose another time below.</p>
+  {% else %}
+    <p class="regline">Nothing is open for {{ visit.label }} right now.</p>
+    <a class="cta ghost" href="#waitlist">Join the waiting list</a>
+  {% endif %}
+  </div>
+</section>
+{% endif %}
 {% if visits %}
 <nav class="vtabs" aria-label="Type of visit">
 {% for v in visits %}<a class="vchip vt-{{ vtc[v.id] }}{% if v.id == visit.id %} on{% endif %}" href="/t/{{ slug }}/book/provider?clinic={{ clinic.id }}&amp;service={{ v.id }}"{% if v.id == visit.id %} aria-current="true"{% endif %}><span class="dot" aria-hidden="true"></span><span>{{ v.label }}<small>{{ v.duration_min }} min{% if v.modality == 'telehealth' %} · video{% elif v.modality == 'either' %} · in person or video{% endif %}</small></span></a>{% endfor %}
@@ -44,11 +70,14 @@
 {% endfor %}
 </div>
 {% if not any_open and cards %}
-<div class="sheet"><h2 class="section">Nothing open right now</h2>
+<div class="sheet" id="waitlist"><h2 class="section">Nothing open right now</h2>
 <p>Join the waiting list and we'll message you when a time opens up.</p>
 <form method="post" action="/t/{{ slug }}/waitlist/join"><input type="hidden" name="clinic_id" value="{{ clinic.id }}"><input type="hidden" name="service_id" value="{{ visit.id }}"><button class="primary wide" type="submit">Join the waiting list</button></form></div>
 {% endif %}
 {% else %}
 <div class="sheet empty"><strong>No visit types are offered at this clinic right now.</strong></div>
 {% endif %}
+</div>
+</div>
+{% if nxt %}<div class="stickybook"><a class="cta" href="/t/{{ slug }}/book/details?clinic={{ clinic.id }}&amp;service={{ visit.id }}&amp;provider={{ nxt.provider.id }}&amp;slot={{ nxt.id|urlencode }}"><span>Next: {{ nxt.weekday }} {{ nxt.month }} {{ nxt.day }}</span><b>{{ nxt.time }}</b></a></div>{% endif %}
 {% endblock %}
