@@ -1,7 +1,8 @@
 {% extends "base.html" %}
+{% from "_macros.html" import pagehead, vicon with context %}
 {% block title %}Share · {{ brand.display_name }}{% endblock %}
 {% block content %}
-<h1 id="h1">Share your booking link</h1>
+{{ pagehead("Share your booking link", "Put booking where your patients already are.", "mail") }}
 <p class="lead">Put the link or QR code on your website, in emails, on posters or at the front desk.</p>
 <form method="get" action="/t/{{ slug }}/staff/share" class="filters card-block">
   <div><label class="field" for="st">State</label><select id="st" name="state">{% for code, name in states %}<option value="{{ code }}"{% if code == state %} selected{% endif %}>{{ name }}</option>{% endfor %}</select></div>

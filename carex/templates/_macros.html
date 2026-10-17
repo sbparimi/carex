@@ -119,3 +119,7 @@
   <circle cx="262" cy="86" r="30" fill="#18a999"/><path d="M247 87l11 11 20-23" fill="none" stroke="#ffffff" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>
 {% endmacro %}
+
+{% macro pagehead(title, sub='', kind='') %}
+<header class="pagehead"><div class="ph-text"><h1 id="h1" class="largetitle">{{ title|safe }}</h1>{% if sub %}<p class="ph-sub">{{ sub }}</p>{% endif %}</div>{% if kind %}<span class="ph-art" aria-hidden="true">{{ vicon(kind, 64) }}</span>{% endif %}</header>
+{% endmacro %}

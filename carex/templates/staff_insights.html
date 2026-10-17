@@ -1,7 +1,8 @@
 {% extends "base.html" %}
+{% from "_macros.html" import pagehead, vicon with context %}
 {% block title %}Insights · {{ brand.display_name }}{% endblock %}
 {% block content %}
-<h1 id="h1">Insights</h1>
+{{ pagehead("Insights", "How booking is going: volume, no-shows and demand.", "shield") }}
 <form method="get" action="/t/{{ slug }}/staff/insights" class="filters card-block">
   <div><label class="field" for="days">Period</label><select id="days" name="days">{% for d in (7, 30, 90) %}<option value="{{ d }}"{% if d == days %} selected{% endif %}>Last {{ d }} days</option>{% endfor %}</select></div>
   <div><label class="field" for="clinic">Clinic</label><select id="clinic" name="clinic"><option value="">All clinics</option>{% for x in clinics %}<option value="{{ x.id }}"{% if x.id == clinic %} selected{% endif %}>{{ x.name }}</option>{% endfor %}</select></div>

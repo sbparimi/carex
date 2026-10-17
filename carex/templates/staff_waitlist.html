@@ -1,8 +1,8 @@
 {% extends "base.html" %}
-{% from "_macros.html" import banner %}
+{% from "_macros.html" import banner, pagehead %}
 {% block title %}Waiting list · {{ brand.display_name }}{% endblock %}
 {% block content %}
-<h1 id="h1">Waiting list</h1>
+{{ pagehead("Waiting list", "Patients waiting for an earlier time.", "bell") }}
 {% if notice %}{{ banner('success', notice, 'status') }}{% endif %}
 <form method="get" action="/t/{{ slug }}/staff/waitlist" class="filters card-block">
   <div><label class="field" for="clinic">Clinic</label><select id="clinic" name="clinic"><option value="">All clinics</option>{% for x in clinics %}<option value="{{ x.id }}"{% if x.id == clinic %} selected{% endif %}>{{ x.name }}</option>{% endfor %}</select></div>

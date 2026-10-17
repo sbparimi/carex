@@ -1,20 +1,19 @@
 {% extends "base.html" %}
-{% from "_macros.html" import banner %}
+{% from "_macros.html" import banner, pagehead, vicon %}
 {% block title %}My appointments · {{ brand.display_name }}{% endblock %}
 {% block content %}
-<h1 id="h1" class="largetitle">My appointments</h1>
+<section class="pagehead apptshead"><div class="ph-text"><h1 id="h1" class="largetitle">My appointments</h1><p class="ph-sub">{% if upcoming %}You have {{ upcoming|length }} upcoming visit{{ '' if upcoming|length == 1 else 's' }}.{% else %}Nothing booked yet. Care is a few taps away.{% endif %}</p><p class="cta-row"><a class="btn primary" href="/t/{{ slug }}/book">Book a visit</a></p></div><span class="ph-art" aria-hidden="true">{{ vicon('calendar', 64) }}</span></section>
 {% if notice %}{{ banner('success' if notice_ok else 'warning', notice, 'status') }}{% endif %}
-<p><a class="button primary" href="/t/{{ slug }}/book">Book a visit</a></p>
 
 <h2 class="section">Upcoming</h2>
-{% for a in upcoming %}
+{% for a in upcoming %}{% set first = loop.first %}
 {% set sm = a.summary %}{% set dp = day_parts(sm.starts_at, sm.time_zone) %}
 <article class="tix vt-brand">
   <div class="tix-head">
-    <span class="thumb th-{{ tint_of(sm.clinic.id) }}" aria-hidden="true">{{ sm.clinic.name[:1] }}</span>
+    <span class="factbadge big" aria-hidden="true"><b>{{ dp.month }}</b><span>{{ dp.day }}</span></span>
     <div class="tix-body">
-      <p class="tix-when">{{ dp.weekday }}, {{ dp.month }} {{ dp.day }} · {{ clock(sm.starts_at, sm.time_zone) }} {{ dp.tz }}{% if a.status == 'arrived' %} <span class="tag ok">Checked in</span>{% endif %}</p>
-      <h3>{{ sm.visit_type.label }} with {{ sm.provider.display_name }}</h3>
+      <p class="tix-when">{% if first %}<span class="tag nextchip">Next up</span> {% endif %}{{ dp.weekday }}, {{ dp.month }} {{ dp.day }} · {{ clock(sm.starts_at, sm.time_zone) }} {{ dp.tz }}{% if a.status == 'arrived' %} <span class="tag ok">Checked in</span>{% endif %}</p>
+      <h3><span class="tix-ic" aria-hidden="true">{{ vicon(sm.visit_type.canonical_type or sm.visit_type.label, 28) }}</span>{{ sm.visit_type.label }} with {{ sm.provider.display_name }}</h3>
       <p class="tix-sub">{% if sm.modality == 'telehealth' %}By video{% else %}{{ sm.clinic.name }}, {{ sm.clinic.address }}{% endif %}{% if sm.patient_name %} · {{ sm.patient_name }}{% endif %}</p>
       <p class="tix-sub">Ref <span class="reference">{{ a.booking_id }}</span></p>
     </div>
@@ -31,7 +30,7 @@
   </div>
   {% else %}<p class="hint">To change or cancel this appointment, please call the clinic{% if brand.support_phone %} on {{ brand.support_phone }}{% endif %}: it starts in under {{ a.change_notice_minutes // 60 }} hours.</p>{% endif %}
 </article>
-{% else %}<p>You have no upcoming appointments.</p>{% endfor %}
+{% else %}<div class="emptystate"><span aria-hidden="true">{{ vicon("calendar", 64) }}</span><p><strong>No upcoming visits</strong><br>Find a clinic and book your next visit in a minute.</p><a class="btn primary" href="/t/{{ slug }}/book">Find care</a></div>{% endfor %}
 
 {% if past %}
 <h2 class="section">Past and cancelled</h2>

@@ -1,7 +1,7 @@
 {% extends "base.html" %}
+{% from "_macros.html" import vicon %}
 {% block title %}{{ heading }} · {{ brand.display_name }}{% endblock %}
 {% block content %}
-<h1>{{ heading }}</h1>
-<p class="lead">{{ message }}</p>
-{% if slug %}<p><a class="button" href="/t/{{ slug }}/">Back to start</a></p>{% endif %}
+<div class="emptystate errorstate"><span aria-hidden="true">{{ vicon('shield', 64) }}</span><h1>{{ heading }}</h1><p class="lead">{{ message }}</p>
+{% if slug %}<p class="cta-row"><a class="btn primary" href="/t/{{ slug }}/">Back to start</a></p>{% endif %}</div>
 {% endblock %}

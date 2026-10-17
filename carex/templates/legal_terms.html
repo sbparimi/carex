@@ -1,7 +1,8 @@
 {% extends "base.html" %}
+{% from "_macros.html" import pagehead, vicon with context %}
 {% block title %}Terms of use · {{ brand.display_name }}{% endblock %}
 {% block content %}
-<h1 id="h1" class="largetitle">Terms of use</h1>
+{{ pagehead("Terms of use", "The rules for using this service.", "shield") }}
 <p class="infonote"><span class="i" aria-hidden="true">i</span><span>This is a starting template, not legal advice. {{ brand.display_name }} must have it reviewed by its own counsel, and complete the bracketed details, before real patients use the service.</span></p>
 <section class="sheet prose">
 <h2 class="section">Using this service</h2>

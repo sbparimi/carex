@@ -1,8 +1,8 @@
 {% extends "base.html" %}
-{% from "_macros.html" import banner %}
+{% from "_macros.html" import banner, pagehead %}
 {% block title %}Your account · {{ brand.display_name }}{% endblock %}
 {% block content %}
-<h1 id="h1" class="largetitle">Your account</h1>
+{{ pagehead("Your account", "Your details, sign-in and privacy.", "idcard") }}
 {% if error %}{{ banner('error', error, 'alert') }}{% endif %}
 <section class="sheet"><h2 class="section">Details</h2>
   <dl class="kv"><dt>Name</dt><dd>{{ user.first_name }} {{ user.last_name }}</dd><dt>Email</dt><dd>{{ user.email }}</dd></dl>
@@ -12,7 +12,7 @@
   <p><a class="button" href="/t/{{ slug }}/account/export.json">Download my data</a></p></section>
 <section class="sheet"><h2 class="section">Activity on your account</h2>
   <p class="hint">Recent actions on your appointments, by you and by clinic staff.</p>
-  {% for a in activity %}<div class="dayrow"><div class="dayinfo"><strong>{{ a.what }}</strong><small>{{ a.by }} · {{ a.at[:16]|replace('T', ' ') }} UTC</small></div></div>
+  {% for a in activity %}<div class="actrow"><strong>{{ a.what }}</strong><small>{{ a.by }} · {{ a.at[:16]|replace('T', ' ') }} UTC</small></div>
   {% else %}<p class="hint">Nothing yet.</p>{% endfor %}</section>
 <section class="sheet"><h2 class="section">Close my account</h2>
   <p>This removes your personal details, signs you out everywhere and cancels future visits. It cannot be undone.</p>

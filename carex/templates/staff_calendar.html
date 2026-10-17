@@ -1,7 +1,8 @@
 {% extends "base.html" %}
+{% from "_macros.html" import pagehead, vicon with context %}
 {% block title %}Calendar · {{ brand.display_name }}{% endblock %}
 {% block content %}
-<h1 id="h1">Calendar</h1>
+{{ pagehead("Calendar", "A day at a glance, one column per provider.", "calendar") }}
 <form method="get" action="/t/{{ slug }}/staff/calendar" class="filters card-block">
   <div><label class="field" for="date">Date</label><input id="date" name="date" type="date" value="{{ date }}" required></div>
   <div><label class="field" for="clinic">Clinic</label><select id="clinic" name="clinic">{% for x in pick %}<option value="{{ x.id }}"{% if x.id == cl.id %} selected{% endif %}>{{ x.name }}{% if x.state_code %} ({{ x.state_code }}){% endif %}</option>{% endfor %}</select></div>

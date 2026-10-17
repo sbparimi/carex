@@ -1,8 +1,8 @@
 {% extends "base.html" %}
-{% from "_macros.html" import banner %}
+{% from "_macros.html" import banner, pagehead %}
 {% block title %}Hours &amp; time off · {{ brand.display_name }}{% endblock %}
 {% block content %}
-<h1 id="h1">Hours &amp; time off</h1>
+{{ pagehead("Hours &amp; time off", "Set when each provider can be booked.", "hourglass") }}
 {% if notice %}{{ banner('success' if notice_ok else 'warning', notice, 'status') }}{% endif %}
 <form method="get" action="/t/{{ slug }}/staff/hours" class="filters card-block">
   <div><label class="field" for="clinic">Clinic</label><select id="clinic" name="clinic">{% for cl in cat.clinics %}<option value="{{ cl.id }}"{% if cl.id == clinic.id %} selected{% endif %}>{{ cl.name }}</option>{% endfor %}</select></div>

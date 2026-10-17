@@ -1,8 +1,8 @@
 {% extends "base.html" %}
-{% from "_macros.html" import banner %}
+{% from "_macros.html" import banner, pagehead %}
 {% block title %}Schedule · {{ brand.display_name }}{% endblock %}
 {% block content %}
-<h1 id="h1">Schedule</h1>
+{{ pagehead("Schedule", "Everyone booked in for the day, across your clinics.", "calendar") }}
 {% if notice %}{{ banner('success' if notice_ok else 'warning', notice, 'status') }}{% endif %}
 <form method="get" action="/t/{{ slug }}/staff" class="filters card-block">
   <div><label class="field" for="date">Date</label><input id="date" name="date" type="date" value="{{ date }}" required></div>
