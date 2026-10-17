@@ -521,3 +521,4 @@ body:has(.tint-7) { --tint: hsl(45 58% 34%); }
 @media (max-width: 51.99rem) { .cover { aspect-ratio: auto; height: 6.5rem; } .cover-mark { font-size: 3rem; } }
 @media (min-width: 52rem) { .evt { grid-template-columns: 17rem minmax(0, 1fr); } }
 @media (max-width: 51.99rem) { .sidelabel, .hostrow, .sidestat, .sidelink { display: none; } }
+.vchip .nextup { display: block; font-style: normal; font-weight: 600; font-size: .75rem; opacity: .9; }

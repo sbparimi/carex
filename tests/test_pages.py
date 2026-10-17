@@ -225,3 +225,12 @@ def test_clinic_page_is_an_event_style_page_with_next_opening_book_card_and_tint
     assert book and "/book/details?" in book.group(1)
     assert signed_in.get(book.group(1).replace("&amp;", "&")).status_code == 200      # the Book card leads straight to the details step
     assert re.search(r'class="evt tint-[0-7]"', signed_in.get(S + "/book/provider?clinic=cl-sb").text).group(0) == re.search(r'class="evt tint-[0-7]"', t).group(0)   # tint is stable per clinic
+
+
+def test_default_visit_type_is_the_one_with_the_soonest_opening(demo):
+    cl, ctx = demo
+    t = cl.get(S + "/book/provider?clinic=cl-tx00").text
+    chips = re.findall(r'class="vchip vt-\d( on)?"[^>]*>.*?<em class="nextup">Next (\w+) ([^<]+)</em>', t, re.S)
+    assert len(chips) == 5 and chips[0][0].strip() == "on"                      # the first chip is selected by default
+    first_time = re.search(r"Next opening ([^<]+?) [A-Z]{3,4}<", t).group(1)
+    assert first_time == chips[0][2].strip()

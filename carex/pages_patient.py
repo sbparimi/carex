@@ -94,6 +94,17 @@ def register(app: FastAPI, W: Web) -> None:
         if not cl:
             raise HTTPException(404, "Not found")
         visits = c.catalog.visit_types(t["id"], clinic)
+        # Soonest opening first: visit types are ordered by their earliest open time, and the default is the one that can be seen soonest.
+        soonest: dict[str, dict] = {}
+        for v in visits:
+            best = None
+            for pv in c.catalog.providers(t["id"], clinic, v["id"]):
+                sl = c.booking.slots(t["id"], clinic, v["id"], pv["id"], u["id"])
+                if sl and (best is None or sl[0]["starts_at"] < best["starts_at"]):
+                    best = sl[0]
+            if best:
+                soonest[v["id"]] = {**day_parts(best["starts_at"], best["time_zone"]), "time": clock(best["starts_at"], best["time_zone"]), "starts_at": best["starts_at"]}
+        visits = sorted(visits, key=lambda v: (soonest[v["id"]]["starts_at"] if v["id"] in soonest else "9", v["label"]))
         visit = next((v for v in visits if v["id"] == service), visits[0] if visits and not service else None)
         if visits and not visit:
             raise HTTPException(404, "Not found")
@@ -109,13 +120,14 @@ def register(app: FastAPI, W: Web) -> None:
                     continue
                 slots = c.booking.slots(t["id"], clinic, visit["id"], p["id"], u["id"])
                 cards.append({"p": p, **peek_days(slots, full=bool(provider))})
+            cards.sort(key=lambda x: x["first"]["starts"] if x.get("first") else "9")
         firsts = [(x["first"]["starts"], x["first"], x["p"]) for x in cards if x.get("first")]
         nxt = None
         if firsts:
             _, f, p = min(firsts, key=lambda z: z[0])
             nxt = {**f, "provider": p}
         return W.render(request, "book_provider.html", t=t, user=u, nav="book", clinic=cl, visits=visits, visit=visit, cards=cards, only=provider, joined=bool(joined), notice=notice[:120],
-                        any_open=any(x["days"] for x in cards), nxt=nxt, n_providers=len(providers), tint=zlib.crc32(cl["id"].encode()) % 8)
+                        any_open=any(x["days"] for x in cards), nxt=nxt, soonest=soonest, n_providers=len(providers), tint=zlib.crc32(cl["id"].encode()) % 8)
 
     def details_ctx(t, u, clinic, service, provider, slot_id, v, **extra):
         elig = c.catalog.eligible(t["id"], clinic, service, provider)
