@@ -16,8 +16,6 @@
     <option value="">Anywhere</option>
     {% for code, name in states %}<option value="{{ code }}"{% if code == state %} selected{% endif %}>{{ name }}</option>{% endfor %}
   </select></div>
-  <label for="q">Clinic or city (optional)</label>
-  <input id="q" name="q" type="search" value="{{ q }}" maxlength="60" autocomplete="off">
   <button class="primary wide" type="submit">Show openings</button>
 </form>
 {% if kind %}

@@ -69,7 +69,7 @@ header.site { display: flex; flex-wrap: wrap; align-items: center; justify-conte
 button.linkish { background: none; border: 0; min-height: 0; padding: .25rem; color: var(--accent); text-decoration: underline; font-weight: 600; cursor: pointer; }
 a.button { display: inline-flex; align-items: center; min-height: 2.75rem; padding: .5rem 1.25rem; border: 2px solid var(--accent); border-radius: .5rem; color: var(--accent); font-weight: 600; text-decoration: none; background: var(--card); }
 main.authcard { max-width: 30rem; background: var(--card); border: 1px solid var(--line); border-radius: .75rem; margin-top: 1.5rem; padding: 1.5rem; }
-input[type=password], input[type=date] { width: 100%; min-height: 2.75rem; padding: .5rem .625rem; font: inherit; border: 2px solid var(--line); border-radius: .5rem; background: #fff; color: var(--ink); }
+input[type=password], input[type=date], input[type=search], input[type=url] { width: 100%; min-height: 2.75rem; padding: .5rem .625rem; font: inherit; border: 2px solid var(--line); border-radius: .5rem; background: #fff; color: var(--ink); }
 input[aria-invalid="true"], select[aria-invalid="true"] { border-color: var(--bad); }
 .pwrow { display: flex; gap: .5rem; align-items: center; } .pwrow input { flex: 1; min-width: 0; }
 .two { display: grid; grid-template-columns: 1fr 1fr; gap: 0 1rem; }
@@ -100,7 +100,7 @@ header.site { border-bottom: 1px solid #dde2e8; }
 header.site .brand { display: flex; align-items: center; gap: .625rem; }
 button { border-radius: 999px; }
 a.button { border-radius: 999px; }
-select, input[type=text], input[type=email], input[type=tel], input[type=password], input[type=date] { border-radius: var(--radius); border-width: 1px; border-color: var(--line); }
+select, input[type=text], input[type=email], input[type=tel], input[type=password], input[type=date], input[type=search], input[type=url] { border-radius: var(--radius); border-width: 1px; border-color: var(--line); }
 .choice .card, dl.summary, li.appt, .banner { border-radius: 1rem; }
 
 body.auth { background: radial-gradient(circle at 0% 55%, #e2e8f0 0, #e2e8f0 11rem, transparent 11.1rem), var(--bg); min-height: 100vh; }
@@ -772,3 +772,11 @@ footer.site nav { display: flex; flex-wrap: wrap; gap: .25rem 1.25rem; margin-bo
 footer.site a { color: var(--muted); text-decoration: underline; min-height: 2.75rem; display: inline-flex; align-items: center; }
 .prose p, .prose li { max-width: 42rem; line-height: 1.6; }
 @media (max-width: 720px) { body:not(.has-tabs) .stickybook { bottom: calc(1rem + env(safe-area-inset-bottom)); } }
+
+/* ---- Web application layout: top navigation and side-by-side pages at every width; no phone-style tab bar or floating buttons */
+.tabbar, .stickybook { display: none !important; }
+body.has-tabs main, body:has(.stickybook) main { padding-bottom: 2rem; }
+.actionbar { bottom: 0 !important; }
+.regcard .cta:not(.ghost), .regcard .regline + .hint { display: revert !important; }
+.cta { display: inline-flex; }
+main { max-width: 64rem; }

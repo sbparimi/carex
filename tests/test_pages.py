@@ -186,7 +186,7 @@ def test_clinic_card_shows_only_visit_type_cards_until_one_is_chosen(signed_in):
     cards = re.findall(r'class="vcard (vt-\d)"', page.text)
     assert len(cards) == 2 and len(set(cards)) == 2                 # Physio and Primary Care each own a colour
     assert "Next opening" in page.text and "Next opening" in page.text.split("vcards")[1]
-    for hidden in ('class="slot"', 'class="prov"', 'class="regcard"', 'class="datebadge"', 'class="stickybook"', 'class="vchip'):
+    for hidden in ('class="slot"', 'class="prov"', 'class="regcard"', 'class="datebadge"', 'class="vchip'):
         assert hidden not in page.text, hidden                       # nothing but the cards until a visit type is picked
 
 
@@ -231,7 +231,7 @@ def test_video_visits_show_the_state_question_and_in_person_only_visits_do_not(s
 def test_clinic_page_is_an_event_style_page_with_next_opening_book_card_and_tint(signed_in):
     page = signed_in.get(S + "/book/provider?clinic=cl-sb&service=sv-pc-n")
     t = page.text
-    assert 'class="cover"' in t and "Hosted by" in t and 'class="facts"' in t and 'class="regcard"' in t and 'class="stickybook"' in t
+    assert 'class="cover"' in t and "Hosted by" in t and 'class="facts"' in t and 'class="regcard"' in t
     assert re.search(r'class="evt tint-[0-7]"', t) and "Next opening" in t
     book = re.search(r'<a class="cta" href="([^"]+)">Book ', t)
     assert book and "/book/details?" in book.group(1)

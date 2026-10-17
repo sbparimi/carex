@@ -119,5 +119,4 @@
 {% endif %}
 </div>
 </div>
-{% if nxt %}<div class="stickybook"><a class="cta" href="/t/{{ slug }}/book/details?clinic={{ clinic.id }}&amp;service={{ visit.id }}&amp;provider={{ nxt.provider.id }}&amp;slot={{ nxt.id|urlencode }}"><span>Next: {{ nxt.weekday }} {{ nxt.month }} {{ nxt.day }}</span><b>{{ nxt.time }}</b></a></div>{% endif %}
 {% endblock %}
