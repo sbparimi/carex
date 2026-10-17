@@ -173,3 +173,33 @@ def test_resend_payload_shape_and_header_safety():
     assert "reply_to" not in resend_payload("a@b.co", "u@x.com", "s", "t", reply_to="bad address")
     assert resend_payload("A <a@b.co>", "u@x.com", "s", "t", from_name="Other")["from"] == "A <a@b.co>"
     assert resend_headers("k", "id-1")["idempotency-key"] == "id-1"
+
+
+def test_end_to_end_through_a_fake_resend_server(world):
+    """Real HTTP: booking -> outbox -> dispatch -> POST /emails with auth, idempotency key, HTML and calendar file."""
+    import base64, json, threading
+    from http.server import BaseHTTPRequestHandler, HTTPServer
+    from carex.mailer import channels_from_env
+    seen = []
+
+    class H(BaseHTTPRequestHandler):
+        def do_POST(self):
+            seen.append((self.path, {k.lower(): v for k, v in self.headers.items()}, json.loads(self.rfile.read(int(self.headers["content-length"])))))
+            self.send_response(200); self.send_header("content-type", "application/json"); self.end_headers(); self.wfile.write(b'{"id":"x"}')
+
+        def log_message(self, *a):
+            pass
+    srv = HTTPServer(("127.0.0.1", 0), H)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    try:
+        ctx, sink, p, _ = world
+        ch = channels_from_env({"RESEND_API_KEY": "re_test", "EMAIL_FROM": "no-reply@x.test", "RESEND_API_URL": f"http://127.0.0.1:{srv.server_port}/emails", "APP_BASE_URL": "https://app.example.test"})
+        book(ctx, p, 40, "k-e2e-00001")
+        res = Notifier(ctx.db, ch, ctx.clock).dispatch()
+    finally:
+        srv.shutdown()
+    assert res["sent"] >= 1 and seen
+    path, headers, body = seen[0]
+    assert path == "/emails" and headers["authorization"] == "Bearer re_test" and headers["idempotency-key"].startswith("carex-outbox-")
+    assert body["to"] == ["u@x.com"] and body["from"].endswith("<no-reply@x.test>") and "Appointment confirmed" in body["subject"] and "<h1" in body["html"]
+    assert b"BEGIN:VEVENT" in base64.b64decode(body["attachments"][0]["content"])

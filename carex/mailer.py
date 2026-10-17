@@ -68,7 +68,7 @@ def channels_from_env(env: Mapping[str, str] = os.environ) -> Channels:
     ch = Channels(base_url=base_url_from_env(env))
     if env.get("RESEND_API_KEY") and env.get("EMAIL_FROM"):
         key, sender = env["RESEND_API_KEY"], env["EMAIL_FROM"]
-        ch.email = lambda to, subject, text, **opts: _post("https://api.resend.com/emails", resend_headers(key, opts.get("idempotency_key")),
+        ch.email = lambda to, subject, text, **opts: _post(env.get("RESEND_API_URL") or "https://api.resend.com/emails", resend_headers(key, opts.get("idempotency_key")),
                                                             json.dumps(resend_payload(sender, to, subject, text, **opts)).encode(), "email")
     if env.get("TWILIO_ACCOUNT_SID") and env.get("TWILIO_AUTH_TOKEN") and env.get("TWILIO_FROM"):
         sid, tok, sender = env["TWILIO_ACCOUNT_SID"], env["TWILIO_AUTH_TOKEN"], env["TWILIO_FROM"]
