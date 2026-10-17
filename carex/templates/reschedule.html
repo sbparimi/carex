@@ -9,8 +9,14 @@
 <h1 id="h1" class="largetitle">Choose a new time</h1>
 <p class="lead">{{ a.summary.visit_type.label }} with {{ a.summary.provider.display_name }}. Currently {{ when(a.summary.starts_at, a.summary.time_zone) }}.</p>
 {% if error %}{{ banner('warning', error, 'alert') }}{% endif %}
+{% if providers|length > 1 %}
+<nav class="vtabs" aria-label="Provider">
+{% for p in providers %}<a class="vchip{% if p.id == pid %} on{% endif %}" href="/t/{{ slug }}/appointments/{{ a.booking_id }}/reschedule?provider={{ p.id }}"{% if p.id == pid %} aria-current="true"{% endif %}><span>{{ p.display_name }}<small>{{ p.specialty }}{% if p.languages %} · {{ p.languages|join(', ') }}{% endif %}</small></span></a>{% endfor %}
+</nav>
+{% endif %}
 {% if days %}
 <form method="post" action="/t/{{ slug }}/appointments/{{ a.booking_id }}/reschedule">
+  <input type="hidden" name="provider" value="{{ pid }}">
   <fieldset><legend class="sr-only">Available times</legend>
   {% for d in days %}<div class="daylabel">{{ d.label }}</div><div class="slots">{% for sl in d.slots %}<label class="choice"><input type="radio" name="slot" value="{{ sl.id }}" required><span class="card">{{ sl.time }}</span></label>{% endfor %}</div>{% endfor %}
   </fieldset>

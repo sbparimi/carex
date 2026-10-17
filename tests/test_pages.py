@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import re
 
+import pytest
+
 from tests.conftest import S, SIGNUP, banners, book_through_pages, first_slot, h1, hidden
 
 
@@ -305,3 +307,55 @@ def test_confirmation_has_calendar_file_and_manage_link_works(signed_in, ctx):
     done = g.post(S + f"/m/{row['manage_token']}/cancel")
     assert done.status_code == 200 and "cancelled" in done.text.lower()
     assert ctx.db.get("SELECT status FROM appointments WHERE id = ?", row["id"])["status"] == "cancelled"
+
+
+# ---------------------------------------------------------------- batch 2
+def test_reschedule_to_a_different_provider(signed_in, ctx):
+    ctx.db.run("INSERT INTO provider_eligibility (tenant_id, clinic_id, visit_type_id, provider_id, active) VALUES ('tn-north','cl-sb','sv-pc-n','pr-b',1)")
+    from urllib.parse import unquote
+    page = signed_in.get(f"{S}/book/provider?clinic=cl-sb&service=sv-pc-n&provider=pr-a")
+    slot = unquote(re.findall(r'slot=([^"&]+)', page.text)[0])
+    review = signed_in.post(S + "/book/review", data=dict(clinic="cl-sb", service="sv-pc-n", provider="pr-a", slot=slot, reason="Cough", modality="in_person", consent="v1"))
+    assert h1(review) == "Review and confirm"
+    assert h1(signed_in.post(S + "/book/confirm", data=hidden(review))) == "You're booked"
+    bid = ctx.db.get("SELECT id FROM appointments")["id"]
+    r = signed_in.get(S + f"/appointments/{bid}/reschedule?provider=pr-b")
+    assert "Sam Sample" in r.text and 'name="provider" value="pr-b"' in r.text
+    new = unquote(re.findall(r'name="slot" value="([^"]+)"', r.text)[3])
+    assert ":pr-b:" in new
+    done = signed_in.post(S + f"/appointments/{bid}/reschedule", data={"slot": new, "provider": "pr-b"})
+    assert "moved" in done.text.lower()
+    assert ctx.db.get("SELECT provider_id FROM appointments WHERE id = ?", bid)["provider_id"] == "pr-b"
+    bad = signed_in.post(S + f"/appointments/{bid}/reschedule", data={"slot": new, "provider": "pr-a"})        # slot of one provider can't be claimed for another
+    assert ctx.db.get("SELECT provider_id FROM appointments WHERE id = ?", bid)["provider_id"] == "pr-b"
+
+
+def test_coverage_chip_provider_bio_and_language_filter(demo):
+    cl, _ = demo
+    t = cl.get(S + "/book/provider?clinic=cl-tx00").text
+    assert "covchip" in t and ("Covered by your plan" in t or "Not covered" in t)
+    v = re.search(r"service=([\w-]+)", t).group(1)
+    p = cl.get(S + f"/book/provider?clinic=cl-tx00&service={v}").text
+    assert "<details class=\"bio\">" in p
+    assert cl.get(S + f"/book/provider?clinic=cl-tx00&service={v}&lang=Klingon").status_code == 200
+
+
+def test_video_waiting_room_opens_fifteen_minutes_before(signed_in, ctx, clock):
+    from datetime import timedelta
+    ctx.db.run("UPDATE visit_types SET modality = 'telehealth' WHERE id = 'sv-pc-n'")
+    ctx.db.run("UPDATE providers SET licensed_states = '[\"CA\"]' WHERE id = 'pr-a'")
+    ctx.db.run("UPDATE tenants SET video_join_base_url = 'https://video.example.test/room' WHERE id = 'tn-north'")
+    from urllib.parse import unquote
+    page = signed_in.get(f"{S}/book/provider?clinic=cl-sb&service=sv-pc-n&provider=pr-a")
+    slot = unquote(re.findall(r'slot=([^"&]+)', page.text)[0])
+    d = dict(clinic="cl-sb", service="sv-pc-n", provider="pr-a", slot=slot, reason="Cough", modality="telehealth", patient_state="CA", consent="v1")
+    review = signed_in.post(S + "/book/review", data=d)
+    if h1(review) != "Review and confirm":
+        raise AssertionError(banners(review) or h1(review))
+    signed_in.post(S + "/book/confirm", data=hidden(review))
+    row = ctx.db.get("SELECT id, starts_at FROM appointments")
+    r = signed_in.get(S + f"/appointments/{row['id']}/video")
+    assert r.status_code == 200 and "Almost time" in r.text
+    from carex.util import iso
+    ctx.db.run("UPDATE appointments SET starts_at = ?, ends_at = ? WHERE id = ?", iso(clock() + timedelta(minutes=5)), iso(clock() + timedelta(minutes=35)), row["id"])
+    assert "ready" in signed_in.get(S + f"/appointments/{row['id']}/video").text

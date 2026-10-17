@@ -197,25 +197,27 @@ class Scheduling:
             waitlist.notify_opening(tx, nowd, tenant_id=tenant_id, clinic_id=row["clinic_id"], service_id=row["visit_type_id"], provider_id=row["provider_id"], starts_at=row["starts_at"])
             return to_managed({**row, "status": "cancelled"})
 
-    def reschedule(self, tenant_id: str, booking_id: str, new_slot_id: str, by: str = "patient") -> dict:
+    def reschedule(self, tenant_id: str, booking_id: str, new_slot_id: str, by: str = "patient", provider_id: str | None = None) -> dict:
         with self.db.tx() as tx:
             row = self._find_managed(tx, tenant_id, booking_id, lock=True)
             if not row or row["status"] != "confirmed":
                 raise BookingNotFoundError("Booking not found")
             if by != "staff":
                 self._assert_change_allowed(row)
-            tx.lock(f"{tenant_id}:{row['provider_id']}")
-            q = dict(tenant_id=tenant_id, clinic_id=row["clinic_id"], service_id=row["visit_type_id"], provider_id=row["provider_id"], user_id=row.get("user_id"), require_user=False)
+            new_provider = provider_id or row["provider_id"]            # a different provider is allowed at the same clinic for the same visit type
+            for key in sorted({row["provider_id"], new_provider}):
+                tx.lock(f"{tenant_id}:{key}")
+            q = dict(tenant_id=tenant_id, clinic_id=row["clinic_id"], service_id=row["visit_type_id"], provider_id=new_provider, user_id=row.get("user_id"), require_user=False)
             cand = next((c for c in self.candidates(tx, q, row["id"]) if c["slot"]["id"] == new_slot_id), None)
             if not cand:
                 raise SlotTakenError("Slot is not available")
             slot = cand["slot"]
-            if slot["starts_at"] == row["starts_at"]:
+            if slot["starts_at"] == row["starts_at"] and new_provider == row["provider_id"]:
                 return to_managed(row)
             nowd = self.now()
             try:
-                tx.run("UPDATE appointments SET starts_at = ?, ends_at = ?, resource_id = ?, updated_at = ?, reschedule_count = reschedule_count + 1 WHERE id = ? AND tenant_id = ?",
-                       slot["starts_at"], slot["ends_at"], cand["resource_id"], iso(nowd), booking_id, tenant_id)
+                tx.run("UPDATE appointments SET starts_at = ?, ends_at = ?, resource_id = ?, provider_id = ?, updated_at = ?, reschedule_count = reschedule_count + 1 WHERE id = ? AND tenant_id = ?",
+                       slot["starts_at"], slot["ends_at"], cand["resource_id"], new_provider, iso(nowd), booking_id, tenant_id)
             except Exception as e:
                 if tx.is_unique(e, "appointments_slot") or tx.is_unique(e, "appointments_resource_slot"):
                     raise SlotTakenError("Slot is not available")
@@ -226,7 +228,7 @@ class Scheduling:
                 enqueue(tx, nowd, tenant_id=tenant_id, kind="rescheduled", appointment_id=booking_id, dedupe=f"rescheduled:{booking_id}:{slot['starts_at']}", **who)
                 enqueue_reminders(tx, nowd, tenant_id=tenant_id, appointment_id=booking_id, starts_at=slot["starts_at"], **who)
             waitlist.notify_opening(tx, nowd, tenant_id=tenant_id, clinic_id=row["clinic_id"], service_id=row["visit_type_id"], provider_id=row["provider_id"], starts_at=row["starts_at"])
-            return to_managed({**row, "starts_at": slot["starts_at"], "ends_at": slot["ends_at"]})
+            return to_managed({**row, "starts_at": slot["starts_at"], "ends_at": slot["ends_at"], "provider_id": new_provider})
 
     # ---- internals
     def _find_managed(self, db: Conn, tenant_id: str, booking_id: str, lock: bool = False) -> dict | None:

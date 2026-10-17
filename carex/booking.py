@@ -40,11 +40,11 @@ class BookingService:
         except Exception as e:
             raise self._map(e)
 
-    def reschedule(self, tenant_id: str, user_id: str, booking_id: str, slot_id: str) -> dict:
+    def reschedule(self, tenant_id: str, user_id: str, booking_id: str, slot_id: str, provider_id: str | None = None) -> dict:
         try:
             if not self._owned(tenant_id, user_id, booking_id):
                 raise BookingNotFoundError("Booking not found")
-            return {"status": "rescheduled", "appointment": self._require(tenant_id, self.sched.reschedule(tenant_id, booking_id, slot_id))}
+            return {"status": "rescheduled", "appointment": self._require(tenant_id, self.sched.reschedule(tenant_id, booking_id, slot_id, provider_id=provider_id))}
         except SlotTakenError:
             b = self.sched.get_booking(tenant_id, booking_id)
             alts = self.sched.list_slots(tenant_id, b["clinic_id"], b["service_id"], b["provider_id"]) if b else []

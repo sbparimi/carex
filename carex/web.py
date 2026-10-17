@@ -143,7 +143,7 @@ class Web:
         return {r["id"]: i % 10 for i, r in enumerate(rows)}
 
     def render(self, request: Request, name: str, status: int = 200, t: dict | None = None, **ctx) -> HTMLResponse:
-        if name.startswith(("book_", "appointments", "manage", "reschedule", "staff_day", "staff_reschedule", "staff_book")):
+        if name.startswith(("book_", "appointments", "manage", "video_room", "reschedule", "staff_day", "staff_reschedule", "staff_book")):
             ctx["vtc"] = self.visit_colors(t)
         ctx.setdefault("guest_nav", name.startswith("book_") and not ctx.get("user") and not ctx.get("staff"))
         if name in ("login.html", "staff_login.html") and "demo" not in ctx:

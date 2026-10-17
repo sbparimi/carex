@@ -117,7 +117,8 @@ def seed_db(db, d: dict) -> None:
         for x in d.get("clinic_services", []):
             t.run("INSERT INTO clinic_visit_types (tenant_id, clinic_id, visit_type_id, active) VALUES (?,?,?,?)", x["tenant_id"], x["clinic_id"], x["service_id"], _b(x.get("active", True)))
         for p in d.get("providers", []):
-            t.run("INSERT INTO providers (id, tenant_id, display_name, status) VALUES (?,?,?,?)", p["id"], p["tenant_id"], p["display_name"], p.get("status", "active"))
+            t.run("INSERT INTO providers (id, tenant_id, display_name, status, specialty, languages, bio) VALUES (?,?,?,?,?,?,?)", p["id"], p["tenant_id"], p["display_name"], p.get("status", "active"),
+                  p.get("specialty") or "", json.dumps(p["languages"]) if p.get("languages") else "[]", p.get("bio") or "")
         for e in d.get("eligibility", []):
             t.run("INSERT INTO provider_eligibility (tenant_id, clinic_id, visit_type_id, provider_id, active) VALUES (?,?,?,?,?)", e["tenant_id"], e["clinic_id"], e["service_id"], e["provider_id"], _b(e.get("active", True)))
         for a in d.get("availability", []):

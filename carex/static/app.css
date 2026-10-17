@@ -628,3 +628,12 @@ li.appt { box-shadow: var(--shadow); border-radius: var(--r-sm); background: col
 .morelnk { font-weight: 600; text-decoration: underline; }
 .todo { margin: 0; padding-left: 1.25rem; display: grid; gap: .5rem; }
 .about .kv { margin-top: .5rem; }
+
+/* ---- Batch 2 */
+.cover { position: relative; overflow: hidden; }
+.cover-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.cover-img ~ .cover-mark { display: none; }
+.cover-img ~ .cover-city { position: relative; z-index: 1; text-shadow: 0 1px 6px rgba(0,0,0,.6); }
+.bio { margin: .25rem 0 .5rem; }
+.bio summary { cursor: pointer; color: var(--muted); font-size: .9375rem; min-height: 2.75rem; display: flex; align-items: center; }
+.bio p { margin: .25rem 0; }

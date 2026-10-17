@@ -292,6 +292,19 @@ def register(app: FastAPI, W: Web) -> None:
             raise HTTPException(404, "Not found")
         return ics_response(t, bid, m["summary"], m["status"])
 
+    @app.get(P + "/appointments/{bid}/video")
+    def video_room(slug: str, bid: str, request: Request):
+        t = W.tenant(slug)
+        u = W.need_user(request, t)
+        bad_id(bid)
+        m = c.booking.managed(t["id"], u["id"], bid)
+        if not m or m["summary"].get("modality") != "telehealth":
+            raise HTTPException(404, "Not found")
+        from .util import ms
+        now_ms, st, en = ms(c.clock()), ms(m["summary"]["starts_at"]), ms(m["summary"]["ends_at"])
+        state = "ended" if now_ms > en or m["status"] != "confirmed" else ("open" if now_ms >= st - 15 * 60_000 else "early")
+        return W.render(request, "video_room.html", t=t, user=u, nav="appts", a=m, state=state)
+
     def by_token(t, token):
         if not token or len(token) > 64 or not all(ch.isalnum() or ch in "-_" for ch in token):
             raise HTTPException(404, "Not found")
@@ -369,7 +382,10 @@ def register(app: FastAPI, W: Web) -> None:
         upcoming = [a for a in items if a["status"] in ("confirmed", "arrived") and a["summary"]["ends_at"] > now]
         past = sorted((a for a in items if a not in upcoming), key=lambda a: a["summary"]["starts_at"], reverse=True)[:30]
         msg, ok = NOTICES.get(n, ("", True))
-        return W.render(request, "appointments.html", t=t, user=u, nav="appts", upcoming=upcoming, past=past, waitlist=c.waitlist.list(t["id"], u["id"]),
+        wl = c.waitlist.list(t["id"], u["id"])
+        for w in wl:
+            w["open"] = c.discover.soonest(t["id"], w["clinic_id"], w["service_id"], u["id"]) if w["status"] == "notified" else None
+        return W.render(request, "appointments.html", t=t, user=u, nav="appts", upcoming=upcoming, past=past, waitlist=wl,
                         patients=c.intake.list(t["id"], u["id"]), notice=msg, notice_ok=ok)
 
     @app.post(P + "/appointments/{bid}/cancel")
@@ -389,7 +405,7 @@ def register(app: FastAPI, W: Web) -> None:
         return W.redirect(f"/t/{slug}/appointments?n=cancelled")
 
     @app.get(P + "/appointments/{bid}/reschedule")
-    def resched_page(slug: str, bid: str, request: Request, error: str = ""):
+    def resched_page(slug: str, bid: str, request: Request, error: str = "", provider: str = ""):
         t = W.tenant(slug)
         u = W.need_user(request, t)
         a = c.booking.managed(t["id"], u["id"], bid)
@@ -398,8 +414,10 @@ def register(app: FastAPI, W: Web) -> None:
         if not a["can_change"]:
             return W.redirect(f"/t/{slug}/appointments?n=late")
         sm = a["summary"]
-        days = group_days(c.booking.slots(t["id"], sm["clinic"]["id"], sm["visit_type"]["id"], sm["provider"]["id"], u["id"]))
-        return W.render(request, "reschedule.html", t=t, user=u, nav="appts", a=a, days=days, error=error[:200])
+        others = c.catalog.providers(t["id"], sm["clinic"]["id"], sm["visit_type"]["id"])
+        pid = provider if any(p["id"] == provider for p in others) else sm["provider"]["id"]
+        days = group_days(c.booking.slots(t["id"], sm["clinic"]["id"], sm["visit_type"]["id"], pid, u["id"]))
+        return W.render(request, "reschedule.html", t=t, user=u, nav="appts", a=a, days=days, error=error[:200], providers=others, pid=pid)
 
     @app.post(P + "/appointments/{bid}/reschedule")
     def resched(slug: str, bid: str, request: Request, f: dict = Depends(form)):
@@ -407,7 +425,10 @@ def register(app: FastAPI, W: Web) -> None:
         u = W.need_user(request, t)
         W.allow("write", W.client(request))
         try:
-            o = c.booking.reschedule(t["id"], u["id"], bid, s(f, "slot", 120))
+            pv = s(f, "provider", 64)
+            if pv:
+                bad_id(pv)
+            o = c.booking.reschedule(t["id"], u["id"], bid, s(f, "slot", 120), pv or None)
         except DomainError as e:
             if e.code == "change_window_closed":
                 return W.redirect(f"/t/{slug}/appointments?n=late")

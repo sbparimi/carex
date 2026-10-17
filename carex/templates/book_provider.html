@@ -5,7 +5,7 @@
 {{ steps(3) }}
 <div class="evt tint-{{ tint }}">
 <aside class="evt-side">
-  <div class="cover" aria-hidden="true"><span class="cover-mark">{{ clinic.name[:1] }}</span><span class="cover-city">{{ clinic.city }}, {{ clinic.state_code }}</span></div>
+  <div class="cover" aria-hidden="true">{% if clinic.image_url %}<img class="cover-img" src="{{ clinic.image_url }}" alt="" loading="lazy">{% endif %}<span class="cover-mark">{{ clinic.name[:1] }}</span><span class="cover-city">{{ clinic.city }}, {{ clinic.state_code }}</span></div>
   <p class="sidelabel">Hosted by</p>
   <p class="hostrow"><span class="hostmark" aria-hidden="true"></span><strong>{{ brand.display_name }}</strong></p>
   <p class="sidestat">{% if visit %}{{ n_providers }} provider{{ '' if n_providers == 1 else 's' }}{% if visits %} · {% endif %}{% endif %}{% if visits %}{{ visits|length }} visit type{{ '' if visits|length == 1 else 's' }}{% endif %}</p>
@@ -87,6 +87,7 @@
     <div><h2 id="p-{{ card.p.id }}">{{ card.p.display_name }}</h2>
     <p class="meta">{{ card.p.specialty or visit.label }}{% if card.p.languages %} · Speaks {{ card.p.languages|join(', ') }}{% endif %}{% if not card.p.accepting_new %} · Not accepting new patients{% endif %}</p></div>
   </header>
+  {% if card.p.bio %}<details class="bio"><summary>About {{ card.p.display_name }}</summary><p>{{ card.p.bio }}</p></details>{% endif %}
   <p class="atclinic"><span class="vtag">{{ visit.label }}</span> at {{ clinic.name }}</p>
   {% for d in card.days %}
   <div class="dayrow">

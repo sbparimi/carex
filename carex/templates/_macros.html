@@ -28,7 +28,7 @@
 {% endmacro %}
 
 {% macro cover(clinic) %}
-<div class="cover" aria-hidden="true"><span class="cover-mark">{{ clinic.name[:1] }}</span><span class="cover-city">{{ clinic.city }}, {{ clinic.state_code }}</span></div>
+<div class="cover" aria-hidden="true">{% if clinic.image_url %}<img class="cover-img" src="{{ clinic.image_url }}" alt="" loading="lazy">{% endif %}<span class="cover-mark">{{ clinic.name[:1] }}</span><span class="cover-city">{{ clinic.city }}, {{ clinic.state_code }}</span></div>
 <p class="sidelabel">Hosted by</p>
 <p class="hostrow"><span class="hostmark" aria-hidden="true"></span><strong>{{ brand.display_name }}</strong></p>
 {% endmacro %}

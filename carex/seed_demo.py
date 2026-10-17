@@ -99,11 +99,13 @@ def demo_catalog() -> dict:
             for sid, title, spec, h0, h1 in chosen:
                 pid = f"pr-x{n}"
                 nm = f"{first[n % len(first)]} {last[n % len(last)]}{suffix.get(sid, '')}"
-                d["providers"].append({"id": pid, "tenant_id": N, "display_name": ("Dr. " + nm) if sid == "sv-pc-n" else nm, "status": "active"})
+                d["providers"].append({"id": pid, "tenant_id": N, "display_name": ("Dr. " + nm) if sid == "sv-pc-n" else nm, "status": "active", "specialty": spec,
+                                     "languages": ["English", "Spanish"] if n % 3 == 0 else (["English", "Mandarin"] if n % 7 == 0 else ["English"]),
+                                     "bio": f"{nm} has cared for patients in {p['label']} for {4 + n % 17} years and focuses on clear explanations and short waits."})
                 d["clinic_services"].append({"tenant_id": N, "clinic_id": cid, "service_id": sid, "active": True})
                 d["eligibility"].append(el(N, cid, sid, pid))
                 d["availability"] += wk(N, pid, cid, [1, 2, 3, 4, 5], h0, h1)
-                xprofiles.append({"tenant_id": N, "provider_id": pid, "specialty": spec, "languages": ["English", "Spanish"] if n % 2 else ["English"], "licensed_states": [st], "accepting_new": True})
+                xprofiles.append({"tenant_id": N, "provider_id": pid, "specialty": spec, "languages": d["providers"][-1]["languages"], "bio": d["providers"][-1]["bio"], "licensed_states": [st], "accepting_new": True})
                 n += 1
     d["employers"] = base["employers"] + named("em-n-", N, ["Vandelay Industries", "Stark Engineering", "Wayne Logistics", "Hooli Cloud", "Soylent Foods", "Wonka Confections", "Cyberdyne Systems",
                                                           "Gringotts Bank", "Pied Piper Labs", "Dunder Mifflin Paper"], 5) + named("em-b-", B, ["Oceanic Airlines", "Tyrell Biotech", "Bluth Construction", "Prestige Worldwide", "Sterling Cooper"], 3)

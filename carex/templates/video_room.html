@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% from "_macros.html" import cover, facts with context %}
+{% block title %}Video waiting room · {{ brand.display_name }}{% endblock %}
+{% block content %}
+{% set sm = a.summary %}
+<div class="evt tint-{{ tint_of(sm.clinic.id) }}">
+<aside class="evt-side">{{ cover(sm.clinic) }}</aside>
+<div class="evt-main vt-{{ vtc[sm.visit_type.id] }}">
+<p class="back"><a class="backlink" href="/t/{{ slug }}/appointments">My appointments</a></p>
+<h1 id="h1" class="largetitle">Video waiting room</h1>
+{{ facts(sm.starts_at, sm.time_zone, sm.visit_type.label ~ ' with ' ~ sm.provider.display_name, sm.clinic.name) }}
+<section class="regcard">
+  <h2 class="regbar">{% if state == 'open' %}Your visit is ready{% elif state == 'early' %}Almost time{% else %}This visit has ended{% endif %}</h2>
+  <div class="regbody">
+  {% if state == 'open' and sm.join_url %}
+    <p class="regline">You can join now. Your provider will let you in.</p>
+    <a class="cta" href="{{ sm.join_url }}" rel="noopener">Join video visit</a>
+  {% elif state == 'early' %}
+    <p class="regline">The room opens 15 minutes before your visit. Reload this page then.</p>
+  {% elif state == 'ended' %}
+    <p class="regline">If you still need care, book another visit.</p><a class="cta ghost" href="/t/{{ slug }}/book">Find care</a>
+  {% else %}
+    <p class="regline">We have no video link for this visit. Please call the clinic{% if brand.support_phone %} on {{ brand.support_phone }}{% endif %}.</p>
+  {% endif %}
+  </div>
+</section>
+<section class="sheet"><h2 class="section">Before you join</h2>
+  <ul class="todo"><li>Find a quiet, private place with good light.</li><li>Allow your camera and microphone when your browser asks.</li><li>Have your medicine list and any questions ready.</li><li>If the call drops, rejoin with the same button. If it fails, call the clinic.</li></ul>
+</section>
+</div>
+</div>
+{% endblock %}
