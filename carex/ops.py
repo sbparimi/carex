@@ -6,7 +6,7 @@
     python -m carex.ops admin-key <slug> "<label>"            print a new admin API key (shown once)
     python -m carex.ops create-staff <slug> <email> "<Name>" <front_desk|provider|admin> [provider-id]    (prompts for the password)
     python -m carex.ops seed-demo --yes                        invented demo tenants, patients and staff (refuses a database that already has tenants)
-    python -m carex.ops email-test <address>                   send one test email through Resend
+    python -m carex.ops email-test [address]                 send one test email through Resend (default: EMAIL_TEST_TO)
     python -m carex.ops dispatch                               send due reminders and notifications
 
 DATABASE_URL (a postgresql:// connection string, e.g. from Neon) selects Postgres; otherwise SQLite at CAREX_DB (default ./carex.db).
@@ -85,8 +85,9 @@ def main(argv: list[str] | None = None) -> int:
             seed_demo_people(db)
             print(f"Demo data loaded. Open /t/northwind-health/. Patient: alex.demo@example.test  Staff: frontdesk@northwind.example.test  Password: {DEMO_PASSWORD}")
         elif cmd == "email-test":
+            args = args or ([os.environ["EMAIL_TEST_TO"]] if os.environ.get("EMAIL_TEST_TO") else [])
             if not args or "@" not in args[0]:
-                print("Usage: email-test <your-email-address>", file=sys.stderr)
+                print("Usage: email-test [address]  (or set EMAIL_TEST_TO in .env)", file=sys.stderr)
                 return 1
             if not ctx.channels.email:
                 print("Email is not configured: set RESEND_API_KEY and EMAIL_FROM in your .env.", file=sys.stderr)
