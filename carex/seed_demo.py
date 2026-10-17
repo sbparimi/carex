@@ -2,6 +2,8 @@
 stays unchanged) with more clinics, visit types, providers, hours, employers and insurers; `seed_demo_people` adds demo accounts, appointments and staff logins."""
 from __future__ import annotations
 
+import os
+
 from datetime import datetime
 from typing import Callable
 
@@ -15,8 +17,10 @@ from .staff import StaffAccounts
 from .util import now as _now
 
 DEMO_PASSWORD = "Demo-Passw0rd-2026"
+# Optional: give the main demo patient a real inbox you control so emails from the app can be tried end to end.
+ALEX_EMAIL = (os.environ.get("DEMO_PATIENT_EMAIL") or "alex.demo@example.test").strip().lower()
 DEMO_PATIENTS = [
-    {"tenant_id": "tn-north", "email": "alex.demo@example.test", "first": "Alex", "last": "Demo", "dob": "1988-03-14", "phone": "+1 415 555 0101", "door": ("employer", "em-n-1")},
+    {"tenant_id": "tn-north", "email": ALEX_EMAIL, "first": "Alex", "last": "Demo", "dob": "1988-03-14", "phone": "+1 415 555 0101", "door": ("employer", "em-n-1")},
     {"tenant_id": "tn-north", "email": "maria.demo@example.test", "first": "Maria", "last": "Sample", "dob": "1976-11-02", "phone": "+1 415 555 0102", "door": ("insurer", "in-n-1")},
     {"tenant_id": "tn-north", "email": "new.demo@example.test", "first": "Nia", "last": "Newcomer", "dob": "1995-07-30", "phone": "+1 415 555 0103", "door": ("employer", "em-n-5")},
     {"tenant_id": "tn-bay", "email": "sam.demo@example.test", "first": "Sam", "last": "Bayview", "dob": "1990-01-21", "phone": "+1 510 555 0104", "door": ("employer", "em-b-1")},
@@ -151,11 +155,12 @@ def seed_demo_people(db, clock: Callable[[], datetime] = _now) -> None:
         if cancel:
             sched.cancel(tenant_id, rec["booking_id"])
 
-    book("alex.demo@example.test", "tn-north", "cl-sb", "sv-pc-n", "pr-a", 20, "demo-seed-alex-1")
-    book("alex.demo@example.test", "tn-north", "cl-sea", "sv-vision-n", "pr-e", 6, "demo-seed-alex-2", True)
+    book(ALEX_EMAIL, "tn-north", "cl-sb", "sv-pc-n", "pr-a", 20, "demo-seed-alex-1")
+    book(ALEX_EMAIL, "tn-north", "cl-sea", "sv-vision-n", "pr-e", 6, "demo-seed-alex-2", True)
     book("maria.demo@example.test", "tn-north", "cl-sb", "sv-physio-n", "pr-b", 14, "demo-seed-maria-1")
     book("maria.demo@example.test", "tn-north", "cl-den", "sv-pc-n", "pr-g", 30, "demo-seed-maria-2")
     book("sam.demo@example.test", "tn-bay", "cl-oak", "sv-pc-b", "pr-z", 18, "demo-seed-sam-1")
+    db.run("UPDATE outbox SET status = 'skipped', last_error = 'demo seed' WHERE status = 'pending'")   # seeding must never email anyone
     for s in DEMO_STAFF:
         if not db.get("SELECT 1 AS ok FROM staff_users WHERE tenant_id = ? AND email = ?", s["tenant_id"], s["email"]):
             staff.create(s["tenant_id"], email=s["email"], name=s["name"], role=s["role"], password=DEMO_PASSWORD, provider_id=s.get("provider_id"))

@@ -80,10 +80,10 @@ def main(argv: list[str] | None = None) -> int:
             if int(db.get("SELECT COUNT(*) AS n FROM tenants")["n"]) > 0:
                 print("Refusing: this database already has tenants.", file=sys.stderr)
                 return 1
-            from .seed_demo import DEMO_PASSWORD, load_demo, seed_demo_people
+            from .seed_demo import ALEX_EMAIL, DEMO_PASSWORD, load_demo, seed_demo_people
             load_demo(db)
             seed_demo_people(db)
-            print(f"Demo data loaded. Open /t/northwind-health/. Patient: alex.demo@example.test  Staff: frontdesk@northwind.example.test  Password: {DEMO_PASSWORD}")
+            print(f"Demo data loaded. Open /t/northwind-health/. Patient: {ALEX_EMAIL}  Staff: frontdesk@northwind.example.test  Password: {DEMO_PASSWORD}")
         elif cmd == "email-test":
             args = args or ([os.environ["EMAIL_TEST_TO"]] if os.environ.get("EMAIL_TEST_TO") else [])
             if not args or "@" not in args[0]:
