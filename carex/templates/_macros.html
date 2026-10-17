@@ -26,3 +26,17 @@
 {% for n in names %}<li{% if loop.index == cur %} aria-current="step"{% elif loop.index < cur %} class="done"{% endif %}><span class="n">{{ loop.index }}</span><span class="t">{{ n }}</span></li>{% endfor %}
 </ol>
 {% endmacro %}
+
+{% macro cover(clinic) %}
+<div class="cover" aria-hidden="true"><span class="cover-mark">{{ clinic.name[:1] }}</span><span class="cover-city">{{ clinic.city }}, {{ clinic.state_code }}</span></div>
+<p class="sidelabel">Hosted by</p>
+<p class="hostrow"><span class="hostmark" aria-hidden="true"></span><strong>{{ brand.display_name }}</strong></p>
+{% endmacro %}
+
+{% macro facts(starts_at, tz, place, sub) %}
+{% set dp = day_parts(starts_at, tz) %}
+<ul class="facts">
+  <li><span class="factbadge"><b>{{ dp.month }}</b><span>{{ dp.day }}</span></span><span class="facttext"><strong>{{ dp.full }}</strong><small>{{ clock(starts_at, tz) }} {{ dp.tz }}</small></span></li>
+  <li><span class="factbadge pin" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-5.7 7-11a7 7 0 1 0-14 0c0 5.3 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg></span><span class="facttext"><strong>{{ place }}</strong><small>{{ sub }}</small></span></li>
+</ul>
+{% endmacro %}

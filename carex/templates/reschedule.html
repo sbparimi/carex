@@ -1,9 +1,11 @@
 {% extends "base.html" %}
-{% from "_macros.html" import banner %}
+{% from "_macros.html" import banner, cover with context %}
 {% block title %}Change time · {{ brand.display_name }}{% endblock %}
 {% block content %}
-<div class="vt-{{ vtc[a.summary.visit_type.id] }}">
-<p class="back"><a href="/t/{{ slug }}/appointments">&larr; My appointments</a></p>
+<div class="evt tint-{{ tint_of(a.summary.clinic.id) }}">
+<aside class="evt-side">{{ cover(a.summary.clinic) }}</aside>
+<div class="evt-main vt-{{ vtc[a.summary.visit_type.id] }}">
+<p class="back"><a class="backlink" href="/t/{{ slug }}/appointments">My appointments</a></p>
 <h1 id="h1" class="largetitle">Choose a new time</h1>
 <p class="lead">{{ a.summary.visit_type.label }} with {{ a.summary.provider.display_name }}. Currently {{ when(a.summary.starts_at, a.summary.time_zone) }}.</p>
 {% if error %}{{ banner('warning', error, 'alert') }}{% endif %}
@@ -15,5 +17,6 @@
   <div class="actions"><button class="primary" type="submit">Move my appointment</button><a class="button" href="/t/{{ slug }}/appointments">Keep current time</a></div>
 </form>
 {% else %}<p>No other times are open right now. Your appointment is unchanged.</p><p><a class="button" href="/t/{{ slug }}/appointments">Back</a></p>{% endif %}
+</div>
 </div>
 {% endblock %}

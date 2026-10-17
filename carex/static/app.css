@@ -589,3 +589,30 @@ body.auth .lead { text-align: left; color: var(--muted); }
 body.auth .links a, body.auth .alt a { color: var(--ink); text-decoration: underline; text-decoration-color: var(--sep); font-weight: 600; }
 .demobox { border: 1px dashed var(--sep); background: color-mix(in srgb, var(--tint, var(--accent)) 6%, var(--card)); }
 @media (max-width: 30rem) { body.auth main.authcard { margin-top: 0; } }
+
+/* Luma pass 3: confirmation, review, details, change-time and appointments */
+.kv { display: grid; grid-template-columns: max-content 1fr; gap: .5rem 1.25rem; margin: 0; }
+.kv dt { color: var(--muted); font-size: .875rem; font-weight: 500; padding-top: .125rem; }
+.kv dd { margin: 0; font-weight: 500; overflow-wrap: anywhere; }
+.statuschip { float: right; font-size: .75rem; font-weight: 700; color: var(--ok); background: color-mix(in srgb, var(--ok) 12%, transparent); padding: .125rem .625rem; border-radius: 999px; }
+.goingbadge { display: inline-flex; align-items: center; gap: .5rem; margin: 0 0 .5rem; padding: .25rem .75rem .25rem .375rem; border-radius: 999px; background: color-mix(in srgb, var(--ok) 12%, transparent); color: var(--ok); font-size: .875rem; font-weight: 600; }
+.goingbadge .tick { display: grid; place-items: center; width: 1.25rem; height: 1.25rem; border-radius: 50%; background: var(--ok); color: #fff; font-size: .75rem; }
+.evt-main .actions { margin-top: 0; }
+.evt-main .infonote { margin-top: 1.5rem; padding-inline: 0; }
+.evt-main > p.back { margin-top: 0; }
+.evt-main .sheet, .evt-main .card-block { margin-bottom: 1rem; }
+.tix { background: color-mix(in srgb, var(--card) 82%, transparent); border-radius: var(--r); box-shadow: var(--shadow); padding: 1rem 1.125rem; margin: 0 0 .875rem; }
+.tix-head { display: flex; gap: .875rem; align-items: flex-start; }
+.tix-body { min-width: 0; display: grid; gap: .125rem; }
+.tix-when { margin: 0; color: var(--muted); font-size: .875rem; font-weight: 500; }
+.tix h3 { margin: 0; font-size: 1.0625rem; font-weight: 600; letter-spacing: -.005em; }
+.tix-sub { margin: 0; color: var(--muted); font-size: .9375rem; }
+.tix .statusrow { margin-top: .75rem; padding-top: .75rem; border-top: 1px solid var(--sep); }
+li.appt { box-shadow: var(--shadow); border-radius: var(--r-sm); background: color-mix(in srgb, var(--card) 82%, transparent); }
+.apptcard { background: color-mix(in srgb, var(--vt-bg, var(--card)) 70%, var(--card)); border-radius: var(--r); }
+.reference { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .9375rem; letter-spacing: .02em; }
+@media (max-width: 51.99rem) { .evt-side .sidelabel, .evt-side .hostrow { display: none; } }
+.tix .statusrow { align-items: center; }
+.tix .statusrow .statusrow { flex: 1; margin: 0; padding: 0; border: 0; flex-wrap: nowrap; min-width: 0; }
+.tix .statusrow input { flex: 1; min-width: 0; min-height: 2.75rem; }
+@media (max-width: 40rem) { .tix .statusrow .statusrow { flex-wrap: wrap; flex-basis: 100%; } }

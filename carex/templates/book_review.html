@@ -1,21 +1,24 @@
 {% extends "base.html" %}
-{% from "_macros.html" import steps, banner, care911 %}
+{% from "_macros.html" import steps, banner, care911, cover, facts with context %}
 {% block title %}Review · {{ brand.display_name }}{% endblock %}
 {% block content %}
 {{ steps(5) }}
+<div class="evt tint-{{ tint_of(clinic.id) }}">
+<aside class="evt-side">{{ cover(clinic) }}</aside>
+<div class="evt-main vt-{{ vtc[visit.id] }}">
 <h1 id="h1" class="largetitle">Review and confirm</h1>
-<div class="apptcard vt-{{ vtc[visit.id] }}"><span class="vtag">{{ visit.label }}</span><strong>{{ when(slot.starts_at, slot.time_zone) }}</strong><span>{{ provider.display_name }} · {{ clinic.name }}</span></div>
-<dl class="summary">
-  <dt>Visit</dt><dd>{{ visit.label }} ({{ visit.duration_min }} min)</dd>
-  <dt>When</dt><dd>{{ when(slot.starts_at, slot.time_zone) }}</dd>
-  <dt>Where</dt><dd>{% if dec.modality == 'telehealth' %}By video{% else %}{{ clinic.name }}, {{ clinic.address }}, {{ clinic.city }}{% endif %}</dd>
-  <dt>Provider</dt><dd>{{ provider.display_name }}</dd>
-  <dt>Patient</dt><dd>{{ dec.patient_first_name }} {{ dec.patient_last_name }}</dd>
-  {% if dec.reason %}<dt>Reason</dt><dd>{{ dec.reason }}</dd>{% endif %}
-  {% if dec.interpreter_language %}<dt>Interpreter</dt><dd>{{ dec.interpreter_language }}</dd>{% endif %}
-  <dt>Expected copay</dt><dd>{% if dec.copay_cents %}{{ dec.copay_cents|money }}, due at the visit{% else %}None{% endif %}</dd>
-</dl>
-<p class="hint">You can cancel or change this appointment online up to {{ notice_minutes // 60 }} hours before it starts.</p>
+{{ facts(slot.starts_at, slot.time_zone, 'By video' if dec.modality == 'telehealth' else clinic.name, clinic.address ~ ('' if clinic.city in clinic.address else ', ' ~ clinic.city) if dec.modality != 'telehealth' else 'You will get a link') }}
+<section class="regcard" aria-labelledby="rv-h">
+  <h2 id="rv-h" class="regbar">Registration</h2>
+  <div class="regbody">
+    <p class="regline"><span class="vtag">{{ visit.label }} · {{ visit.duration_min }} min</span> with {{ provider.display_name }}</p>
+    <dl class="kv">
+      <dt>Patient</dt><dd>{{ dec.patient_first_name }} {{ dec.patient_last_name }}</dd>
+      {% if dec.reason %}<dt>Reason</dt><dd>{{ dec.reason }}</dd>{% endif %}
+      {% if dec.interpreter_language %}<dt>Interpreter</dt><dd>{{ dec.interpreter_language }}</dd>{% endif %}
+      <dt>Expected copay</dt><dd>{% if dec.copay_cents %}{{ dec.copay_cents|money }}, due at the visit{% else %}None{% endif %}</dd>
+    </dl>
+    <p class="hint">You can cancel or change this appointment online up to {{ notice_minutes // 60 }} hours before it starts.</p>
 <form method="post" action="/t/{{ slug }}/book/confirm">
   {% for k, val in hidden %}<input type="hidden" name="{{ k }}" value="{{ val }}">{% endfor %}
   <div class="actions">
@@ -23,4 +26,8 @@
     <button type="submit" formaction="/t/{{ slug }}/book/details">Back</button>
   </div>
 </form>
+  </div>
+</section>
+</div>
+</div>
 {% endblock %}

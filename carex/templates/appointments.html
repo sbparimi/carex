@@ -6,13 +6,20 @@
 {% if notice %}{{ banner('success' if notice_ok else 'warning', notice, 'status') }}{% endif %}
 <p><a class="button primary" href="/t/{{ slug }}/book">Book a visit</a></p>
 
-<h2 class="h2-md">Upcoming</h2>
+<h2 class="section">Upcoming</h2>
 {% for a in upcoming %}
-<div class="card-block apptcard vt-{{ vtc[a.summary.visit_type.id] }}">
-  <p><span class="vtag">{{ a.summary.visit_type.label }}</span> <strong>{{ a.summary.provider.display_name }}</strong>{% if a.status == 'arrived' %} <span class="tag ok">Checked in</span>{% endif %}<br>
-  {{ when(a.summary.starts_at, a.summary.time_zone) }}<br>
-  <small>{% if a.summary.modality == 'telehealth' %}By video{% else %}{{ a.summary.clinic.name }}, {{ a.summary.clinic.address }}{% endif %}{% if a.summary.patient_name %} · {{ a.summary.patient_name }}{% endif %} · Ref <span class="reference">{{ a.booking_id }}</span></small></p>
-  {% if a.summary.join_url %}<p><a href="{{ a.summary.join_url }}" rel="noopener">Join video visit</a></p>{% endif %}
+{% set sm = a.summary %}{% set dp = day_parts(sm.starts_at, sm.time_zone) %}
+<article class="tix vt-{{ vtc[sm.visit_type.id] }}">
+  <div class="tix-head">
+    <span class="thumb th-{{ tint_of(sm.clinic.id) }}" aria-hidden="true">{{ sm.clinic.name[:1] }}</span>
+    <div class="tix-body">
+      <p class="tix-when">{{ dp.weekday }}, {{ dp.month }} {{ dp.day }} · {{ clock(sm.starts_at, sm.time_zone) }} {{ dp.tz }}{% if a.status == 'arrived' %} <span class="tag ok">Checked in</span>{% endif %}</p>
+      <h3>{{ sm.visit_type.label }} with {{ sm.provider.display_name }}</h3>
+      <p class="tix-sub">{% if sm.modality == 'telehealth' %}By video{% else %}{{ sm.clinic.name }}, {{ sm.clinic.address }}{% endif %}{% if sm.patient_name %} · {{ sm.patient_name }}{% endif %}</p>
+      <p class="tix-sub">Ref <span class="reference">{{ a.booking_id }}</span></p>
+    </div>
+  </div>
+  {% if sm.join_url %}<p class="tix-sub"><a href="{{ sm.join_url }}" rel="noopener">Join video visit</a></p>{% endif %}
   {% if a.can_change %}
   <div class="statusrow">
     <a class="button small" href="/t/{{ slug }}/appointments/{{ a.booking_id }}/reschedule">Change time</a>
@@ -23,18 +30,18 @@
     </form>
   </div>
   {% else %}<p class="hint">To change or cancel this appointment, please call the clinic{% if brand.support_phone %} on {{ brand.support_phone }}{% endif %}: it starts in under {{ a.change_notice_minutes // 60 }} hours.</p>{% endif %}
-</div>
+</article>
 {% else %}<p>You have no upcoming appointments.</p>{% endfor %}
 
 {% if past %}
-<h2 class="h2-md">Past and cancelled</h2>
+<h2 class="section">Past and cancelled</h2>
 <ul class="appts">
 {% for a in past %}<li class="appt vt-{{ vtc[a.summary.visit_type.id] }}"><span>{{ a.summary.visit_type.label }} · {{ a.summary.provider.display_name }}<br><small>{{ when(a.summary.starts_at, a.summary.time_zone) }}</small></span><span class="tag {{ 'bad' if a.status in ('cancelled', 'no_show') else 'ok' }}">{{ a.status|replace('_', ' ')|capitalize }}</span></li>{% endfor %}
 </ul>
 {% endif %}
 
 {% if waitlist %}
-<h2 class="h2-md">Waiting list</h2>
+<h2 class="section">Waiting list</h2>
 {% for w in waitlist %}
 <div class="card-block statusrow">
   <span>{{ w.visit_label }} · {{ w.clinic_name }}{% if w.provider_name %} · {{ w.provider_name }}{% endif %}{% if w.status == 'notified' %} <span class="tag ok">A time opened up</span>{% endif %}</span>
@@ -43,7 +50,7 @@
 {% endfor %}
 {% endif %}
 
-<h2 class="h2-md">Family members</h2>
+<h2 class="section">Family members</h2>
 <ul class="appts">
 {% for p in patients %}<li class="appt"><span>{{ p.first_name }} {{ p.last_name }} <small>({{ 'me' if p.relationship == 'self' else p.relationship }})</small></span>
 {% if p.relationship != 'self' %}<form method="post" action="/t/{{ slug }}/patients/{{ p.id }}/remove"><button class="small" type="submit">Remove</button></form>{% endif %}</li>{% endfor %}
@@ -59,7 +66,7 @@
   </form>
 </details>
 
-<h2 class="h2-md">Reminders</h2>
+<h2 class="section">Reminders</h2>
 <form method="post" action="/t/{{ slug }}/notifications" class="card-block">
   <label class="check"><input type="checkbox" name="email" value="1"{% if user.notify.email %} checked{% endif %}> <span>Email me confirmations and reminders</span></label>
   <label class="check"><input type="checkbox" name="sms" value="1"{% if user.notify.sms %} checked{% endif %}> <span>Text me reminders at {{ user.phone }}. Message and data rates may apply. You can turn this off at any time.</span></label>
