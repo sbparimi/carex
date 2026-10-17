@@ -13,10 +13,11 @@ from carex.waitlist import WaitlistError
 
 class Sink:
     def __init__(self):
-        self.emails, self.texts, self.fail = [], [], 0
+        self.emails, self.texts, self.fail, self.opts = [], [], 0, []
 
     def channels(self):
-        def email(to, subject, text):
+        def email(to, subject, text, **opts):
+            self.opts.append(opts)
             if self.fail:
                 self.fail -= 1
                 raise RuntimeError("email provider returned 500")
@@ -149,3 +150,26 @@ def test_booking_the_visit_satisfies_the_waitlist(world):
     ctx.waitlist.join("tn-north", p["id"], "cl-sb", "sv-pc-n")
     book(ctx, p, 60)
     assert ctx.waitlist.list("tn-north", p["id"]) == []
+
+
+def test_email_has_html_calendar_file_and_reply_to(world):
+    ctx, sink, p, n = world
+    book(ctx, p, 40)
+    n.dispatch()
+    o = sink.opts[0]
+    assert "Your appointment is confirmed" in o["html"] and "<script" not in o["html"] and "/m/" in o["html"]
+    ics = o["attachments"][0]
+    assert ics["filename"] == "appointment.ics" and "BEGIN:VEVENT" in ics["text"] and "STATUS:CONFIRMED" in ics["text"]
+    assert o["from_name"] and o["idempotency_key"].startswith("carex-outbox-") and o["tags"]["kind"] == "confirmation"
+
+
+def test_resend_payload_shape_and_header_safety():
+    import base64
+    from carex.mailer import resend_headers, resend_payload
+    b = resend_payload("care@x.test", "u@x.com", "Hi\r\nBcc: evil@x.test", "text", html="<p>x</p>", reply_to="help@x.test", from_name='Nor"th<w>ind, Inc',
+                       attachments=[{"filename": "a.ics", "text": "BEGIN", "content_type": "text/calendar"}], tags={"kind": "reminder 24h"})
+    assert b["from"] == "Northwind Inc <care@x.test>" and "\n" not in b["subject"] and b["reply_to"] == "help@x.test" and b["to"] == ["u@x.com"]
+    assert base64.b64decode(b["attachments"][0]["content"]) == b"BEGIN" and b["tags"] == [{"name": "kind", "value": "reminder_24h"}]
+    assert "reply_to" not in resend_payload("a@b.co", "u@x.com", "s", "t", reply_to="bad address")
+    assert resend_payload("A <a@b.co>", "u@x.com", "s", "t", from_name="Other")["from"] == "A <a@b.co>"
+    assert resend_headers("k", "id-1")["idempotency-key"] == "id-1"

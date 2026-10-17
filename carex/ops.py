@@ -6,6 +6,7 @@
     python -m carex.ops admin-key <slug> "<label>"            print a new admin API key (shown once)
     python -m carex.ops create-staff <slug> <email> "<Name>" <front_desk|provider|admin> [provider-id]    (prompts for the password)
     python -m carex.ops seed-demo --yes                        invented demo tenants, patients and staff (refuses a database that already has tenants)
+    python -m carex.ops email-test <address>                   send one test email through Resend
     python -m carex.ops dispatch                               send due reminders and notifications
 
 DATABASE_URL (a postgresql:// connection string, e.g. from Neon) selects Postgres; otherwise SQLite at CAREX_DB (default ./carex.db).
@@ -83,6 +84,16 @@ def main(argv: list[str] | None = None) -> int:
             load_demo(db)
             seed_demo_people(db)
             print(f"Demo data loaded. Open /t/northwind-health/. Patient: alex.demo@example.test  Staff: frontdesk@northwind.example.test  Password: {DEMO_PASSWORD}")
+        elif cmd == "email-test":
+            if not args or "@" not in args[0]:
+                print("Usage: email-test <your-email-address>", file=sys.stderr)
+                return 1
+            if not ctx.channels.email:
+                print("Email is not configured: set RESEND_API_KEY and EMAIL_FROM in your .env.", file=sys.stderr)
+                return 1
+            ctx.channels.email(args[0], "CareX test email", "If you can read this, CareX can send email through Resend.", from_name="CareX",
+                               html="<p style=\"font:15px Arial,sans-serif\">If you can read this, <b>CareX</b> can send email through Resend.</p>")
+            print(f"Sent a test email to {args[0]}. Check your inbox (and spam).")
         elif cmd == "dispatch":
             print(json.dumps(ctx.notifier.dispatch(limit=500)))
         else:

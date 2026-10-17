@@ -6,6 +6,7 @@ import base64
 import json
 import logging
 import os
+import re
 import urllib.parse
 import urllib.request
 from typing import Mapping
@@ -33,12 +34,42 @@ def base_url_from_env(env: Mapping[str, str]) -> str:
     return "http://localhost:8000"
 
 
+_EMAIL = re.compile(r"^[^@\s<>,;\"]+@[^@\s<>,;\"]+\.[^@\s<>,;\"]+$")
+_TAG = re.compile(r"[^A-Za-z0-9_-]")
+
+
+def resend_headers(key: str, idempotency_key: str | None = None) -> dict:
+    h = {"authorization": f"Bearer {key}", "content-type": "application/json", "user-agent": "carex/1.0"}
+    if idempotency_key:
+        h["idempotency-key"] = idempotency_key[:256]      # a retry after a timeout cannot send the message twice
+    return h
+
+
+def resend_payload(sender: str, to: str, subject: str, text: str, *, html: str | None = None, reply_to: str | None = None, from_name: str | None = None,
+                   attachments: list | None = None, tags: dict | None = None, idempotency_key: str | None = None) -> dict:
+    """Body for POST https://api.resend.com/emails. The sender shows the organisation's name; replies go to its support address."""
+    if "<" not in sender and from_name:
+        name = re.sub(r'[\r\n"<>,;]', "", from_name).strip()
+        if name:
+            sender = f'{name} <{sender}>'
+    body: dict = {"from": sender, "to": [to], "subject": subject.replace("\r", " ").replace("\n", " "), "text": text}
+    if html:
+        body["html"] = html
+    if reply_to and _EMAIL.match(reply_to):
+        body["reply_to"] = reply_to
+    if attachments:
+        body["attachments"] = [{"filename": a["filename"], "content": base64.b64encode(a["text"].encode()).decode(), "content_type": a.get("content_type", "application/octet-stream")} for a in attachments]
+    if tags:
+        body["tags"] = [{"name": _TAG.sub("_", k)[:256], "value": _TAG.sub("_", str(v))[:256]} for k, v in tags.items()]
+    return body
+
+
 def channels_from_env(env: Mapping[str, str] = os.environ) -> Channels:
     ch = Channels(base_url=base_url_from_env(env))
     if env.get("RESEND_API_KEY") and env.get("EMAIL_FROM"):
         key, sender = env["RESEND_API_KEY"], env["EMAIL_FROM"]
-        ch.email = lambda to, subject, text: _post("https://api.resend.com/emails", {"authorization": f"Bearer {key}", "content-type": "application/json"},
-                                                    json.dumps({"from": sender, "to": [to], "subject": subject, "text": text}).encode(), "email")
+        ch.email = lambda to, subject, text, **opts: _post("https://api.resend.com/emails", resend_headers(key, opts.get("idempotency_key")),
+                                                            json.dumps(resend_payload(sender, to, subject, text, **opts)).encode(), "email")
     if env.get("TWILIO_ACCOUNT_SID") and env.get("TWILIO_AUTH_TOKEN") and env.get("TWILIO_FROM"):
         sid, tok, sender = env["TWILIO_ACCOUNT_SID"], env["TWILIO_AUTH_TOKEN"], env["TWILIO_FROM"]
         auth = base64.b64encode(f"{sid}:{tok}".encode()).decode()

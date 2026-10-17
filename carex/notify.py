@@ -5,7 +5,11 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Callable
 
+from urllib.parse import urlparse
+
 from .db import Conn
+from .emailhtml import render_html
+from .ics import appointment_ics
 from .fmt import when
 from .util import iso, ms, now as _now, parse
 
@@ -18,7 +22,7 @@ LEASE = timedelta(minutes=5)
 class Channels:
     """Outbound channels. Either may be absent (not configured): the message is then skipped with a clear reason, never silently lost."""
     base_url: str = "http://localhost:8000"
-    email: Callable[[str, str, str], None] | None = None     # (to, subject, text)
+    email: Callable[..., None] | None = None                 # (to, subject, text, **opts): opts = html, reply_to, from_name, idempotency_key, attachments, tags
     sms: Callable[[str, str], None] | None = None            # (to, text)
 
 
@@ -50,9 +54,9 @@ def skip_pending_reminders(tx: Conn, appointment_id: str) -> None:
 
 _SELECT = """
   SELECT o.id, o.tenant_id, o.kind, o.channel, o.appointment_id, o.waitlist_id, o.attempts,
-         a.status AS a_status, a.manage_token, a.starts_at, a.modality, a.join_url, a.copay_cents, a.patient_first_name, a.cancel_reason, a.late_cancel,
-         t.display_name AS tenant_name, t.slug, t.support_email, t.support_phone, t.policy_text, t.late_cancel_hours,
-         COALESCE(c.name, wc.name) AS clinic_name, COALESCE(c.address, wc.address) AS address, COALESCE(c.time_zone, wc.time_zone) AS time_zone,
+         a.status AS a_status, a.manage_token, a.starts_at, a.ends_at, a.modality, a.join_url, a.copay_cents, a.patient_first_name, a.cancel_reason, a.late_cancel,
+         t.display_name AS tenant_name, t.primary_color, t.slug, t.support_email, t.support_phone, t.policy_text, t.late_cancel_hours,
+         COALESCE(c.name, wc.name) AS clinic_name, COALESCE(c.address, wc.address) AS address, c.city AS clinic_city, c.state_code AS clinic_state, COALESCE(c.time_zone, wc.time_zone) AS time_zone,
          COALESCE(v.label, wv.label) AS visit_label, COALESCE(p.display_name, wp.display_name) AS provider_name,
          COALESCE(u.email, o.to_email) AS email, COALESCE(u.phone, o.to_phone) AS phone, COALESCE(u.first_name, o.to_name) AS first_name,
          COALESCE(u.notify_email, 1) AS notify_email, COALESCE(u.notify_sms, o.to_sms_ok) AS notify_sms
@@ -95,6 +99,34 @@ def render(r: dict, base_url: str) -> dict | None:
     return None
 
 
+def render_email_extras(r: dict, base_url: str, now_iso: str) -> dict:
+    """HTML body, calendar attachment and reply-to for an email row (best effort: the text part is always complete)."""
+    base, k = base_url.rstrip("/"), r["kind"]
+    link = f"{base}/t/{r['slug']}/m/{r['manage_token']}" if r.get("manage_token") and k != "cancellation" else f"{base}/t/{r['slug']}/"
+    telehealth = r["modality"] == "telehealth"
+    details = {"Visit": r["visit_label"], "With": r["provider_name"],
+               "When": when(r["starts_at"], r["time_zone"]) if r["starts_at"] and r["time_zone"] else None,
+               "Where": "Video visit" if telehealth else (f"{r['clinic_name']}, {r['address']}" if r["clinic_name"] else None)}
+    if k == "waitlist_open":
+        details = {"Visit": r["visit_label"], "Where": r["clinic_name"], "With": r["provider_name"]}
+    if telehealth and r["join_url"]:
+        details["Join"] = r["join_url"]
+    extra = f"Expected copay: ${r['copay_cents'] / 100:.2f}, due at the visit." if k == "confirmation" and r["copay_cents"] else ""
+    if k == "cancellation" and r["late_cancel"]:
+        extra = f"This was inside the {r['late_cancel_hours']}-hour cancellation window and may be recorded as a late cancellation."
+    out: dict = {"html": render_html(r, k, details=details, link=link, extra=extra)}
+    if r.get("support_email"):
+        out["reply_to"] = r["support_email"]
+    if k in ("confirmation", "rescheduled", "cancellation") and r["starts_at"] and r["ends_at"] and r["clinic_name"]:
+        summary = {"clinic": {"name": r["clinic_name"], "address": r["address"], "city": r["clinic_city"] or "", "state_code": r["clinic_state"] or ""},
+                   "visit_type": {"label": r["visit_label"]}, "provider": {"display_name": r["provider_name"]}, "modality": r["modality"],
+                   "join_url": r["join_url"], "starts_at": r["starts_at"], "ends_at": r["ends_at"]}
+        host = urlparse(base).hostname or "carex"
+        text = appointment_ics(r["appointment_id"], summary, host, now_iso, "cancelled" if k == "cancellation" else "confirmed")
+        out["attachments"] = [{"filename": "appointment.ics", "content_type": "text/calendar", "text": text}]
+    return out
+
+
 class Notifier:
     def __init__(self, db, channels: Channels, clock: Callable[[], datetime] = _now):
         self.db, self.channels, self.now = db, channels, clock
@@ -118,7 +150,13 @@ class Notifier:
                 if not msg:
                     self._finish(r["id"], "skipped", "no_template"); res["skipped"] += 1; continue
                 if r["channel"] == "email":
-                    self.channels.email(r["email"], msg["subject"], msg["text"])
+                    extras = {}
+                    try:
+                        extras = render_email_extras(r, self.channels.base_url, iso(self.now()))
+                    except Exception:  # noqa: BLE001 - never lose the email because the pretty version failed
+                        extras = {}
+                    self.channels.email(r["email"], msg["subject"], msg["text"], from_name=r["tenant_name"], idempotency_key=f"carex-outbox-{r['id']}",
+                                        tags={"kind": r["kind"], "tenant": r["slug"]}, **{k: v for k, v in extras.items() if v})
                 else:
                     self.channels.sms(r["phone"], msg["sms"])
                 self._finish(r["id"], "sent"); res["sent"] += 1
