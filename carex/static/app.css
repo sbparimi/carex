@@ -194,13 +194,7 @@ body.auth main { max-width: none; padding: 0; }
    Colour coding: every visit type owns one of ten colours (.vt-0 ... .vt-9). Its card, date badge, time buttons and appointments share it.
    ===================================================================================================================== */
 :root { --bg: #f2f2f7; --card: #ffffff; --ink: #1c1c1e; --muted: #5f5f66; --sep: rgba(60, 60, 67, .16); --fill: rgba(118, 118, 128, .12); --shadow: 0 1px 2px rgba(0, 0, 0, .04), 0 8px 24px rgba(0, 0, 0, .06); --r: 20px; --r-sm: 14px; }
-@media (prefers-color-scheme: dark) {
-  :root { --bg: #000000; --card: #1c1c1e; --ink: #f2f2f7; --muted: #a1a1a8; --line: #8e8e93; --sep: rgba(235, 235, 245, .18); --fill: rgba(118, 118, 128, .28); --shadow: 0 0 0 1px rgba(255, 255, 255, .06); }
-  .ff input, .ff label, select, input[type=text], input[type=email], input[type=tel], input[type=password], input[type=date], ul.results { background: var(--card); color: var(--ink); }
-  .choice .card, li.appt, dl.summary, .banner, header.site, body.auth main.authcard { background: var(--card); }
-  .demobox { background: #14213d; }
-  .banner.error { background: #3a1513; } .banner.warning { background: #3a2a10; } .banner.info { background: #10233f; } .banner.success { background: #11301c; }
-}
+
 body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, "Segoe UI", Roboto, sans-serif; background: var(--bg); -webkit-font-smoothing: antialiased; }
 header.site { position: sticky; top: 0; z-index: 20; padding-top: calc(.75rem + env(safe-area-inset-top)); background: color-mix(in srgb, var(--card) 82%, transparent); -webkit-backdrop-filter: saturate(180%) blur(20px); backdrop-filter: saturate(180%) blur(20px); border-bottom: .5px solid var(--sep); }
 header.site .brand { font-weight: 600; font-size: 1.0625rem; }
@@ -258,11 +252,7 @@ select, input[type=text], input[type=email], input[type=tel], input[type=passwor
 .vt-4 { --vt: #7b3fc4; --vt-bg: #f0e7fb; --vt-ink: #5e2e99; } .vt-5 { --vt: #0b7f8a; --vt-bg: #ddf4f6; --vt-ink: #086169; }
 .vt-6 { --vt: #4338ca; --vt-bg: #e8e7fc; --vt-ink: #342ba3; } .vt-7 { --vt: #c62828; --vt-bg: #fde7e6; --vt-ink: #9f1e1e; }
 .vt-8 { --vt: #946200; --vt-bg: #fff2cc; --vt-ink: #6e4900; } .vt-9 { --vt: #4d7c0f; --vt-bg: #eaf5d6; --vt-ink: #3b6009; }
-@media (prefers-color-scheme: dark) {
-  .vt-0 { --vt-bg: #0f2547; --vt-ink: #8fbaff; } .vt-1 { --vt-bg: #0f2f1a; --vt-ink: #7fdc9f; } .vt-2 { --vt-bg: #3a1e08; --vt-ink: #ffb27a; } .vt-3 { --vt-bg: #3d1226; --vt-ink: #ff9cc0; }
-  .vt-4 { --vt-bg: #28173f; --vt-ink: #c9a2f5; } .vt-5 { --vt-bg: #0b2f33; --vt-ink: #77dce6; } .vt-6 { --vt-bg: #1d1a47; --vt-ink: #aaa4ff; } .vt-7 { --vt-bg: #3d1412; --vt-ink: #ff9d97; }
-  .vt-8 { --vt-bg: #352703; --vt-ink: #f2c95c; } .vt-9 { --vt-bg: #1f3009; --vt-ink: #b0e06a; }
-}
+
 .vtag { display: inline-flex; align-items: center; gap: .375rem; padding: .125rem .625rem; border-radius: 999px; background: var(--vt-bg); color: var(--vt-ink); font-size: .8125rem; font-weight: 700; }
 .vtag::before { content: ""; width: .5rem; height: .5rem; border-radius: 50%; background: var(--vt); }
 
@@ -391,7 +381,7 @@ summary::-webkit-details-marker { display: none; }
 .coverage.no { background: #fdecea; color: #7a1712; }
 .cico { flex: none; display: grid; place-items: center; width: 1.75rem; height: 1.75rem; border-radius: 50%; background: #1a7f3f; color: #fff; font-weight: 800; }
 .coverage.no .cico { background: #b3261e; }
-@media (prefers-color-scheme: dark) { .coverage { background: #11301c; color: #bdf0cd; } .coverage.no { background: #3a1513; color: #ffb4ae; } }
+
 
 /* more options + consent */
 .more > summary small { display: block; color: var(--muted); font-weight: 500; } .more > summary { justify-content: space-between; }
@@ -435,7 +425,7 @@ summary::-webkit-details-marker { display: none; }
 :root { --bg: #f2f2ef; --card: #ffffff; --ink: #151515; --muted: rgba(21, 21, 21, .62); --sep: rgba(21, 21, 21, .1); --fill: rgba(21, 21, 21, .05);
   --r: 16px; --r-sm: 12px; --r-lg: 24px; --tint: var(--accent);
   --shadow: 0 1px 1px rgba(0, 0, 0, .03), 0 3px 3px rgba(0, 0, 0, .03), 0 8px 7px rgba(0, 0, 0, .04), 0 16px 16px rgba(0, 0, 0, .03); }
-@media (prefers-color-scheme: dark) { :root { --bg: #131316; --card: #1d1d21; --ink: #f5f5f4; --muted: rgba(245, 245, 244, .62); --sep: rgba(255, 255, 255, .12); --fill: rgba(255, 255, 255, .08); --shadow: 0 0 0 1px rgba(255, 255, 255, .06); } }
+
 body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", Inter, system-ui, "Segoe UI", Roboto, "Helvetica Neue", sans-serif; background: var(--bg); }
 body:has(.evt) { background: color-mix(in srgb, var(--tint) 7%, var(--bg)); }
 header.site { background: color-mix(in srgb, var(--bg) 78%, transparent); border-bottom: 0; }
@@ -515,7 +505,7 @@ body:has(.tint-4) { --tint: hsl(335 58% 34%); }
 body:has(.tint-5) { --tint: hsl(95 58% 34%); }
 body:has(.tint-6) { --tint: hsl(190 58% 34%); }
 body:has(.tint-7) { --tint: hsl(45 58% 34%); }
-@media (prefers-color-scheme: dark) { body:has(.evt) { background: color-mix(in srgb, var(--tint) 14%, var(--bg)); } .cover::after { opacity: .35; } }
+
 .evt { grid-template-columns: minmax(0, 1fr); }
 .evt-main { min-width: 0; }
 .evt-main .vtabs { margin-inline: 0; padding-inline: 0; }
@@ -541,7 +531,7 @@ body:has(.tint-7) { --tint: hsl(45 58% 34%); }
 
 /* ===== Luma pass 2: quiet chrome. The tenant colour stays on the logo mark; buttons, links and focus use a calm dark accent derived from it. ===== */
 :root { --accent: color-mix(in srgb, var(--brand) 26%, #1b1b1f); }
-@media (prefers-color-scheme: dark) { :root { --accent: color-mix(in srgb, var(--brand) 40%, #f1f1ef); } button.primary, a.button.primary, .cta, .stickybook .cta { color: #111 !important; } }
+
 a { color: var(--ink); text-decoration-color: var(--sep); text-underline-offset: 3px; }
 a:hover { text-decoration-color: currentColor; }
 header.site { padding-inline: max(1rem, calc((100vw - 62rem) / 2 + 1rem)); }
@@ -807,3 +797,109 @@ table.grid { width: 100%; }
 @media (min-width: 70rem) { main:has(.tix) { } .tix-list { } }
 .filters select, .filters input { width: auto; min-width: 14rem; }
 form.filters { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; }
+
+/* =====================================================================================================================
+   CareX theme: white background, flat colourful icons, deep-blue actions. Palette: blue, teal, orange, red, peach, navy.
+   ===================================================================================================================== */
+:root {
+  color-scheme: light;
+  --c-blue: #1b6fb5; --c-navy: #0e4a86; --c-teal: #18a999; --c-orange: #f7941d; --c-red: #e3262e; --c-peach: #fcc27a;
+  --bg: #ffffff; --card: #ffffff; --ink: #111827; --muted: #4b5563; --line: #8a94a3; --sep: #e3e8ef; --fill: #f1f5f9;
+  --accent: #1565ad; --accent-dark: #0e4a86; --brand-ink-alt: var(--accent);
+  --shadow: 0 1px 2px rgba(16, 24, 40, .05), 0 4px 14px rgba(16, 24, 40, .06);
+  --r: 14px; --r-sm: 10px; --r-lg: 18px;
+  --tint: var(--accent);
+}
+html, body { background: #fff !important; color: var(--ink); }
+body, input, select, textarea, button { font-family: "Helvetica Neue", Helvetica, Arial, system-ui, sans-serif; }
+/* Headings are bold sans; descriptive text is set in a serif, as on the reference site */
+h1, h2, h3, .largetitle, main > h1, .regbar, .section, .tierhead { font-family: "Helvetica Neue", Helvetica, Arial, system-ui, sans-serif; font-weight: 700; letter-spacing: -.01em; color: var(--ink); }
+h1.largetitle, main > h1 { font-size: clamp(2rem, 4vw, 3rem); font-weight: 800; letter-spacing: -.02em; }
+.lead, .hint, .prose p, .prose li, .tix-sub, .facttext small, .vcard-body small, p.regline { font-family: Georgia, "Times New Roman", Times, serif; }
+.lead { font-size: 1.125rem; color: var(--muted); }
+h2.section { color: var(--ink); font-size: 1.25rem; border-bottom: 3px solid var(--c-peach); display: inline-block; padding-bottom: .25rem; }
+header.site { background: #fff !important; -webkit-backdrop-filter: none; backdrop-filter: none; border-bottom: 1px solid var(--sep) !important; position: sticky; }
+header.site .brand { font-weight: 800; color: var(--accent-dark); }
+.mark { background: var(--c-blue); }
+.topnav a, .topnav .who { color: var(--ink); font-weight: 600; }
+.topnav a:hover, .topnav a[aria-current="page"] { background: #e8f2fb; color: var(--accent-dark); }
+.navcta { background: var(--accent) !important; color: #fff !important; }
+.navcta:hover { background: var(--accent-dark) !important; }
+/* buttons */
+button.primary, a.button.primary, .cta, .quickbook, .navcta { background: var(--accent); border-color: var(--accent); color: #fff !important; }
+button.primary:hover, a.button.primary:hover, .cta:hover, .quickbook:hover { background: var(--accent-dark); border-color: var(--accent-dark); }
+button, a.button { background: #fff; color: var(--accent); border: 2px solid var(--accent); border-radius: 999px; }
+button:hover, a.button:hover { background: #e8f2fb; }
+button.danger, .danger { border-color: var(--c-red); color: #b3141c; background: #fff; }
+.cta.ghost { background: #fff; color: var(--accent) !important; border-color: var(--accent); }
+.cta.ghost:hover { background: #e8f2fb; }
+/* chevrons like the reference: bold arrow after link text */
+.chev { width: .625rem; height: .625rem; border: solid var(--accent); border-width: 0 3px 3px 0; transform: rotate(-45deg); background: none; }
+.backlink { color: var(--accent); font-weight: 700; }
+/* cards */
+.sheet, .card-block, .regcard, .prov, .tix, .statepick, .clinic, .morerow, .stat { background: #fff; border: 1px solid var(--sep); box-shadow: var(--shadow); -webkit-backdrop-filter: none; backdrop-filter: none; border-radius: var(--r); }
+.regbar { background: #e8f2fb; color: var(--accent-dark); font-size: .9375rem; }
+.clinics { gap: 1rem 1.25rem; }
+.clinic, .morerow { padding: 1rem; text-decoration: none; color: var(--ink); transition: border-color .15s, box-shadow .15s; }
+.clinic:hover, .morerow:hover { border-color: var(--c-blue); box-shadow: 0 6px 18px rgba(27, 111, 181, .18); }
+.clinic strong, .morerow strong { color: var(--ink); font-weight: 700; }
+.morelist { background: transparent; border: 0; box-shadow: none; }
+.nextup { color: var(--accent-dark); }
+.statepick label { color: var(--ink); font-weight: 700; }
+/* inputs */
+select, input[type=text], input[type=email], input[type=tel], input[type=password], input[type=date], input[type=search], input[type=url], textarea { background: #fff; border: 1.5px solid #8a94a3; border-radius: var(--r-sm); }
+select:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px solid var(--c-blue); outline-offset: 2px; }
+/* clinic page: flat colour cover instead of gradient; page background stays white */
+body:has(.evt) { background: #fff !important; }
+.cover { background: var(--tint); box-shadow: none; border-radius: var(--r-lg); }
+.cover::after { display: none; }
+.cover-mark { text-shadow: none; }
+body:has(.tint-0) { --tint: #1b6fb5; } body:has(.tint-1) { --tint: #0d8579; } body:has(.tint-2) { --tint: #c25e00; } body:has(.tint-3) { --tint: #d12630; }
+body:has(.tint-4) { --tint: #0e4a86; } body:has(.tint-5) { --tint: #0d8579; } body:has(.tint-6) { --tint: #1b6fb5; } body:has(.tint-7) { --tint: #c25e00; }
+.cta { background: var(--accent); border-color: var(--accent); }
+.hostmark { background: var(--c-blue); }
+/* clinic and provider tiles use palette colours (flat) */
+.thumb { background: var(--c-blue); color: #fff; box-shadow: none; border-radius: 14px; background-image: none; }
+.thumb.th-0, .thumb.th-6 { background: #1b6fb5; } .thumb.th-1, .thumb.th-5 { background: #0d8579; } .thumb.th-2, .thumb.th-7 { background: #c25e00; } .thumb.th-3 { background: #d12630; } .thumb.th-4 { background: #0e4a86; }
+/* visit types: one palette colour each, with a flat icon */
+.vt-0 { --vt: #1b6fb5; --vt-bg: #e8f2fb; --vt-ink: #0e4a86; } .vt-1 { --vt: #0d8579; --vt-bg: #e2f6f3; --vt-ink: #0a5f56; }
+.vt-2 { --vt: #c25e00; --vt-bg: #fff0dc; --vt-ink: #8a4300; } .vt-3 { --vt: #d12630; --vt-bg: #fde8e9; --vt-ink: #a01a23; }
+.vt-4 { --vt: #0e4a86; --vt-bg: #e6edf6; --vt-ink: #0a3a6b; } .vt-5 { --vt: #0d8579; --vt-bg: #e2f6f3; --vt-ink: #0a5f56; }
+.vt-6 { --vt: #1b6fb5; --vt-bg: #e8f2fb; --vt-ink: #0e4a86; } .vt-7 { --vt: #c25e00; --vt-bg: #fff0dc; --vt-ink: #8a4300; }
+.vt-8 { --vt: #8a6200; --vt-bg: #fff6d6; --vt-ink: #6b4b00; } .vt-9 { --vt: #d12630; --vt-bg: #fde8e9; --vt-ink: #a01a23; }
+.vcard { background: #fff; color: var(--ink); border: 1.5px solid var(--sep); box-shadow: var(--shadow); }
+.vcard:hover { border-color: var(--vt); box-shadow: 0 8px 22px color-mix(in srgb, var(--vt) 22%, transparent); transform: translateY(-2px); }
+.vcard-body strong { color: var(--ink); font-size: 1.1875rem; }
+.vcard .nextup { color: var(--vt-ink); }
+.vicon-tile { flex: none; display: grid; place-items: center; width: 4rem; height: 4rem; border-radius: 16px; background: var(--vt-bg, #e8f2fb); }
+.vicon-tile.sm { width: 2.5rem; height: 2.5rem; border-radius: 12px; background: #fff; }
+h1 .vicon-tile { display: inline-grid; vertical-align: middle; margin-right: .5rem; width: 3.25rem; height: 3.25rem; background: #e8f2fb; }
+.vicon { display: block; }
+.vchip { background: var(--vt-bg); }
+.vchip.on { background: var(--vt-ink); }
+.quickbook { border-radius: 999px; }
+a.slot { border-radius: 999px; }
+.prov { box-shadow: inset 5px 0 0 var(--vt), var(--shadow); }
+.facts .factbadge { background: #fff; border: 1.5px solid var(--sep); color: var(--accent-dark); }
+.datebadge, .vtag { background: var(--vt-bg); color: var(--vt-ink); }
+.regcard .regbody { background: #fff; }
+/* progress and tags */
+ol.steps li[aria-current="step"], ol.steps li.done { border-top-color: var(--c-blue); }
+.tag.ok, .statuschip { background: #e2f6f3; color: #0a5f56; }
+.tag.warn { background: #fff0dc; color: #8a4300; }
+.tag.bad { background: #fde8e9; color: #a01a23; }
+.infonote, .banner.info { background: #e8f2fb; border-color: var(--c-blue); color: var(--accent-dark); }
+.banner.warning { background: #fff0dc; } .banner.error { background: #fde8e9; }
+.goingbadge .tick { background: var(--c-teal); }
+footer.site { border-top: 1px solid var(--sep); padding-top: 1rem; }
+footer.site a { color: var(--accent-dark); }
+/* staff calendar, insights */
+.calblk { background: #e8f2fb; border-left-color: var(--c-blue); }
+.calblk.st-arrived, .calblk.st-completed { background: #e2f6f3; border-left-color: var(--c-teal); }
+.calblk.st-no_show { background: #fde8e9; border-left-color: var(--c-red); }
+.stat b { color: var(--accent-dark); }
+meter { accent-color: var(--c-blue); }
+table.grid th { background: #e8f2fb; color: var(--accent-dark); }
+body.auth main.authcard, main.authcard { background: #fff !important; border: 1px solid var(--sep); box-shadow: var(--shadow); }
+.vtabs { background: transparent; }
+.vchip .nextup { color: inherit; } .vchip.on, .vchip.on .nextup, .vchip.on small { color: #fff; }

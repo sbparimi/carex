@@ -27,7 +27,7 @@ def synthetic_catalog() -> dict:
     return {
         # The synthetic catalog predates clinical intake; tests that exercise intake switch it on explicitly.
         "tenant_settings": [{"tenant_id": t, "intake_required": False} for t in ("tn-north", "tn-bay", "tn-off")],
-        "tenants": [tenant("tn-north", "northwind-health", "Northwind Health (synthetic)", "#0b5fff"),
+        "tenants": [tenant("tn-north", "northwind-health", "Northwind Health (synthetic)", "#1b6fb5"),
                     tenant("tn-bay", "bayview-care", "Bayview Care (synthetic)", "#0a7d5a", False),
                     tenant("tn-off", "dormant-clinic", "Dormant (synthetic)", "#999999", status="suspended")],
         "clinics": [clinic("cl-sb", "tn-north", "CA", "San Bernardo Clinic", "San Bernardo", "America/Los_Angeles"),

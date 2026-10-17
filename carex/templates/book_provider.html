@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import steps, banner %}
+{% from "_macros.html" import steps, banner, vicon %}
 {% block title %}Choose a time · {{ brand.display_name }}{% endblock %}
 {% block content %}
 {{ steps(3) }}
@@ -56,7 +56,7 @@
   {% set sn = soonest.get(v.id) %}
   <div class="vcardwrap">
   <a class="vcard vt-{{ vtc[v.id] }}" href="/t/{{ slug }}/book/provider?clinic={{ clinic.id }}&amp;service={{ v.id }}">
-    <span class="dot" aria-hidden="true"></span>
+    <span class="vicon-tile" aria-hidden="true">{{ vicon(v.canonical_type, 44) }}</span>
     <span class="vcard-body"><strong>{{ v.label }}</strong><small>{{ v.duration_min }} min{% if v.modality == 'telehealth' %} &middot; video{% elif v.modality == 'either' %} &middot; in person or video{% endif %}</small>
       {% if sn %}<em class="nextup">Next opening {{ sn.weekday }} {{ sn.month }} {{ sn.day }} · {{ sn.time }}</em>{% else %}<em class="nextup none">No openings right now</em>{% endif %}
       {% set cv = coverage.get(v.id) %}{% if cv %}<small class="covchip">{% if cv.covered %}Covered by your plan{% else %}Not covered{% endif %}{% if cv.copay %} &middot; ${{ '%.2f' % (cv.copay / 100) }} copay{% endif %}</small>{% endif %}</span>
@@ -68,7 +68,7 @@
 </div>
 {% elif visits %}
 <nav class="vtabs" aria-label="Type of visit">
-{% for v in visits %}<a class="vchip vt-{{ vtc[v.id] }}{% if v.id == visit.id %} on{% endif %}" href="/t/{{ slug }}/book/provider?clinic={{ clinic.id }}&amp;service={{ v.id }}"{% if v.id == visit.id %} aria-current="true"{% endif %}><span class="dot" aria-hidden="true"></span><span>{{ v.label }}{% if soonest.get(v.id) %}<em class="nextup">Next {{ soonest[v.id].weekday }} {{ soonest[v.id].time }}</em>{% endif %}<small>{{ v.duration_min }} min{% if v.modality == 'telehealth' %} · video{% elif v.modality == 'either' %} · in person or video{% endif %}</small></span></a>{% endfor %}
+{% for v in visits %}<a class="vchip vt-{{ vtc[v.id] }}{% if v.id == visit.id %} on{% endif %}" href="/t/{{ slug }}/book/provider?clinic={{ clinic.id }}&amp;service={{ v.id }}"{% if v.id == visit.id %} aria-current="true"{% endif %}><span class="vicon-tile sm" aria-hidden="true">{{ vicon(v.canonical_type, 28) }}</span><span>{{ v.label }}{% if soonest.get(v.id) %}<em class="nextup">Next {{ soonest[v.id].weekday }} {{ soonest[v.id].time }}</em>{% endif %}<small>{{ v.duration_min }} min{% if v.modality == 'telehealth' %} · video{% elif v.modality == 'either' %} · in person or video{% endif %}</small></span></a>{% endfor %}
 </nav>
 
 <form class="filters" method="get" action="/t/{{ slug }}/book/provider">

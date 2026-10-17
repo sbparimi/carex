@@ -1,10 +1,10 @@
 {% extends "base.html" %}
-{% from "_macros.html" import steps %}
+{% from "_macros.html" import steps, vicon %}
 {% block title %}Soonest {{ kind_label }} · {{ brand.display_name }}{% endblock %}
 {% block content %}
 {{ steps(1) }}
 <p class="back"><a class="backlink" href="/t/{{ slug }}/book">Find care</a></p>
-<h1 id="h1" class="largetitle">{% if kind %}Soonest {{ kind_label }}{% else %}Soonest available{% endif %}</h1>
+<h1 id="h1" class="largetitle">{% if kind %}<span class="vicon-tile" aria-hidden="true">{{ vicon(kind, 40) }}</span> Soonest {{ kind_label }}{% else %}Soonest available{% endif %}</h1>
 <form class="sheet statepick" method="get" action="/t/{{ slug }}/book/find">
   <label for="kind">Kind of visit</label>
   <div class="selectwrap"><select id="kind" name="kind" required>
