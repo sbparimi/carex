@@ -963,3 +963,51 @@ header.site .brand { gap: .625rem; }
 .poweredby { display: inline-flex; align-items: center; gap: .5rem; color: var(--muted); font-size: .8125rem; }
 .poweredby .wm-text { font-size: 1rem; }
 @media (max-width: 40rem) { .org-text { font-size: 1.25rem; } }
+
+/* ---- Rich home page: hero with artwork, side rails around the booking tools, how-it-works, product tiles, closing call to action */
+.btn { display: inline-flex; align-items: center; justify-content: center; min-height: 3rem; padding: 0 1.75rem; border-radius: 999px; font-weight: 700; text-decoration: none; font-size: 1rem; }
+.btn.primary { background: var(--accent); color: #fff; }
+.btn.primary:hover { background: var(--c-navy); }
+.btn.secondary { background: #fff; color: var(--c-navy); border: 2px solid var(--c-navy); }
+.btn.light { background: #fff; color: var(--c-navy); }
+.btn:focus-visible { outline: 3px solid var(--c-orange); outline-offset: 3px; }
+.homehero { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 2rem 4rem; align-items: center; padding: 2.5rem 0 3rem; background: #eef5fb; box-shadow: 0 0 0 100vmax #eef5fb; clip-path: inset(0 -100vmax); margin-bottom: 3rem; }
+.homehero h1 { margin: 0 0 .25rem; font-size: 1.125rem; color: var(--muted); font-weight: 700; }
+.homehero .eyebrow { margin: 0 0 .5rem; color: #a85d00; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; font-size: .8125rem; }
+.homehero .hero-sub { font-size: clamp(2.25rem, 4.6vw, 3.75rem); line-height: 1.05; margin: 0 0 1.25rem; }
+.homehero .lead { max-width: 36rem; font-size: 1.1875rem; }
+.cta-row { display: flex; flex-wrap: wrap; gap: .875rem; margin: 1.5rem 0; }
+.trustchips { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: .75rem 1.5rem; }
+.trustchips li { display: inline-flex; align-items: center; gap: .5rem; font-weight: 600; color: var(--c-navy); font-size: .9375rem; }
+.homehero-art { display: grid; place-items: center; }
+.heroart { width: 100%; max-width: 34rem; height: auto; }
+.bookgrid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2rem; margin-bottom: 3rem; scroll-margin-top: 5rem; }
+@media (min-width: 70rem) { .bookgrid { grid-template-columns: 17rem minmax(0, 1fr) 17rem; gap: 2.5rem; align-items: start; } }
+.bookmain .findgrid { grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 52rem) and (max-width: 69.99rem) { .bookmain .findgrid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.rail { padding: 1.5rem; border-radius: 1rem; background: #fff; border: 1px solid var(--sep); }
+.railtitle { margin: 0 0 1rem; font-size: 1.25rem; font-weight: 800; color: var(--c-navy); letter-spacing: -.01em; }
+.benefits { list-style: none; margin: 0; padding: 0; display: grid; gap: 1.25rem; }
+.benefits li { display: grid; grid-template-columns: auto 1fr; gap: .875rem; align-items: start; }
+.benefits strong { display: block; font-size: 1.0625rem; }
+.benefits small { display: block; color: var(--muted); font-family: Georgia, "Times New Roman", serif; font-size: .9375rem; margin-top: .125rem; }
+.railhelp { margin: 1.5rem 0 0; padding-top: 1rem; border-top: 1px solid var(--sep); font-size: .9375rem; }
+.valueband { margin-bottom: 3.5rem; scroll-margin-top: 5rem; }
+.howrow { list-style: none; margin: 1.5rem 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); gap: 2rem; counter-reset: s; }
+.howrow li { display: grid; gap: .5rem; align-content: start; }
+.howrow .num { display: grid; place-items: center; width: 3rem; height: 3rem; border-radius: 50%; background: var(--c-navy); color: #fff; font: 800 1.375rem "Helvetica Neue", Helvetica, Arial, sans-serif; }
+.howrow li:nth-child(2) .num { background: var(--c-teal); } .howrow li:nth-child(3) .num { background: var(--c-orange); } .howrow li:nth-child(4) .num { background: var(--c-blue); }
+.howrow strong { font-size: 1.25rem; font-weight: 800; }
+.howrow small { font-family: Georgia, "Times New Roman", serif; font-size: 1.0625rem; color: var(--muted); }
+.tilesection { margin-bottom: 3.5rem; }
+.ptiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); gap: 2.5rem 2rem; margin-top: 1.5rem; }
+.ptile { display: grid; gap: .75rem; align-content: start; justify-items: start; text-decoration: none; color: var(--ink); }
+.ptile-title { font-size: 1.375rem; font-weight: 800; letter-spacing: -.01em; }
+.ptile-title::after { content: ""; display: inline-block; width: .5rem; height: .5rem; margin-left: .875rem; border: solid var(--ink); border-width: 0 3px 3px 0; transform: rotate(-45deg) translateY(-2px); }
+.ptile-desc { font-family: Georgia, "Times New Roman", serif; font-size: 1.0625rem; color: var(--muted); }
+.ptile:hover .ptile-title { text-decoration: underline; text-underline-offset: .25rem; }
+.ptile:focus-visible { outline: 3px solid var(--c-blue); outline-offset: 6px; border-radius: 8px; }
+.ctaband { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1.5rem; padding: 2.5rem 0; background: var(--c-navy); color: #fff; box-shadow: 0 0 0 100vmax var(--c-navy); clip-path: inset(0 -100vmax); margin-bottom: 0; }
+.ctaband h2 { margin: 0 0 .25rem; font-size: clamp(1.5rem, 3vw, 2.125rem); color: #fff; }
+.ctaband p { margin: 0; font-family: Georgia, "Times New Roman", serif; font-size: 1.125rem; color: #dbe9f7; }
+@media (max-width: 52rem) { .homehero { grid-template-columns: minmax(0, 1fr); padding-top: 1.5rem; } .homehero-art { order: -1; } .heroart { max-width: 22rem; } }

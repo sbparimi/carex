@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import steps, banner, vicon, vblurb %}
+{% from "_macros.html" import steps, banner, vicon, vblurb, heroart %}
 {% block title %}Find care · {{ brand.display_name }}{% endblock %}
 {% block content %}
 {% macro card(c, i) %}
@@ -10,22 +10,28 @@
   </a>
 {% endmacro %}
 {{ steps(1) }}
-<section class="hero">
-  <div class="hero-text">
+<section class="homehero">
+  <div class="homehero-text">
     <p class="eyebrow">{{ TAGLINE }}</p>
     <h1 id="h1" class="largetitle">Find care</h1>
     <p class="hero-sub">Healthcare that fits your day.</p>
-    <p class="lead">Find a clinic, choose a time and book in under a minute. No phone calls, no waiting on hold, and reminders so you never miss a visit.</p>
+    <p class="lead">{{ brand.display_name }} makes it simple to find a nearby clinic, choose a time that works and book in under a minute. No phone calls, no waiting on hold, and reminders so you never miss a visit.</p>
+    <p class="cta-row"><a class="btn primary" href="#book">Book a visit</a><a class="btn secondary" href="#how">How it works</a></p>
+    <ul class="trustchips" aria-label="Why book here"><li>{{ vicon('calendar', 22) }}Add to your calendar</li><li>{{ vicon('bell', 22) }}Email and text reminders</li><li>{{ vicon('video', 22) }}In person or video</li></ul>
   </div>
-  <ul class="hero-points" aria-label="What you can book">
-    <li><span class="vicon-tile">{{ vicon('primary_care', 40) }}</span><span><strong>Primary care</strong><small>Check-ups and everyday health</small></span></li>
-    <li><span class="vicon-tile">{{ vicon('vision', 40) }}</span><span><strong>Vision</strong><small>Eye exams and optometry</small></span></li>
-    <li><span class="vicon-tile">{{ vicon('physio', 40) }}</span><span><strong>Physiotherapy</strong><small>Recovery and movement</small></span></li>
-    <li><span class="vicon-tile">{{ vicon('coaching', 40) }}</span><span><strong>Health coaching</strong><small>Video or phone support</small></span></li>
-    <li><span class="vicon-tile">{{ vicon('fitness', 40) }}</span><span><strong>Fitness</strong><small>Training and wellness</small></span></li>
-  </ul>
+  <div class="homehero-art">{{ heroart() }}</div>
 </section>
 {% if notice %}{{ banner('warning', notice, 'status') }}{% endif %}
+<div class="bookgrid" id="book">
+<aside class="rail" aria-label="Why patients choose {{ brand.display_name }}">
+  <h2 class="railtitle">Made for patients</h2>
+  <ul class="benefits">
+    <li><span class="bicon">{{ vicon('calendar', 44) }}</span><span><strong>See real openings</strong><small>Times are live, so what you see is what you can book.</small></span></li>
+    <li><span class="bicon">{{ vicon('hourglass', 44) }}</span><span><strong>Join the waiting list</strong><small>Be first to know when an earlier time opens up.</small></span></li>
+    <li><span class="bicon">{{ vicon('bell', 44) }}</span><span><strong>Gentle reminders</strong><small>By email or text, 24 hours and 2 hours before.</small></span></li>
+  </ul>
+</aside>
+<div class="bookmain">
 <div class="findgrid">
 {% if kinds %}
 <form class="sheet statepick" method="get" action="/t/{{ slug }}/book/find">
@@ -52,6 +58,17 @@
   </div>
   <button class="primary wide" type="submit">Show clinics</button>
 </form>
+</div>
+</div>
+<aside class="rail" aria-label="How {{ brand.display_name }} helps">
+  <h2 class="railtitle">Care that keeps moving</h2>
+  <ul class="benefits">
+    <li><span class="bicon">{{ vicon('video', 44) }}</span><span><strong>Video visits</strong><small>Join from your phone or laptop. The link is in your confirmation.</small></span></li>
+    <li><span class="bicon">{{ vicon('shield', 44) }}</span><span><strong>Private by design</strong><small>Your details are protected, and you can export or erase them any time.</small></span></li>
+    <li><span class="bicon">{{ vicon('clinic', 44) }}</span><span><strong>Clinics near you</strong><small>Search by name, city or state across every location.</small></span></li>
+  </ul>
+  {% if brand.support_phone or brand.support_email %}<p class="railhelp"><strong>Need a hand?</strong><br>{% if brand.support_phone %}Call {{ brand.support_phone }}{% endif %}{% if brand.support_phone and brand.support_email %} or {% endif %}{% if brand.support_email %}email <a href="mailto:{{ brand.support_email }}">{{ brand.support_email }}</a>{% endif %}.</p>{% endif %}
+</aside>
 </div>
 {% if q %}
 <h2 class="section" id="clinics">Results for &ldquo;{{ q }}&rdquo;</h2>
@@ -82,5 +99,30 @@
   {% endfor %}
 </div>
 {% endif %}
+{% endif %}
+{% if not q and not state %}
+<section class="valueband" id="how" aria-labelledby="how-h">
+  <h2 class="section" id="how-h">Booking in four simple steps</h2>
+  <ol class="howrow">
+    <li><span class="num">1</span><strong>Choose a clinic</strong><small>Search by name or city, or pick your state.</small></li>
+    <li><span class="num">2</span><strong>Pick a time</strong><small>See the soonest openings first, with your preferred clinician.</small></li>
+    <li><span class="num">3</span><strong>Add your details</strong><small>Sign in or continue as a guest. Takes about a minute.</small></li>
+    <li><span class="num">4</span><strong>Get confirmed</strong><small>A confirmation, calendar file and reminders arrive by email.</small></li>
+  </ol>
+</section>
+{% if kinds %}
+<section class="tilesection" aria-labelledby="care-h">
+  <h2 class="section" id="care-h">Care for every part of your day</h2>
+  <div class="ptiles">
+    {% for k in kinds %}
+    <a class="ptile" href="/t/{{ slug }}/book/find?kind={{ k.kind }}"><span class="ptile-icon" aria-hidden="true">{{ vicon(k.kind, 96) }}</span><span class="ptile-title">{{ k.label }}</span><span class="ptile-desc">{{ vblurb(k.kind) }}</span></a>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+<section class="ctaband" aria-labelledby="cta-h">
+  <div><h2 id="cta-h">Ready when you are</h2><p>Find a time that suits you. Most people book in under a minute.</p></div>
+  <a class="btn light" href="#book">Find a time</a>
+</section>
 {% endif %}
 {% endblock %}

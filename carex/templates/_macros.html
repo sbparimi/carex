@@ -68,6 +68,17 @@
   <rect x="4" y="22" width="9" height="20" rx="3" fill="#e3262e"/><rect x="13" y="26" width="7" height="12" rx="2" fill="#f7941d"/><rect x="20" y="29" width="24" height="6" rx="3" fill="#1b6fb5"/><rect x="44" y="26" width="7" height="12" rx="2" fill="#f7941d"/><rect x="51" y="22" width="9" height="20" rx="3" fill="#e3262e"/>
 {% elif 'dent' in k or 'oral' in k %}
   <path d="M14 14c4-5 12-3 18 0 6-3 14-5 18 0 4 6 0 16-3 26-2 8-4 18-8 18-5 0-4-14-7-14s-2 14-7 14c-4 0-6-10-8-18-3-10-7-20-3-26z" fill="#1b6fb5"/><path d="M32 14c6-3 14-5 18 0 4 6 0 16-3 26-2 8-4 18-8 18-3 0-4-5-5-9z" fill="#0e4a86"/>
+{% elif k == 'calendar' %}
+  <rect x="5" y="10" width="54" height="48" rx="7" fill="#ffffff" stroke="#0e4a86" stroke-width="3"/><path d="M5 17a7 7 0 0 1 7-7h40a7 7 0 0 1 7 7v8H5z" fill="#1b6fb5"/><rect x="17" y="3" width="5" height="14" rx="2.5" fill="#0e4a86"/><rect x="42" y="3" width="5" height="14" rx="2.5" fill="#0e4a86"/>
+  <g fill="#fcc27a"><rect x="13" y="32" width="8" height="7" rx="2"/><rect x="28" y="32" width="8" height="7" rx="2"/><rect x="43" y="32" width="8" height="7" rx="2"/><rect x="13" y="45" width="8" height="7" rx="2"/></g><rect x="28" y="45" width="8" height="7" rx="2" fill="#f7941d"/><path d="M44 48l3 3 5-6" fill="none" stroke="#18a999" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+{% elif k == 'bell' %}
+  <path d="M32 6c-10 0-16 8-16 18v10l-6 10h44l-6-10V24c0-10-6-18-16-18z" fill="#f7941d"/><path d="M32 6c10 0 16 8 16 18v10l6 10H32z" fill="#e8820c" opacity=".55"/><path d="M25 50a7 7 0 0 0 14 0z" fill="#0e4a86"/><circle cx="48" cy="14" r="8" fill="#e3262e"/><circle cx="48" cy="14" r="3" fill="#ffffff"/>
+{% elif k == 'video' %}
+  <rect x="4" y="14" width="40" height="36" rx="8" fill="#1b6fb5"/><path d="M46 28l14-8v24l-14-8z" fill="#18a999"/><circle cx="24" cy="28" r="6" fill="#fcc27a"/><path d="M13 44c1-7 5-10 11-10s10 3 11 10z" fill="#fcc27a"/><rect x="18" y="38" width="12" height="3" rx="1.5" fill="#ffffff"/>
+{% elif k == 'shield' %}
+  <path d="M32 4l22 8v18c0 14-9 25-22 30C19 55 10 44 10 30V12z" fill="#0e4a86"/><path d="M32 4l22 8v18c0 14-9 25-22 30z" fill="#1b6fb5"/><path d="M32 20h0" /><path d="M29 22h6v7h7v6h-7v7h-6v-7h-7v-6h7z" fill="#ffffff"/>
+{% elif k == 'hourglass' %}
+  <path d="M14 4h36v6c0 10-8 16-12 22 4 6 12 12 12 22v6H14v-6c0-10 8-16 12-22-4-6-12-12-12-22z" fill="#ffffff" stroke="#0e4a86" stroke-width="3.5" stroke-linejoin="round"/><path d="M20 10h24c-1 7-7 11-12 16-5-5-11-9-12-16z" fill="#f7941d"/><path d="M22 54c1-6 6-9 10-13 4 4 9 7 10 13z" fill="#fcc27a"/><rect x="10" y="2" width="44" height="5" rx="2.5" fill="#0e4a86"/><rect x="10" y="57" width="44" height="5" rx="2.5" fill="#0e4a86"/>
 {% elif k == 'clinic' %}
   <path d="M4 36h56l-6 6v18H10V42z" fill="#0e4a86"/><rect x="10" y="40" width="44" height="20" fill="#fcc27a"/><g fill="#1b6fb5"><circle cx="17" cy="46" r="1.7"/><circle cx="24" cy="46" r="1.7"/><circle cx="31" cy="46" r="1.7"/><circle cx="38" cy="46" r="1.7"/><circle cx="45" cy="46" r="1.7"/><circle cx="17" cy="52" r="1.7"/><circle cx="24" cy="52" r="1.7"/><circle cx="38" cy="52" r="1.7"/><circle cx="45" cy="52" r="1.7"/></g><rect x="28" y="52" width="8" height="8" fill="#1b6fb5"/>
   <path d="M32 3c-8 0-13 6-13 12 0 8 13 21 13 21s13-13 13-21c0-6-5-12-13-12z" fill="#18a999"/><circle cx="32" cy="15" r="8" fill="#fcc27a"/><path d="M30 10h4v3.5h3.5v4H34V21h-4v-3.5h-3.5v-4H30z" fill="#18a999"/>
@@ -78,3 +89,18 @@
 {% endmacro %}
 
 {% macro vblurb(kind) %}{% set k = (kind or '')|lower %}{% if 'prim' in k %}Check-ups and everyday health.{% elif 'physio' in k %}Recovery, movement and pain relief.{% elif 'vision' in k %}Streamlined eye exams and optometry.{% elif 'coach' in k %}Personalized wellness support.{% elif 'fit' in k %}Training for strength and wellbeing.{% else %}Quality care, close to home.{% endif %}{% endmacro %}
+
+{% macro heroart() %}
+<svg class="heroart" viewBox="0 0 520 440" role="img" aria-label="A calendar, a clinician and a phone showing a video visit">
+  <circle cx="270" cy="220" r="200" fill="#e3f0fb"/><circle cx="420" cy="90" r="46" fill="#fcc27a" opacity=".75"/><circle cx="70" cy="360" r="34" fill="#18a999" opacity=".25"/><path d="M40 90c30-30 70-30 100 0" fill="none" stroke="#1b6fb5" stroke-width="5" stroke-linecap="round" opacity=".35"/>
+  <rect x="130" y="70" width="270" height="250" rx="22" fill="#ffffff" stroke="#0e4a86" stroke-width="4"/><path d="M130 92a22 22 0 0 1 22-22h226a22 22 0 0 1 22 22v44H130z" fill="#1b6fb5"/><rect x="175" y="50" width="12" height="40" rx="6" fill="#0e4a86"/><rect x="343" y="50" width="12" height="40" rx="6" fill="#0e4a86"/>
+  <text x="156" y="118" font-family="Helvetica, Arial, sans-serif" font-size="22" font-weight="700" fill="#ffffff">Pick a time</text>
+  <g fill="#e3f0fb"><rect x="156" y="158" width="40" height="30" rx="8"/><rect x="214" y="158" width="40" height="30" rx="8"/><rect x="272" y="158" width="40" height="30" rx="8"/><rect x="330" y="158" width="40" height="30" rx="8"/><rect x="156" y="204" width="40" height="30" rx="8"/><rect x="330" y="204" width="40" height="30" rx="8"/><rect x="156" y="250" width="40" height="30" rx="8"/><rect x="214" y="250" width="40" height="30" rx="8"/></g>
+  <rect x="214" y="204" width="40" height="30" rx="8" fill="#f7941d"/><rect x="272" y="204" width="40" height="30" rx="8" fill="#fcc27a"/><path d="M225 220l8 8 14-16" fill="none" stroke="#ffffff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M272 250h28l8-16 12 30 8-14h42" fill="none" stroke="#18a999" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M30 430c0-60 40-95 95-95s95 35 95 95z" fill="#1b6fb5"/><circle cx="125" cy="290" r="46" fill="#fcc27a"/><path d="M80 280c2-34 24-48 47-48 26 0 44 16 46 46-14-12-30-18-50-18-16 0-31 6-43 20z" fill="#e3262e"/><path d="M98 352v28a27 27 0 0 0 54 0v-28" fill="none" stroke="#18a999" stroke-width="8" stroke-linecap="round"/><circle cx="165" cy="384" r="9" fill="#f7941d"/>
+  <rect x="392" y="230" width="104" height="188" rx="18" fill="#0e4a86"/><rect x="400" y="244" width="88" height="160" rx="10" fill="#ffffff"/><circle cx="444" cy="296" r="24" fill="#fcc27a"/><path d="M410 350c2-22 16-32 34-32s32 10 34 32z" fill="#18a999"/><rect x="418" y="372" width="52" height="16" rx="8" fill="#1b6fb5"/>
+  <g font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="700"><rect x="290" y="326" width="132" height="34" rx="17" fill="#ffffff" stroke="#18a999" stroke-width="2.5"/><circle cx="310" cy="343" r="6" fill="#18a999"/><text x="324" y="348" fill="#0e4a86">Reminder set</text>
+  <rect x="24" y="130" width="124" height="34" rx="17" fill="#ffffff" stroke="#f7941d" stroke-width="2.5"/><circle cx="44" cy="147" r="6" fill="#f7941d"/><text x="58" y="152" fill="#0e4a86">Open today</text></g>
+</svg>
+{% endmacro %}
