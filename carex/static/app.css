@@ -1011,3 +1011,52 @@ header.site .brand { gap: .625rem; }
 .ctaband h2 { margin: 0 0 .25rem; font-size: clamp(1.5rem, 3vw, 2.125rem); color: #fff; }
 .ctaband p { margin: 0; font-family: Georgia, "Times New Roman", serif; font-size: 1.125rem; color: #dbe9f7; }
 @media (max-width: 52rem) { .homehero { grid-template-columns: minmax(0, 1fr); padding-top: 1.5rem; } .homehero-art { order: -1; } .heroart { max-width: 22rem; } }
+
+/* ---- Landing: one obvious first step. Visit-type tiles in the hero (one click to the soonest times), then a compact clinic finder */
+.homehero { grid-template-columns: minmax(0, 1.25fr) minmax(0, .75fr); padding: 1.75rem 0 2.25rem; margin-bottom: 2.5rem; align-items: start; }
+.homehero h1 { font-size: clamp(2.5rem, 5vw, 4rem); color: var(--c-navy); font-weight: 800; letter-spacing: -.03em; margin: 0; line-height: 1.05; }
+.homehero .hero-sub { font-size: clamp(1.25rem, 2.2vw, 1.625rem); font-weight: 700; color: var(--ink); margin: .5rem 0 1.25rem; letter-spacing: -.01em; }
+.starttiles { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: .875rem; }
+.starttile { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: .875rem; padding: .875rem 1rem; background: #fff; border: 2px solid transparent; border-radius: 1rem; text-decoration: none; color: var(--ink); box-shadow: 0 1px 2px rgba(14, 74, 134, .12), 0 6px 18px rgba(14, 74, 134, .08); min-height: 4.5rem; }
+.starttile:hover { border-color: var(--c-blue); transform: translateY(-1px); }
+.starttile:focus-visible { outline: 3px solid var(--c-orange); outline-offset: 3px; }
+.st-text strong { display: block; font-size: 1.125rem; font-weight: 800; }
+.st-text small { display: block; color: var(--c-blue); font-weight: 700; font-size: .875rem; }
+.st-go { width: .625rem; height: .625rem; border: solid var(--c-blue); border-width: 0 3px 3px 0; transform: rotate(-45deg); margin-right: .25rem; }
+.orline { display: flex; align-items: center; gap: 1rem; margin: 1.5rem 0 .875rem; color: var(--muted); font-weight: 700; font-size: .9375rem; }
+.orline::before, .orline::after { content: ""; flex: 1; height: 1px; background: #c9d8e8; }
+.quickfind { display: grid; grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr)); gap: 1rem; margin: 0 0 1rem; scroll-margin-top: 5rem; }
+.qf { display: grid; gap: .375rem; }
+.qf label { font-weight: 700; font-size: .875rem; color: var(--c-navy); }
+.qfrow { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .5rem; align-items: stretch; }
+.qfrow input[type=search], .qfrow select { min-height: 3rem; background: #fff; }
+.qfrow .selectwrap { display: block; }
+.qfrow button.primary { min-height: 3rem; padding: 0 1.25rem; border-radius: 999px; width: auto; white-space: nowrap; }
+.homehero .heroart { max-width: 26rem; }
+.homehero-art { padding-top: 1rem; }
+.railrow { display: grid; grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr)); gap: 1.5rem; margin-bottom: 3rem; }
+body:has(.homehero) .stepper, body:has(.homehero) .steps { display: none; }
+@media (max-width: 52rem) { .homehero { grid-template-columns: minmax(0, 1fr); } .homehero-art { display: none; } .starttiles { grid-template-columns: minmax(0, 1fr); } }
+
+/* ---- Soonest-times page: compact filter bar, then rows where the time is the headline and the action is obvious */
+.findbar { display: flex; flex-wrap: wrap; gap: .75rem 1rem; align-items: end; margin: 0 0 1.5rem; padding: 1rem 1.25rem; background: #eef5fb; border-radius: 1rem; }
+.findbar .fb { display: grid; gap: .25rem; flex: 1 1 14rem; }
+.findbar label { font-weight: 700; font-size: .875rem; color: var(--c-navy); }
+.findbar .selectwrap { display: block; }
+.findbar select { min-height: 3rem; background: #fff; }
+.findbar button.primary { min-height: 3rem; padding: 0 1.5rem; border-radius: 999px; width: auto; }
+.findresults { grid-template-columns: minmax(0, 1fr); gap: .75rem; }
+.findresults .clinic { grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; padding: .875rem 1.25rem; background: #fff; border: 1px solid var(--sep); border-radius: 1rem; box-shadow: 0 1px 2px rgba(14, 74, 134, .08); }
+.findresults .clinic:hover { border-color: var(--c-blue); box-shadow: 0 4px 14px rgba(14, 74, 134, .14); }
+.findresults .clinic-body strong::after { display: none; }
+.findresults .clinic-body { grid-template-columns: minmax(0, 1fr); gap: .125rem; }
+.findresults .nextup { font-size: 1.125rem; font-weight: 800; color: var(--c-navy); }
+.findresults .pick { display: inline-flex; align-items: center; min-height: 2.75rem; padding: 0 1.25rem; border-radius: 999px; background: var(--accent); color: #fff; font-weight: 700; white-space: nowrap; }
+.findresults .clinic:hover .pick { background: var(--c-navy); }
+.findresults .clinic:hover strong { text-decoration: none; }
+@media (min-width: 60rem) { .findresults { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.qfrow input[type=search] { min-height: 3rem; margin: 0; }
+.qfrow .selectwrap select { min-height: 3rem; height: 3rem; }
+.qfrow .selectwrap { align-self: stretch; }
+header.site nav a, header.site nav button { white-space: nowrap; }
+@media (max-width: 40rem) { header.site .org-text { font-size: 1.0625rem; } header.site .orgmark { width: 1.75rem; height: 1.75rem; } header.site nav a { padding-inline: .625rem; font-size: .875rem; } }

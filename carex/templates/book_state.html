@@ -9,67 +9,64 @@
     <span class="chev" aria-hidden="true"></span>
   </a>
 {% endmacro %}
-{{ steps(1) }}
-<section class="homehero">
+{% macro finder() %}
+<div class="quickfind" id="book">
+  <form class="qf" method="get" action="/t/{{ slug }}/book" role="search">
+    <label for="q">Search clinics</label>
+    <span class="qfrow"><input id="q" name="q" type="search" value="{{ q }}" maxlength="60" placeholder="Clinic name or city" autocomplete="off"><button class="primary" type="submit">Search</button></span>
+  </form>
+  <form class="qf" method="get" action="/t/{{ slug }}/book">
+    <label for="state">State or territory</label>
+    <span class="qfrow"><span class="selectwrap"><select id="state" name="state" required>
+      <option value="">Choose a state&hellip;</option>
+      {% for code, name in states %}<option value="{{ code }}"{% if code == state %} selected{% endif %}>{{ name }}</option>{% endfor %}
+    </select></span><button class="primary" type="submit">Show clinics</button></span>
+  </form>
+</div>
+{% endmacro %}
+{% if notice %}{{ banner('warning', notice, 'status') }}{% endif %}
+{% if not q and not state %}
+<section class="homehero" aria-labelledby="h1">
   <div class="homehero-text">
     <p class="eyebrow">{{ TAGLINE }}</p>
     <h1 id="h1" class="largetitle">Find care</h1>
-    <p class="hero-sub">Healthcare that fits your day.</p>
-    <p class="lead">{{ brand.display_name }} makes it simple to find a nearby clinic, choose a time that works and book in under a minute. No phone calls, no waiting on hold, and reminders so you never miss a visit.</p>
-    <p class="cta-row"><a class="btn primary" href="#book">Book a visit</a><a class="btn secondary" href="#how">How it works</a></p>
-    <ul class="trustchips" aria-label="Why book here"><li>{{ vicon('calendar', 22) }}Add to your calendar</li><li>{{ vicon('bell', 22) }}Email and text reminders</li><li>{{ vicon('video', 22) }}In person or video</li></ul>
+    <p class="hero-sub">What do you need today?</p>
+    {% if kinds %}
+    <ul class="starttiles" aria-label="Choose a visit type to see the soonest openings">
+      {% for k in kinds %}
+      <li><a class="starttile" href="/t/{{ slug }}/book/find?kind={{ k.kind }}"><span class="st-icon" aria-hidden="true">{{ vicon(k.kind, 56) }}</span><span class="st-text"><strong>{{ k.label }}</strong><small>See soonest times</small></span><span class="st-go" aria-hidden="true"></span></a></li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+    <p class="orline"><span>or find a clinic</span></p>
+    {{ finder() }}
   </div>
   <div class="homehero-art">{{ heroart() }}</div>
 </section>
-{% if notice %}{{ banner('warning', notice, 'status') }}{% endif %}
-<div class="bookgrid" id="book">
-<aside class="rail" aria-label="Why patients choose {{ brand.display_name }}">
-  <h2 class="railtitle">Made for patients</h2>
-  <ul class="benefits">
-    <li><span class="bicon">{{ vicon('calendar', 44) }}</span><span><strong>See real openings</strong><small>Times are live, so what you see is what you can book.</small></span></li>
-    <li><span class="bicon">{{ vicon('hourglass', 44) }}</span><span><strong>Join the waiting list</strong><small>Be first to know when an earlier time opens up.</small></span></li>
-    <li><span class="bicon">{{ vicon('bell', 44) }}</span><span><strong>Gentle reminders</strong><small>By email or text, 24 hours and 2 hours before.</small></span></li>
-  </ul>
-</aside>
-<div class="bookmain">
-<div class="findgrid">
-{% if kinds %}
-<form class="sheet statepick" method="get" action="/t/{{ slug }}/book/find">
-  <label for="kind">Soonest available</label>
-  <div class="selectwrap"><select id="kind" name="kind" required>
-    <option value="">What kind of visit?</option>
-    {% for k in kinds %}<option value="{{ k.kind }}">{{ k.label }}</option>{% endfor %}
-  </select></div>
-  <button class="primary wide" type="submit">Show the soonest openings</button>
-</form>
-{% endif %}
-<form class="sheet statepick" method="get" action="/t/{{ slug }}/book" role="search">
-  <label for="q">Search clinics</label>
-  <input id="q" name="q" type="search" value="{{ q }}" maxlength="60" placeholder="Clinic name or city" autocomplete="off">
-  <button class="primary wide" type="submit">Search</button>
-</form>
-<form class="sheet statepick" method="get" action="/t/{{ slug }}/book">
-  <label for="state">State or territory</label>
-  <div class="selectwrap">
-    <select id="state" name="state" required>
-      <option value="">Choose a state&hellip;</option>
-      {% for code, name in states %}<option value="{{ code }}"{% if code == state %} selected{% endif %}>{{ name }}</option>{% endfor %}
-    </select>
+<section class="railrow" aria-label="Why book with {{ brand.display_name }}">
+  <div class="rail">
+    <h2 class="railtitle">Made for patients</h2>
+    <ul class="benefits">
+      <li><span class="bicon">{{ vicon('calendar', 44) }}</span><span><strong>See real openings</strong><small>Times are live, so what you see is what you can book.</small></span></li>
+      <li><span class="bicon">{{ vicon('hourglass', 44) }}</span><span><strong>Join the waiting list</strong><small>Be first to know when an earlier time opens up.</small></span></li>
+      <li><span class="bicon">{{ vicon('bell', 44) }}</span><span><strong>Gentle reminders</strong><small>By email or text, 24 hours and 2 hours before.</small></span></li>
+    </ul>
   </div>
-  <button class="primary wide" type="submit">Show clinics</button>
-</form>
-</div>
-</div>
-<aside class="rail" aria-label="How {{ brand.display_name }} helps">
-  <h2 class="railtitle">Care that keeps moving</h2>
-  <ul class="benefits">
-    <li><span class="bicon">{{ vicon('video', 44) }}</span><span><strong>Video visits</strong><small>Join from your phone or laptop. The link is in your confirmation.</small></span></li>
-    <li><span class="bicon">{{ vicon('shield', 44) }}</span><span><strong>Private by design</strong><small>Your details are protected, and you can export or erase them any time.</small></span></li>
-    <li><span class="bicon">{{ vicon('clinic', 44) }}</span><span><strong>Clinics near you</strong><small>Search by name, city or state across every location.</small></span></li>
-  </ul>
-  {% if brand.support_phone or brand.support_email %}<p class="railhelp"><strong>Need a hand?</strong><br>{% if brand.support_phone %}Call {{ brand.support_phone }}{% endif %}{% if brand.support_phone and brand.support_email %} or {% endif %}{% if brand.support_email %}email <a href="mailto:{{ brand.support_email }}">{{ brand.support_email }}</a>{% endif %}.</p>{% endif %}
-</aside>
-</div>
+  <div class="rail">
+    <h2 class="railtitle">Care that keeps moving</h2>
+    <ul class="benefits">
+      <li><span class="bicon">{{ vicon('video', 44) }}</span><span><strong>Video visits</strong><small>Join from your phone or laptop. The link is in your confirmation.</small></span></li>
+      <li><span class="bicon">{{ vicon('shield', 44) }}</span><span><strong>Private by design</strong><small>Your details are protected, and you can export or erase them any time.</small></span></li>
+      <li><span class="bicon">{{ vicon('clinic', 44) }}</span><span><strong>Clinics near you</strong><small>Search by name, city or state across every location.</small></span></li>
+    </ul>
+    {% if brand.support_phone or brand.support_email %}<p class="railhelp"><strong>Need a hand?</strong><br>{% if brand.support_phone %}Call {{ brand.support_phone }}{% endif %}{% if brand.support_phone and brand.support_email %} or {% endif %}{% if brand.support_email %}email <a href="mailto:{{ brand.support_email }}">{{ brand.support_email }}</a>{% endif %}.</p>{% endif %}
+  </div>
+</section>
+{% else %}
+{{ steps(1) }}
+<h1 id="h1" class="largetitle">Find care</h1>
+{{ finder() }}
+{% endif %}
 {% if q %}
 <h2 class="section" id="clinics">Results for &ldquo;{{ q }}&rdquo;</h2>
 {% if not clinics %}<div class="sheet empty"><strong>No clinics match</strong><p class="hint">Try a city name or a shorter search.</p></div>{% endif %}
@@ -110,16 +107,6 @@
     <li><span class="num">4</span><strong>Get confirmed</strong><small>A confirmation, calendar file and reminders arrive by email.</small></li>
   </ol>
 </section>
-{% if kinds %}
-<section class="tilesection" aria-labelledby="care-h">
-  <h2 class="section" id="care-h">Care for every part of your day</h2>
-  <div class="ptiles">
-    {% for k in kinds %}
-    <a class="ptile" href="/t/{{ slug }}/book/find?kind={{ k.kind }}"><span class="ptile-icon" aria-hidden="true">{{ vicon(k.kind, 96) }}</span><span class="ptile-title">{{ k.label }}</span><span class="ptile-desc">{{ vblurb(k.kind) }}</span></a>
-    {% endfor %}
-  </div>
-</section>
-{% endif %}
 <section class="ctaband" aria-labelledby="cta-h">
   <div><h2 id="cta-h">Ready when you are</h2><p>Find a time that suits you. Most people book in under a minute.</p></div>
   <a class="btn light" href="#book">Find a time</a>
