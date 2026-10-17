@@ -203,3 +203,16 @@ def test_end_to_end_through_a_fake_resend_server(world):
     assert path == "/emails" and headers["authorization"] == "Bearer re_test" and headers["idempotency-key"].startswith("carex-outbox-")
     assert body["to"] == ["u@x.com"] and body["from"].endswith("<no-reply@x.test>") and "Appointment confirmed" in body["subject"] and "<h1" in body["html"]
     assert b"BEGIN:VEVENT" in base64.b64decode(body["attachments"][0]["content"])
+
+
+def test_demo_patients_can_be_given_numbered_inboxes(monkeypatch):
+    import importlib, carex.seed_demo as sd
+    monkeypatch.setenv("DEMO_EMAIL_TEMPLATE", "me+test{n:03d}@gmail.com")
+    try:
+        importlib.reload(sd)
+        assert [p["email"] for p in sd.DEMO_PATIENTS] == [f"me+test00{i}@gmail.com" for i in (1, 2, 3, 4)]
+        assert sd.inbox("maria.demo@example.test") == "me+test002@gmail.com"
+    finally:
+        monkeypatch.delenv("DEMO_EMAIL_TEMPLATE")
+        importlib.reload(sd)
+    assert sd.DEMO_PATIENTS[0]["email"] == "alex.demo@example.test"

@@ -17,14 +17,37 @@ from .staff import StaffAccounts
 from .util import now as _now
 
 DEMO_PASSWORD = "Demo-Passw0rd-2026"
-# Optional: give the main demo patient a real inbox you control so emails from the app can be tried end to end.
-ALEX_EMAIL = (os.environ.get("DEMO_PATIENT_EMAIL") or "alex.demo@example.test").strip().lower()
 DEMO_PATIENTS = [
-    {"tenant_id": "tn-north", "email": ALEX_EMAIL, "first": "Alex", "last": "Demo", "dob": "1988-03-14", "phone": "+1 415 555 0101", "door": ("employer", "em-n-1")},
+    {"tenant_id": "tn-north", "email": "alex.demo@example.test", "first": "Alex", "last": "Demo", "dob": "1988-03-14", "phone": "+1 415 555 0101", "door": ("employer", "em-n-1")},
     {"tenant_id": "tn-north", "email": "maria.demo@example.test", "first": "Maria", "last": "Sample", "dob": "1976-11-02", "phone": "+1 415 555 0102", "door": ("insurer", "in-n-1")},
     {"tenant_id": "tn-north", "email": "new.demo@example.test", "first": "Nia", "last": "Newcomer", "dob": "1995-07-30", "phone": "+1 415 555 0103", "door": ("employer", "em-n-5")},
     {"tenant_id": "tn-bay", "email": "sam.demo@example.test", "first": "Sam", "last": "Bayview", "dob": "1990-01-21", "phone": "+1 510 555 0104", "door": ("employer", "em-b-1")},
 ]
+
+
+def _inboxes() -> dict[str, str]:
+    """Optional real inboxes for the demo patients, so emails sent by the app can be tried end to end. DEMO_EMAIL_TEMPLATE such as
+    `me+test{n:03d}@gmail.com` gives patient 1 `me+test001@gmail.com`, patient 2 `me+test002@gmail.com` and so on (plus-addresses all land in one mailbox)."""
+    tpl = (os.environ.get("DEMO_EMAIL_TEMPLATE") or "").strip()
+    one = (os.environ.get("DEMO_PATIENT_EMAIL") or "").strip().lower()
+    out = {}
+    for n, p in enumerate(DEMO_PATIENTS, 1):
+        if tpl and "{n" in tpl:
+            out[p["email"]] = tpl.format(n=n).lower()
+        elif one and n == 1:
+            out[p["email"]] = one
+    return out
+
+
+_INBOX = _inboxes()
+for _p in DEMO_PATIENTS:
+    _p["email"] = _INBOX.get(_p["email"], _p["email"])
+
+
+def inbox(original: str) -> str:
+    return _INBOX.get(original, original)
+
+
 DEMO_STAFF = [
     {"tenant_id": "tn-north", "email": "frontdesk@northwind.example.test", "name": "Fran Frontdesk", "role": "front_desk"},
     {"tenant_id": "tn-north", "email": "dr.alex@northwind.example.test", "name": "Dr. Alex Example", "role": "provider", "provider_id": "pr-a"},
@@ -155,11 +178,11 @@ def seed_demo_people(db, clock: Callable[[], datetime] = _now) -> None:
         if cancel:
             sched.cancel(tenant_id, rec["booking_id"])
 
-    book(ALEX_EMAIL, "tn-north", "cl-sb", "sv-pc-n", "pr-a", 20, "demo-seed-alex-1")
-    book(ALEX_EMAIL, "tn-north", "cl-sea", "sv-vision-n", "pr-e", 6, "demo-seed-alex-2", True)
-    book("maria.demo@example.test", "tn-north", "cl-sb", "sv-physio-n", "pr-b", 14, "demo-seed-maria-1")
-    book("maria.demo@example.test", "tn-north", "cl-den", "sv-pc-n", "pr-g", 30, "demo-seed-maria-2")
-    book("sam.demo@example.test", "tn-bay", "cl-oak", "sv-pc-b", "pr-z", 18, "demo-seed-sam-1")
+    book(inbox("alex.demo@example.test"), "tn-north", "cl-sb", "sv-pc-n", "pr-a", 20, "demo-seed-alex-1")
+    book(inbox("alex.demo@example.test"), "tn-north", "cl-sea", "sv-vision-n", "pr-e", 6, "demo-seed-alex-2", True)
+    book(inbox("maria.demo@example.test"), "tn-north", "cl-sb", "sv-physio-n", "pr-b", 14, "demo-seed-maria-1")
+    book(inbox("maria.demo@example.test"), "tn-north", "cl-den", "sv-pc-n", "pr-g", 30, "demo-seed-maria-2")
+    book(inbox("sam.demo@example.test"), "tn-bay", "cl-oak", "sv-pc-b", "pr-z", 18, "demo-seed-sam-1")
     db.run("UPDATE outbox SET status = 'skipped', last_error = 'demo seed' WHERE status = 'pending'")   # seeding must never email anyone
     for s in DEMO_STAFF:
         if not db.get("SELECT 1 AS ok FROM staff_users WHERE tenant_id = ? AND email = ?", s["tenant_id"], s["email"]):
