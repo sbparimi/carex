@@ -110,3 +110,17 @@ class AccountMailer:
 
     def send_login_code(self, to: str, tenant_name: str, code: str) -> None:
         self._send(to, f"Your {tenant_name} sign-in code", f"Your sign-in code is {code}.\n\nIt works once and expires in 10 minutes. If you did not try to sign in, change your password.")
+
+
+def recent_sends(env: Mapping[str, str] = os.environ, limit: int = 20) -> list[dict]:
+    """What Resend itself says about the latest messages (delivered, bounced, suppressed...), for diagnosing 'it never arrived'."""
+    if not env.get("RESEND_API_KEY"):
+        raise RuntimeError("RESEND_API_KEY is not set")
+    base = (env.get("RESEND_API_URL") or "https://api.resend.com/emails").rstrip("/")
+    req = urllib.request.Request(f"{base}?limit={int(limit)}", headers=resend_headers(env["RESEND_API_KEY"]), method="GET")
+    try:
+        with urllib.request.urlopen(req, timeout=10) as r:   # noqa: S310 (fixed https URL)
+            data = json.loads(r.read().decode())
+    except urllib.error.HTTPError as e:
+        raise RuntimeError(f"Resend returned {e.code}: {e.read().decode('utf-8', 'replace')[:200]}") from None
+    return data.get("data", data if isinstance(data, list) else [])

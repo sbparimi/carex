@@ -244,3 +244,24 @@ def test_redirect_sends_everything_to_one_test_inbox_and_errors_show_the_reason(
             channels_from_env(env).email("blocked@x.test", "s", "t")
     finally:
         srv.shutdown()
+
+
+def test_email_log_reads_resend_status():
+    import json, threading
+    from http.server import BaseHTTPRequestHandler, HTTPServer
+    from carex.mailer import recent_sends
+
+    class H(BaseHTTPRequestHandler):
+        def do_GET(self):
+            self.send_response(200); self.end_headers()
+            self.wfile.write(json.dumps({"data": [{"id": "1", "to": ["a@x.test"], "subject": "s", "last_event": "bounced", "created_at": "2026-10-17 16:00:00"}]}).encode())
+
+        def log_message(self, *a):
+            pass
+    srv = HTTPServer(("127.0.0.1", 0), H)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    try:
+        rows = recent_sends({"RESEND_API_KEY": "k", "RESEND_API_URL": f"http://127.0.0.1:{srv.server_port}/emails"})
+    finally:
+        srv.shutdown()
+    assert rows[0]["last_event"] == "bounced"

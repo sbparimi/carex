@@ -7,6 +7,7 @@
     python -m carex.ops create-staff <slug> <email> "<Name>" <front_desk|provider|admin> [provider-id]    (prompts for the password)
     python -m carex.ops seed-demo --yes                        invented demo tenants, patients and staff (refuses a database that already has tenants)
     python -m carex.ops email-test [address]                 send one test email through Resend (default: EMAIL_TEST_TO)
+    python -m carex.ops email-log                              what Resend says happened to the latest emails
     python -m carex.ops dispatch                               send due reminders and notifications
 
 DATABASE_URL (a postgresql:// connection string, e.g. from Neon) selects Postgres; otherwise SQLite at CAREX_DB (default ./carex.db).
@@ -95,6 +96,16 @@ def main(argv: list[str] | None = None) -> int:
             ctx.channels.email(args[0], "CareX test email", "If you can read this, CareX can send email through Resend.", from_name="CareX",
                                html="<p style=\"font:15px Arial,sans-serif\">If you can read this, <b>CareX</b> can send email through Resend.</p>")
             print(f"Sent a test email to {args[0]}. Check your inbox (and spam).")
+        elif cmd == "email-log":
+            from .mailer import recent_sends
+            try:
+                rows = recent_sends()
+            except Exception as e:  # noqa: BLE001
+                print(f"Could not read the Resend log: {e}", file=sys.stderr)
+                return 1
+            for m in rows:
+                print(f"{str(m.get('created_at', ''))[:19]}  {str(m.get('last_event', '?')):<12} from={m.get('from')}  to={m.get('to')}  {str(m.get('subject', ''))[:60]}")
+            print(f"({len(rows)} messages. 'delivered' means the recipient's mail server accepted it: if it is not in your inbox, check Spam.)")
         elif cmd == "dispatch":
             print(json.dumps(ctx.notifier.dispatch(limit=500)))
         else:
