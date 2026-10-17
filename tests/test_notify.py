@@ -216,3 +216,31 @@ def test_demo_patients_can_be_given_numbered_inboxes(monkeypatch):
         monkeypatch.delenv("DEMO_EMAIL_TEMPLATE")
         importlib.reload(sd)
     assert sd.DEMO_PATIENTS[0]["email"] == "alex.demo@example.test"
+
+
+def test_redirect_sends_everything_to_one_test_inbox_and_errors_show_the_reason():
+    import json, threading
+    from http.server import BaseHTTPRequestHandler, HTTPServer
+    from carex.mailer import channels_from_env
+    seen = []
+
+    class H(BaseHTTPRequestHandler):
+        def do_POST(self):
+            body = json.loads(self.rfile.read(int(self.headers["content-length"])))
+            seen.append(body)
+            if body["to"] == ["blocked@x.test"]:
+                self.send_response(403); self.end_headers(); self.wfile.write(b'{"message":"You can only send testing emails to your own email address"}'); return
+            self.send_response(200); self.end_headers(); self.wfile.write(b"{}")
+
+        def log_message(self, *a):
+            pass
+    srv = HTTPServer(("127.0.0.1", 0), H)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    env = {"RESEND_API_KEY": "k", "EMAIL_FROM": "a@b.co", "RESEND_API_URL": f"http://127.0.0.1:{srv.server_port}/emails"}
+    try:
+        channels_from_env({**env, "EMAIL_REDIRECT_TO": "me@x.test"}).email("pat+test001@x.test", "Hello", "body", html="<p>x</p>")
+        assert seen[0]["to"] == ["me@x.test"] and seen[0]["subject"] == "[to pat+test001@x.test] Hello" and "meant for pat+test001@x.test" in seen[0]["text"]
+        with pytest.raises(RuntimeError, match="only send testing emails to your own"):
+            channels_from_env(env).email("blocked@x.test", "s", "t")
+    finally:
+        srv.shutdown()

@@ -23,7 +23,11 @@ def _post(url: str, headers: dict, body: bytes, what: str) -> None:
             if r.status >= 300:
                 raise RuntimeError(f"{what} provider returned {r.status}")
     except urllib.error.HTTPError as e:
-        raise RuntimeError(f"{what} provider returned {e.code}") from None
+        try:
+            detail = json.loads(e.read().decode("utf-8", "replace")).get("message", "")   # the provider's own reason, e.g. "domain not verified"
+        except Exception:  # noqa: BLE001
+            detail = ""
+        raise RuntimeError(f"{what} provider returned {e.code}" + (f": {detail[:160]}" if detail else "")) from None
 
 
 def base_url_from_env(env: Mapping[str, str]) -> str:
@@ -68,8 +72,17 @@ def channels_from_env(env: Mapping[str, str] = os.environ) -> Channels:
     ch = Channels(base_url=base_url_from_env(env))
     if env.get("RESEND_API_KEY") and env.get("EMAIL_FROM"):
         key, sender = env["RESEND_API_KEY"], env["EMAIL_FROM"]
-        ch.email = lambda to, subject, text, **opts: _post(env.get("RESEND_API_URL") or "https://api.resend.com/emails", resend_headers(key, opts.get("idempotency_key")),
-                                                            json.dumps(resend_payload(sender, to, subject, text, **opts)).encode(), "email")
+        redirect = (env.get("EMAIL_REDIRECT_TO") or "").strip()      # testing: every email goes to this one inbox, labelled with who it was for
+
+        def _send_email(to, subject, text, **opts):
+            if redirect and _EMAIL.match(redirect):
+                subject, text = f"[to {to}] {subject}", f"(Test mode: this message was meant for {to}.)\n\n{text}"
+                if opts.get("html"):
+                    opts["html"] = f"<p style=\"font:12px Arial;color:#888\">Test mode: meant for {to.replace('<', '').replace('>', '')}</p>" + opts["html"]
+                to = redirect
+            return _post(env.get("RESEND_API_URL") or "https://api.resend.com/emails", resend_headers(key, opts.get("idempotency_key")),
+                         json.dumps(resend_payload(sender, to, subject, text, **opts)).encode(), "email")
+        ch.email = _send_email
     if env.get("TWILIO_ACCOUNT_SID") and env.get("TWILIO_AUTH_TOKEN") and env.get("TWILIO_FROM"):
         sid, tok, sender = env["TWILIO_ACCOUNT_SID"], env["TWILIO_AUTH_TOKEN"], env["TWILIO_FROM"]
         auth = base64.b64encode(f"{sid}:{tok}".encode()).decode()
