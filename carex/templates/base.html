@@ -1,3 +1,4 @@
+{% from "_macros.html" import wordmark %}
 <!doctype html>
 <html lang="en">
 <head>
@@ -6,6 +7,7 @@
 <meta name="theme-color" content="#f2f2f7" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
 <title>{% block title %}{{ brand.display_name }}{% endblock %}</title>
+<link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
 <link rel="stylesheet" href="/assets/app.css">
 {% if slug %}<link rel="stylesheet" href="/t/{{ slug }}/brand.css">{% endif %}
 </head>
@@ -13,7 +15,7 @@
 <a class="skip" href="#main">Skip to main content</a>
 {% block header %}
 <header class="site">
-  <div class="brand"><span class="mark" aria-hidden="true"></span>{% if brand.logo_url %}<img src="{{ brand.logo_url }}" alt="" height="28">{% endif %}<span>{{ brand.display_name }}</span></div>
+  <a class="brand" href="{% if slug %}/t/{{ slug }}/book{% else %}/{% endif %}" aria-label="{{ brand.display_name }} home">{{ wordmark(34) }}{% if slug %}<span class="orgname">{% if brand.logo_url %}<img src="{{ brand.logo_url }}" alt="" height="24">{% endif %}{{ brand.display_name }}</span>{% endif %}</a>
   {% if slug %}
   <nav class="topnav" aria-label="Main">
     {% if user %}
@@ -44,7 +46,7 @@
 <main id="main">
 {% block content %}{% endblock %}
 </main>
-{% if slug %}<footer class="site"><nav aria-label="Legal"><a href="/t/{{ slug }}/legal/privacy">Privacy</a><a href="/t/{{ slug }}/legal/terms">Terms</a><a href="/t/{{ slug }}/legal/notice-of-privacy-practices">Notice of privacy practices</a>{% if brand.support_email %}<a href="mailto:{{ brand.support_email }}">Contact</a>{% endif %}</nav><p>For emergencies call 911. In crisis call or text 988.</p></footer>{% endif %}
+{% if slug %}<footer class="site"><div class="footbrand">{{ wordmark(28) }}<p class="tagline">{{ TAGLINE }}</p></div><nav aria-label="Legal"><a href="/t/{{ slug }}/legal/privacy">Privacy</a><a href="/t/{{ slug }}/legal/terms">Terms</a><a href="/t/{{ slug }}/legal/notice-of-privacy-practices">Notice of privacy practices</a>{% if brand.support_email %}<a href="mailto:{{ brand.support_email }}">Contact</a>{% endif %}</nav><p>For emergencies call 911. In crisis call or text 988.</p></footer>{% endif %}
 
 </body>
 </html>

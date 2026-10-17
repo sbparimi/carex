@@ -11,8 +11,12 @@
 <div class="banner {{ kind }}"{% if role %} role="{{ role }}"{% endif %}><span class="icon" aria-hidden="true">{{ {'error': '✕', 'warning': '!', 'info': 'i', 'success': '✓', 'emergency': '!'}[kind] or 'i' }}</span><span class="text">{{ text }}</span></div>
 {% endmacro %}
 
+{# The CareX logo: an open "C" for care with an "X" for the product name; tagline sits beneath on larger placements. #}
+{% macro logomark(size=36) %}<svg class="logomark" viewBox="0 0 64 64" width="{{ size }}" height="{{ size }}" aria-hidden="true" focusable="false"><path d="M45 17.5A19 19 0 1 0 45 46.5" fill="none" stroke="#1b6fb5" stroke-width="9" stroke-linecap="round"/><path d="M32 24l16 16M48 24L32 40" fill="none" stroke="#f7941d" stroke-width="6" stroke-linecap="round"/></svg>{% endmacro %}
+{% macro wordmark(size=36) %}<span class="wordmark">{{ logomark(size) }}<span class="wm-text">Care<b>X</b></span></span>{% endmacro %}
+
 {% macro authbrand(brand) %}
-<div class="authbrand"><span class="mark" aria-hidden="true"></span>{% if brand.logo_url %}<img src="{{ brand.logo_url }}" alt="" height="36">{% endif %}<span class="authbrand-name">{{ brand.display_name }}</span></div>
+<div class="authbrand">{{ wordmark(44) }}{% if brand.logo_url %}<img src="{{ brand.logo_url }}" alt="" height="36">{% endif %}<span class="authbrand-name">{{ brand.display_name }}</span><p class="tagline">{{ TAGLINE }}</p></div>
 {% endmacro %}
 
 {% macro care911() %}
@@ -60,8 +64,13 @@
   <rect x="4" y="22" width="9" height="20" rx="3" fill="#e3262e"/><rect x="13" y="26" width="7" height="12" rx="2" fill="#f7941d"/><rect x="20" y="29" width="24" height="6" rx="3" fill="#1b6fb5"/><rect x="44" y="26" width="7" height="12" rx="2" fill="#f7941d"/><rect x="51" y="22" width="9" height="20" rx="3" fill="#e3262e"/>
 {% elif 'dent' in k or 'oral' in k %}
   <path d="M14 14c4-5 12-3 18 0 6-3 14-5 18 0 4 6 0 16-3 26-2 8-4 18-8 18-5 0-4-14-7-14s-2 14-7 14c-4 0-6-10-8-18-3-10-7-20-3-26z" fill="#1b6fb5"/><path d="M32 14c6-3 14-5 18 0 4 6 0 16-3 26-2 8-4 18-8 18-3 0-4-5-5-9z" fill="#0e4a86"/>
+{% elif k == 'clinic' %}
+  <path d="M4 36h56l-6 6v18H10V42z" fill="#0e4a86"/><rect x="10" y="40" width="44" height="20" fill="#fcc27a"/><g fill="#1b6fb5"><circle cx="17" cy="46" r="1.7"/><circle cx="24" cy="46" r="1.7"/><circle cx="31" cy="46" r="1.7"/><circle cx="38" cy="46" r="1.7"/><circle cx="45" cy="46" r="1.7"/><circle cx="17" cy="52" r="1.7"/><circle cx="24" cy="52" r="1.7"/><circle cx="38" cy="52" r="1.7"/><circle cx="45" cy="52" r="1.7"/></g><rect x="28" y="52" width="8" height="8" fill="#1b6fb5"/>
+  <path d="M32 3c-8 0-13 6-13 12 0 8 13 21 13 21s13-13 13-21c0-6-5-12-13-12z" fill="#18a999"/><circle cx="32" cy="15" r="8" fill="#fcc27a"/><path d="M30 10h4v3.5h3.5v4H34V21h-4v-3.5h-3.5v-4H30z" fill="#18a999"/>
 {% else %}
   <path d="M32 54C10 38 6 26 6 19a13 13 0 0 1 26-3 13 13 0 0 1 26 3c0 7-4 19-26 35z" fill="#f7941d"/><path d="M32 54c22-16 26-28 26-35a13 13 0 0 0-13-13c-8 0-13 7-13 14z" fill="#e3262e" opacity=".85"/><path d="M29 22h6v7h7v6h-7v7h-6v-7h-7v-6h7z" fill="#fff"/>
 {% endif %}
 </svg>
 {% endmacro %}
+
+{% macro vblurb(kind) %}{% set k = (kind or '')|lower %}{% if 'prim' in k %}Check-ups and everyday health.{% elif 'physio' in k %}Recovery, movement and pain relief.{% elif 'vision' in k %}Streamlined eye exams and optometry.{% elif 'coach' in k %}Personalized wellness support.{% elif 'fit' in k %}Training for strength and wellbeing.{% else %}Quality care, close to home.{% endif %}{% endmacro %}

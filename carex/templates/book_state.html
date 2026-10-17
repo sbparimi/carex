@@ -1,17 +1,30 @@
 {% extends "base.html" %}
-{% from "_macros.html" import steps, banner %}
+{% from "_macros.html" import steps, banner, vicon, vblurb %}
 {% block title %}Find care · {{ brand.display_name }}{% endblock %}
 {% block content %}
 {% macro card(c, i) %}
   <a class="clinic" href="/t/{{ slug }}/book/provider?clinic={{ c.id }}">
-    <span class="thumb th-{{ tint_of(c.id) }}" aria-hidden="true">{{ c.name[:1] }}</span>
+    <span class="cliniciconbig" aria-hidden="true">{{ vicon('clinic', 96) }}</span>
     <span class="clinic-body"><strong>{{ c.name }}</strong><small>{{ c.address }}{% if c.city not in c.address %}, {{ c.city }}{% endif %}</small><small class="zone">{{ zone_name(c.time_zone) }}</small></span>
     <span class="chev" aria-hidden="true"></span>
   </a>
 {% endmacro %}
 {{ steps(1) }}
-<h1 id="h1" class="largetitle">Find care</h1>
-<p class="lead">Search by clinic or city, pick your state, or find the soonest visit of a kind.</p>
+<section class="hero">
+  <div class="hero-text">
+    <p class="eyebrow">{{ TAGLINE }}</p>
+    <h1 id="h1" class="largetitle">Find care</h1>
+    <p class="hero-sub">Healthcare that fits your day.</p>
+    <p class="lead">Find a clinic, choose a time and book in under a minute. No phone calls, no waiting on hold, and reminders so you never miss a visit.</p>
+  </div>
+  <ul class="hero-points" aria-label="What you can book">
+    <li><span class="vicon-tile">{{ vicon('primary_care', 40) }}</span><span><strong>Primary care</strong><small>Check-ups and everyday health</small></span></li>
+    <li><span class="vicon-tile">{{ vicon('vision', 40) }}</span><span><strong>Vision</strong><small>Eye exams and optometry</small></span></li>
+    <li><span class="vicon-tile">{{ vicon('physio', 40) }}</span><span><strong>Physiotherapy</strong><small>Recovery and movement</small></span></li>
+    <li><span class="vicon-tile">{{ vicon('coaching', 40) }}</span><span><strong>Health coaching</strong><small>Video or phone support</small></span></li>
+    <li><span class="vicon-tile">{{ vicon('fitness', 40) }}</span><span><strong>Fitness</strong><small>Training and wellness</small></span></li>
+  </ul>
+</section>
 {% if notice %}{{ banner('warning', notice, 'status') }}{% endif %}
 <div class="findgrid">
 {% if kinds %}

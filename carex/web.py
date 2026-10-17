@@ -72,7 +72,7 @@ class Web:
         self.c = ctx
         self.env = Environment(loader=FileSystemLoader(str(HERE / "templates")), autoescape=select_autoescape(["html"]), trim_blocks=True, lstrip_blocks=True)
         self.env.filters["money"] = money
-        self.env.globals.update(day_label=fmt.day_label, time_label=fmt.time_label, when=fmt.when, NOTICE=NOTICE, CRISIS=CRISIS, US_STATES=US_STATES, clock=fmt.clock, day_parts=fmt.day_parts, zone_name=fmt.zone_name, STATES56=STATES56, tint_of=lambda key: zlib.crc32(str(key).encode()) % 8)
+        self.env.globals.update(day_label=fmt.day_label, time_label=fmt.time_label, when=fmt.when, NOTICE=NOTICE, CRISIS=CRISIS, TAGLINE="Care, booked in a moment.", US_STATES=US_STATES, clock=fmt.clock, day_parts=fmt.day_parts, zone_name=fmt.zone_name, STATES56=STATES56, tint_of=lambda key: zlib.crc32(str(key).encode()) % 8)
         self.lim = {"read": RateLimiter(300, 60_000), "write": RateLimiter(90, 60_000), "auth": RateLimiter(30, 60_000), "login_id": RateLimiter(10, 60_000), "admin": RateLimiter(60, 60_000)}
 
     # ---- request identity and limits

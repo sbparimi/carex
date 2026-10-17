@@ -85,6 +85,11 @@ def create_app(ctx: Ctx | None = None) -> FastAPI:
     def css():
         return FileResponse(STATIC / "app.css", media_type="text/css", headers={"cache-control": "no-store", **SECURITY_HEADERS})
 
+    @app.get("/assets/logo.svg")
+    @app.get("/assets/favicon.svg")
+    def logo():
+        return FileResponse(STATIC / "logo.svg", media_type="image/svg+xml", headers={"cache-control": "public, max-age=86400", **SECURITY_HEADERS})
+
     @app.get("/healthz")
     def healthz():
         try:

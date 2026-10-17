@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import steps, banner, vicon %}
+{% from "_macros.html" import steps, banner, vicon, vblurb %}
 {% block title %}Choose a time · {{ brand.display_name }}{% endblock %}
 {% block content %}
 {{ steps(3) }}
@@ -56,8 +56,8 @@
   {% set sn = soonest.get(v.id) %}
   <div class="vcardwrap">
   <a class="vcard vt-{{ vtc[v.id] }}" href="/t/{{ slug }}/book/provider?clinic={{ clinic.id }}&amp;service={{ v.id }}">
-    <span class="vicon-tile" aria-hidden="true">{{ vicon(v.canonical_type, 44) }}</span>
-    <span class="vcard-body"><strong>{{ v.label }}</strong><small>{{ v.duration_min }} min{% if v.modality == 'telehealth' %} &middot; video{% elif v.modality == 'either' %} &middot; in person or video{% endif %}</small>
+    <span class="vicon-tile" aria-hidden="true">{{ vicon(v.canonical_type, 104) }}</span>
+    <span class="vcard-body"><strong>{{ v.label }}</strong><small class="blurb">{{ vblurb(v.canonical_type) }}</small><small>{{ v.duration_min }} min{% if v.modality == 'telehealth' %} &middot; video{% elif v.modality == 'either' %} &middot; in person or video{% endif %}</small>
       {% if sn %}<em class="nextup">Next opening {{ sn.weekday }} {{ sn.month }} {{ sn.day }} · {{ sn.time }}</em>{% else %}<em class="nextup none">No openings right now</em>{% endif %}
       {% set cv = coverage.get(v.id) %}{% if cv %}<small class="covchip">{% if cv.covered %}Covered by your plan{% else %}Not covered{% endif %}{% if cv.copay %} &middot; ${{ '%.2f' % (cv.copay / 100) }} copay{% endif %}</small>{% endif %}</span>
     <span class="chev" aria-hidden="true"></span>

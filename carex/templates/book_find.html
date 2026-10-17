@@ -23,7 +23,7 @@
 <div class="clinics">
 {% for r in results %}
   <a class="clinic" href="/t/{{ slug }}/book/provider?clinic={{ r.clinic.id }}&amp;service={{ r.visit.id }}">
-    <span class="thumb th-{{ tint_of(r.clinic.id) }}" aria-hidden="true">{{ r.clinic.name[:1] }}</span>
+    <span class="cliniciconbig" aria-hidden="true">{{ vicon(kind, 96) }}</span>
     <span class="clinic-body"><strong>{{ r.clinic.name }}</strong><small>{{ r.clinic.city }}, {{ r.clinic.state_code }}</small>
       {% if r.next %}<em class="nextup">{{ r.next.weekday }} {{ r.next.month }} {{ r.next.day }} · {{ r.next.time }} {{ r.next.tz }}</em>{% endif %}</span>
     <span class="chev" aria-hidden="true"></span>
