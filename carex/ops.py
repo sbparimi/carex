@@ -83,7 +83,7 @@ def main(argv: list[str] | None = None) -> int:
             from .seed_demo import DEMO_PASSWORD, DEMO_PATIENTS, load_demo, seed_demo_people
             load_demo(db)
             seed_demo_people(db)
-            print(f"Demo data loaded. Open /t/northwind-health/. Patient: {DEMO_PATIENTS[0]["email"]}  Staff: frontdesk@northwind.example.test  Password: {DEMO_PASSWORD}")
+            print(f"Demo data loaded. Open /t/northwind-health/. Patient: {DEMO_PATIENTS[0]['email']}  Staff: frontdesk@northwind.example.test  Password: {DEMO_PASSWORD}")
         elif cmd == "email-test":
             args = args or ([os.environ["EMAIL_TEST_TO"]] if os.environ.get("EMAIL_TEST_TO") else [])
             if not args or "@" not in args[0]:
