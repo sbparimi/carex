@@ -56,7 +56,9 @@ def build(db: Db | None = None, env: Mapping[str, str] | None = None, clock: Cal
           mailer=None, production: bool | None = None) -> Ctx:
     env = os.environ if env is None else env
     if db is None:
-        url = env.get("DATABASE_URL") or ""
+        url = env.get("DATABASE_URL") or env.get("POSTGRES_URL") or env.get("DATABASE_URL_UNPOOLED") or ""
+        if env.get("VERCEL") and not url.startswith(("postgres://", "postgresql://")):
+            raise RuntimeError("DATABASE_URL is missing or is not a postgresql:// connection string. Set it in the Vercel project's Environment Variables (Production) and redeploy.")
         db = open_db(url=url or None, path=env.get("CAREX_DB") or "carex.db")
     prod = bool(env.get("VERCEL") or env.get("CAREX_ENV") == "production") if production is None else production
     ch = channels or channels_from_env(env)
