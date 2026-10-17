@@ -522,3 +522,18 @@ body:has(.tint-7) { --tint: hsl(45 58% 34%); }
 @media (min-width: 52rem) { .evt { grid-template-columns: 17rem minmax(0, 1fr); } }
 @media (max-width: 51.99rem) { .sidelabel, .hostrow, .sidestat, .sidelink { display: none; } }
 .vchip .nextup { display: block; font-style: normal; font-weight: 600; font-size: .75rem; opacity: .9; }
+
+/* Visit-type cards: the first thing shown on a clinic page */
+.vcards { display: grid; gap: .75rem; }
+.vcard { display: flex; align-items: center; gap: .875rem; padding: 1rem 1.125rem; min-height: 4.75rem; border-radius: var(--r); background: var(--vt-bg); color: var(--vt-ink); text-decoration: none; border: 2px solid transparent; transition: transform .15s, box-shadow .15s; }
+.vcard:hover { transform: translateY(-2px); box-shadow: 0 10px 24px color-mix(in srgb, var(--vt) 25%, transparent); border-color: var(--vt); }
+.vcard .dot { flex: none; width: 1rem; height: 1rem; border-radius: 50%; background: var(--vt); }
+.vcard-body { flex: 1; min-width: 0; display: grid; gap: .125rem; }
+.vcard-body strong { font-size: 1.125rem; font-weight: 700; letter-spacing: -.01em; }
+.vcard-body small { font-size: .875rem; font-weight: 500; opacity: .85; }
+.vcard .nextup { font-size: .875rem; font-weight: 700; }
+.vcard .nextup.none { font-weight: 500; opacity: .8; }
+.vcard .chev { flex: none; }
+@media (min-width: 40rem) { .vcards { grid-template-columns: 1fr 1fr; } }
+@media (prefers-reduced-motion: reduce) { .vcard { transition: none; } .vcard:hover { transform: none; } }
+.vcard .nextup { font-style: normal; }

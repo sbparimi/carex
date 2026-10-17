@@ -105,8 +105,8 @@ def register(app: FastAPI, W: Web) -> None:
             if best:
                 soonest[v["id"]] = {**day_parts(best["starts_at"], best["time_zone"]), "time": clock(best["starts_at"], best["time_zone"]), "starts_at": best["starts_at"]}
         visits = sorted(visits, key=lambda v: (soonest[v["id"]]["starts_at"] if v["id"] in soonest else "9", v["label"]))
-        visit = next((v for v in visits if v["id"] == service), visits[0] if visits and not service else None)
-        if visits and not visit:
+        visit = next((v for v in visits if v["id"] == service), None)          # nothing is shown until a visit type is chosen
+        if service and not visit:
             raise HTTPException(404, "Not found")
         providers, cards = [], []
         if visit:
@@ -127,7 +127,7 @@ def register(app: FastAPI, W: Web) -> None:
             _, f, p = min(firsts, key=lambda z: z[0])
             nxt = {**f, "provider": p}
         return W.render(request, "book_provider.html", t=t, user=u, nav="book", clinic=cl, visits=visits, visit=visit, cards=cards, only=provider, joined=bool(joined), notice=notice[:120],
-                        any_open=any(x["days"] for x in cards), nxt=nxt, soonest=soonest, n_providers=len(providers), tint=zlib.crc32(cl["id"].encode()) % 8)
+                        any_open=any(x["days"] for x in cards), nxt=nxt, soonest=soonest, overall=min(soonest.values(), key=lambda z: z["starts_at"], default=None), n_providers=len(providers), tint=zlib.crc32(cl["id"].encode()) % 8)
 
     def details_ctx(t, u, clinic, service, provider, slot_id, v, **extra):
         elig = c.catalog.eligible(t["id"], clinic, service, provider)

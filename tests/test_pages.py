@@ -171,19 +171,28 @@ def test_any_generated_clinic_opens_with_providers_and_times(demo):
     signed_in, _ = demo
     for cid in ("cl-wy00", "cl-gu00", "cl-vi07", "cl-ny00"):
         page = signed_in.get(S + "/book/provider?clinic=" + cid)
-        assert page.status_code == 200 and 'class="slot"' in page.text, cid
+        assert page.status_code == 200 and 'class="vcard ' in page.text and 'class="slot"' not in page.text, cid          # visit-type cards first, no times yet
+        sid = re.search(r"service=([\w-]+)", page.text).group(1)
+        assert 'class="slot"' in signed_in.get(S + f"/book/provider?clinic={cid}&service={sid}").text, cid
 
 
-def test_clinic_card_leads_to_providers_with_dates_times_and_time_zone_in_the_visit_colour(signed_in):
+def test_clinic_card_shows_only_visit_type_cards_until_one_is_chosen(signed_in):
     page = signed_in.get(S + "/book/provider?clinic=cl-sb")
     assert h1(page) == "San Bernardo Clinic" and "All times in Pacific Time" in page.text
-    assert re.search(r"(PDT|PST)", page.text) and 'class="datebadge"' in page.text and 'class="slot"' in page.text
-    assert "Sam Sample, PT" in page.text or "Dr. Alex Example" in page.text
-    chips = re.findall(r'class="vchip (vt-\d)', page.text)
-    assert len(chips) == 2 and len(set(chips)) == 2                 # Physio and Primary Care each own a colour
+    assert "What kind of visit?" in page.text
+    cards = re.findall(r'class="vcard (vt-\d)"', page.text)
+    assert len(cards) == 2 and len(set(cards)) == 2                 # Physio and Primary Care each own a colour
+    assert "Next opening" in page.text and "Next opening" in page.text.split("vcards")[1]
+    for hidden in ('class="slot"', 'class="prov"', 'class="regcard"', 'class="datebadge"', 'class="stickybook"', 'class="vchip'):
+        assert hidden not in page.text, hidden                       # nothing but the cards until a visit type is picked
+
+
+def test_choosing_a_visit_type_shows_its_providers_times_and_time_zone_in_the_visit_colour(signed_in):
     other = signed_in.get(S + "/book/provider?clinic=cl-sb&service=sv-pc-n")
     assert "Dr. Alex Example" in other.text and "Sam Sample" not in other.text
-    assert re.search(r'<div class="vt-\d">', other.text)
+    assert re.search(r"(PDT|PST)", other.text) and 'class="datebadge"' in other.text and 'class="slot"' in other.text
+    assert re.search(r'<div class="vt-\d">', other.text) and 'class="regcard"' in other.text and "Visit types" in other.text
+    assert len(re.findall(r'class="vchip vt-\d', other.text)) == 2        # the other visit types stay one tap away
 
 
 def test_every_visit_type_has_a_different_colour(client, ctx):
@@ -217,20 +226,22 @@ def test_video_visits_show_the_state_question_and_in_person_only_visits_do_not(s
 
 
 def test_clinic_page_is_an_event_style_page_with_next_opening_book_card_and_tint(signed_in):
-    page = signed_in.get(S + "/book/provider?clinic=cl-sb")
+    page = signed_in.get(S + "/book/provider?clinic=cl-sb&service=sv-pc-n")
     t = page.text
     assert 'class="cover"' in t and "Hosted by" in t and 'class="facts"' in t and 'class="regcard"' in t and 'class="stickybook"' in t
     assert re.search(r'class="evt tint-[0-7]"', t) and "Next opening" in t
     book = re.search(r'<a class="cta" href="([^"]+)">Book ', t)
     assert book and "/book/details?" in book.group(1)
     assert signed_in.get(book.group(1).replace("&amp;", "&")).status_code == 200      # the Book card leads straight to the details step
-    assert re.search(r'class="evt tint-[0-7]"', signed_in.get(S + "/book/provider?clinic=cl-sb").text).group(0) == re.search(r'class="evt tint-[0-7]"', t).group(0)   # tint is stable per clinic
+    assert re.search(r'class="evt tint-[0-7]"', signed_in.get(S + "/book/provider?clinic=cl-sb&service=sv-pc-n").text).group(0) == re.search(r'class="evt tint-[0-7]"', t).group(0)   # tint is stable per clinic
 
 
-def test_default_visit_type_is_the_one_with_the_soonest_opening(demo):
-    cl, ctx = demo
+def test_visit_type_cards_are_ordered_by_soonest_opening(demo):
+    cl, _ = demo
     t = cl.get(S + "/book/provider?clinic=cl-tx00").text
-    chips = re.findall(r'class="vchip vt-\d( on)?"[^>]*>.*?<em class="nextup">Next (\w+) ([^<]+)</em>', t, re.S)
-    assert len(chips) == 5 and chips[0][0].strip() == "on"                      # the first chip is selected by default
-    first_time = re.search(r"Next opening ([^<]+?) [A-Z]{3,4}<", t).group(1)
-    assert first_time == chips[0][2].strip()
+    cards = re.findall(r'class="vcard vt-\d".*?Next opening (\w+) (\w+) (\d+) · ([^<]+)</em>', t, re.S)
+    assert len(cards) == 5
+    key = [(int(d), __import__("datetime").datetime.strptime(tm.strip(), "%I:%M %p").time()) for _, _, d, tm in cards]
+    assert key == sorted(key)
+    headline = re.search(r"Next opening ([^<]+?) [A-Z]{3,4}<", t).group(1)
+    assert headline == cards[0][3].strip()
