@@ -1,42 +1,55 @@
 {% extends "base.html" %}
-{% from "_macros.html" import banner, care911, cover, facts with context %}
+{% from "_macros.html" import banner, care911, cover, facts, vicon, bookedart with context %}
 {% block title %}{{ 'Booked' if o.status == 'confirmed' else 'Booking' }} · {{ brand.display_name }}{% endblock %}
 {% block content %}
 {% if o.status == 'confirmed' %}
 {% set sm = o.summary %}
-<div class="evt tint-{{ tint_of(sm.clinic.id) }}">
-<aside class="evt-side">{{ cover(sm.clinic) }}</aside>
-<div class="evt-main vt-{{ vtc[sm.visit_type.id] }}">
-<p class="goingbadge"><span class="tick" aria-hidden="true">&#10003;</span> You're going</p>
-<h1 id="h1" tabindex="-1" class="largetitle">You're booked</h1>
-{{ facts(sm.starts_at, sm.time_zone, 'By video' if sm.modality == 'telehealth' else sm.clinic.name, sm.clinic.address ~ ('' if sm.clinic.city in sm.clinic.address else ', ' ~ sm.clinic.city) if sm.modality != 'telehealth' else 'Link below') }}
-<section class="regcard" aria-labelledby="bk-h">
-  <h2 id="bk-h" class="regbar">Your booking <span class="statuschip">Confirmed</span></h2>
-  <div class="regbody">
-    <p class="regline"><span class="vtag">{{ sm.visit_type.label }}</span> with {{ sm.provider.display_name }}</p>
+{% set tele = sm.modality == 'telehealth' %}
+<section class="bookedhero vt-brand" aria-labelledby="h1">
+  <div class="bh-text">
+    <p class="goingbadge"><span class="tick" aria-hidden="true">&#10003;</span> You're going</p>
+    <h1 id="h1" tabindex="-1" class="largetitle">You're booked</h1>
+    <p class="hero-sub">{{ sm.visit_type.label }} with {{ sm.provider.display_name }}</p>
+    {{ facts(sm.starts_at, sm.time_zone, 'By video' if tele else sm.clinic.name, sm.clinic.address ~ ('' if sm.clinic.city in sm.clinic.address else ', ' ~ sm.clinic.city) if not tele else 'Link below') }}
+    <p class="cta-row">
+      <a class="btn primary" href="/t/{{ slug }}/appointments/{{ o.booking_id }}/calendar.ics">Add to calendar</a>
+      {% if tele and sm.join_url %}<a class="btn secondary" href="{{ sm.join_url }}" rel="noopener">Join video visit</a>{% elif not tele %}<a class="btn secondary" href="https://www.google.com/maps/search/?api=1&amp;query={{ maps_q|urlencode }}" rel="noopener noreferrer">Get directions</a>{% endif %}
+      <a class="btn secondary" href="mailto:?subject={{ ('Appointment: ' ~ sm.visit_type.label ~ ' at ' ~ sm.clinic.name)|urlencode }}&amp;body={{ (day_parts(sm.starts_at, sm.time_zone).full ~ ' at ' ~ clock(sm.starts_at, sm.time_zone) ~ ' - ' ~ sm.clinic.name ~ ', ' ~ sm.clinic.address)|urlencode }}">Share with family</a>
+    </p>
+  </div>
+  <div class="bh-art">{{ bookedart(sm.visit_type.canonical_type or sm.visit_type.label) }}</div>
+</section>
+<div class="bookedgrid">
+  <section class="ticket" aria-labelledby="bk-h">
+    <h2 id="bk-h" class="regbar">Your booking <span class="statuschip">Confirmed</span></h2>
     <dl class="kv">
+      <dt>Visit</dt><dd>{{ sm.visit_type.label }} with {{ sm.provider.display_name }}</dd>
       <dt>Reference</dt><dd class="reference">{{ o.booking_id }}</dd>
       {% if sm.patient_name %}<dt>Patient</dt><dd>{{ sm.patient_name }}</dd>{% endif %}
       <dt>Expected copay</dt><dd>{% if sm.copay_cents %}{{ sm.copay_cents|money }}, due at the visit{% else %}None{% endif %}</dd>
       {% if sm.join_url %}<dt>Video link</dt><dd><a href="{{ sm.join_url }}" rel="noopener">Join your video visit</a></dd>{% endif %}
     </dl>
-    <p class="hint">We also sent you a confirmation.</p>
-  </div>
-</section>
-<section class="sheet" aria-labelledby="next-h">
-  <h2 id="next-h" class="section">Before your visit</h2>
-  <ul class="todo">
-    <li><a href="/t/{{ slug }}/appointments/{{ o.booking_id }}/calendar.ics">Add to your calendar</a></li>
-    {% if sm.modality != 'telehealth' %}<li><a href="https://www.google.com/maps/search/?api=1&amp;query={{ maps_q|urlencode }}" rel="noopener noreferrer">Get directions</a></li>{% endif %}
-    <li><a href="mailto:?subject={{ ('Appointment: ' ~ sm.visit_type.label ~ ' at ' ~ sm.clinic.name)|urlencode }}&amp;body={{ (day_parts(sm.starts_at, sm.time_zone).full ~ ' at ' ~ clock(sm.starts_at, sm.time_zone) ~ ' - ' ~ sm.clinic.name ~ ', ' ~ sm.clinic.address)|urlencode }}">Share with family</a></li>
-    <li>Bring photo ID, your insurance card and your medicine list. Arrive 10 minutes early.</li>
-    <li>Need to change it? You can cancel or move it up to 2 hours before the visit.</li>
-  </ul>
-</section>
-<div class="actions"><a class="button primary" href="/t/{{ slug }}/appointments">My appointments</a><a class="button" href="/t/{{ slug }}/book">Book another</a></div>
+    <p class="hint">Keep your reference handy if you contact the clinic.</p>
+  </section>
+  <section class="nextcard" aria-labelledby="next-h">
+    <h2 id="next-h" class="railtitle">What happens next</h2>
+    <ol class="timeline">
+      <li><span class="bicon">{{ vicon('mail', 44) }}</span><span><strong>Confirmation sent</strong><small>Check your email for the details and a calendar file.</small></span></li>
+      <li><span class="bicon">{{ vicon('bell', 44) }}</span><span><strong>We'll remind you</strong><small>A reminder arrives 24 hours and 2 hours before.</small></span></li>
+      <li><span class="bicon">{{ vicon('video' if tele else 'clinic', 44) }}</span><span><strong>{% if tele %}Join from anywhere{% else %}Visit day{% endif %}</strong><small>{% if tele %}Use the video link in your confirmation a few minutes early.{% else %}Arrive 10 minutes early so check-in is quick.{% endif %}</small></span></li>
+    </ol>
+  </section>
+  <section class="nextcard" aria-labelledby="bring-h">
+    <h2 id="bring-h" class="railtitle">Before your visit</h2>
+    <ul class="benefits">
+      <li><span class="bicon">{{ vicon('idcard', 44) }}</span><span><strong>Photo ID and insurance card</strong><small>Have both ready at check-in.</small></span></li>
+      <li><span class="bicon">{{ vicon('pills', 44) }}</span><span><strong>Your medicine list</strong><small>Names and doses help your clinician.</small></span></li>
+      <li><span class="bicon">{{ vicon('hourglass', 44) }}</span><span><strong>Need to change it?</strong><small>Cancel or move it free of charge up to 2 hours before.</small></span></li>
+    </ul>
+  </section>
+</div>
+<p class="cta-row bookedfoot"><a class="btn primary" href="/t/{{ slug }}/appointments">My appointments</a><a class="btn secondary" href="/t/{{ slug }}/book">Book another</a></p>
 {{ care911() }}
-</div>
-</div>
 {% elif o.status == 'slot_unavailable' %}
 <h1 id="h1" tabindex="-1">That time is gone</h1>
 {{ banner('warning', o.message, 'alert') }}

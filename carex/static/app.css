@@ -1060,3 +1060,36 @@ body:has(.homehero) .stepper, body:has(.homehero) .steps { display: none; }
 .qfrow .selectwrap { align-self: stretch; }
 header.site nav a, header.site nav button { white-space: nowrap; }
 @media (max-width: 40rem) { header.site .org-text { font-size: 1.0625rem; } header.site .orgmark { width: 1.75rem; height: 1.75rem; } header.site nav a { padding-inline: .625rem; font-size: .875rem; } }
+
+/* ---- Booking confirmation: a celebratory branded hero, then details, what happens next and what to bring */
+.bookedhero { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, .8fr); gap: 2rem 3rem; align-items: center; padding: 2rem 0 2.5rem; margin-bottom: 2.5rem; background: #eef5fb; box-shadow: 0 0 0 100vmax #eef5fb; clip-path: inset(0 -100vmax); }
+.bookedhero h1 { font-size: clamp(2.5rem, 5vw, 4rem); color: var(--c-navy); letter-spacing: -.03em; margin: .25rem 0 0; line-height: 1.05; }
+.bookedhero .hero-sub { font-size: clamp(1.125rem, 2vw, 1.5rem); font-weight: 700; margin: .5rem 0 1.25rem; color: var(--ink); }
+.bookedhero .goingbadge { display: inline-flex; align-items: center; gap: .5rem; margin: 0; padding: .375rem .875rem; border-radius: 999px; background: #fff; color: #0b6b3a; font-weight: 800; font-size: .9375rem; }
+.bookedhero .goingbadge .tick { display: grid; place-items: center; width: 1.375rem; height: 1.375rem; border-radius: 50%; background: var(--c-teal); color: #fff; font-size: .8125rem; }
+.bookedhero .facts { margin: 0 0 .5rem; }
+.bookedart { width: 100%; max-width: 24rem; height: auto; }
+.bh-art { display: grid; place-items: center; }
+.bookedgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(19rem, 1fr)); gap: 1.5rem; align-items: start; margin-bottom: 2rem; }
+.ticket, .nextcard { background: #fff; border: 1px solid var(--sep); border-radius: 1rem; overflow: hidden; }
+.nextcard { padding: 1.5rem; }
+.ticket .regbar { display: flex; justify-content: space-between; align-items: center; margin: 0; padding: .875rem 1.25rem; background: var(--c-navy); color: #fff; font-size: 1.0625rem; }
+.ticket .statuschip { background: #fff; color: #0b6b3a; padding: .125rem .75rem; border-radius: 999px; font-size: .8125rem; font-weight: 800; }
+.ticket .kv { margin: 0; padding: 1.25rem; }
+.ticket .hint { margin: 0; padding: 0 1.25rem 1.25rem; }
+.timeline { list-style: none; margin: 0; padding: 0; display: grid; gap: 1.25rem; }
+.timeline li { display: grid; grid-template-columns: auto 1fr; gap: .875rem; align-items: start; }
+.timeline strong { display: block; font-size: 1.0625rem; }
+.timeline small { display: block; color: var(--muted); font-family: Georgia, "Times New Roman", serif; font-size: .9375rem; margin-top: .125rem; }
+.bookedfoot { margin-bottom: 1.5rem; }
+@media (max-width: 52rem) { .bookedhero { grid-template-columns: minmax(0, 1fr); } .bh-art { order: -1; } .bookedart { max-width: 15rem; } }
+
+/* Booking flow after the visit is chosen: tenant brand colours, not visit-type colours */
+.vt-brand { --vt: var(--accent); --vt-bg: color-mix(in srgb, var(--accent) 9%, #fff); --vt-ink: var(--accent); }
+.sidecard { position: relative; display: grid; gap: .5rem; justify-items: start; padding: 1.25rem; border-radius: var(--r-lg); background: color-mix(in srgb, var(--accent) 8%, #fff); box-shadow: var(--shadow); }
+.sidecard .sc-name { font-size: 1.25rem; font-weight: 700; color: var(--accent); }
+.sidecard .cover-city { position: static; color: var(--muted); font-size: .9375rem; }
+.sidecard .cover-img { width: 100%; border-radius: var(--r); aspect-ratio: 16 / 9; object-fit: cover; }
+.sidecard .cover-img ~ .sc-mark { display: none; }
+.hostrow .orgmark, .hostrow svg, .hostrow img { flex: none; }
+@media (max-width: 51.99rem) { .sidecard { grid-template-columns: auto 1fr; align-items: center; column-gap: .75rem; padding: .75rem 1rem; } .sidecard .sc-mark { grid-row: span 2; } }

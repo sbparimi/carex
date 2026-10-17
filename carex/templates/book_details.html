@@ -11,7 +11,7 @@
 <p class="back"><a class="backlink" href="/t/{{ slug }}/book/provider?clinic={{ clinic.id }}&amp;service={{ visit.id }}&amp;provider={{ provider.id }}">Change time</a></p>
 <h1 id="h1" class="largetitle">Your visit</h1>
 
-<div class="apptcard vt-{{ vtc[visit.id] }}">
+<div class="apptcard vt-brand">
   <span class="vtag">{{ visit.label }} · {{ visit.duration_min }} min</span>
   <strong>{{ when(slot.starts_at, slot.time_zone) }}</strong>
   <span>{{ provider.display_name }} · {{ clinic.name }}</span>
@@ -20,7 +20,7 @@
 
 {% if error %}{{ banner('error', error, 'alert') }}{% endif %}
 
-<form class="vform vt-{{ vtc[visit.id] }}" method="post" action="/t/{{ slug }}/book/review" novalidate>
+<form class="vform vt-brand" method="post" action="/t/{{ slug }}/book/review" novalidate>
   <input type="hidden" name="clinic" value="{{ clinic.id }}"><input type="hidden" name="service" value="{{ visit.id }}"><input type="hidden" name="provider" value="{{ provider.id }}"><input type="hidden" name="slot" value="{{ slot.id }}">
 
   <section class="vsec" aria-labelledby="s-who">

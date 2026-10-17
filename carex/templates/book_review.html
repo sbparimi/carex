@@ -5,7 +5,7 @@
 {{ steps(5) }}
 <div class="evt tint-{{ tint_of(clinic.id) }}">
 <aside class="evt-side">{{ cover(clinic) }}</aside>
-<div class="evt-main vt-{{ vtc[visit.id] }}">
+<div class="evt-main vt-brand">
 <h1 id="h1" class="largetitle">Review and confirm</h1>
 {{ facts(slot.starts_at, slot.time_zone, 'By video' if dec.modality == 'telehealth' else clinic.name, clinic.address ~ ('' if clinic.city in clinic.address else ', ' ~ clinic.city) if dec.modality != 'telehealth' else 'You will get a link') }}
 <section class="regcard" aria-labelledby="rv-h">
