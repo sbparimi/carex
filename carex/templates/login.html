@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% from "_macros.html" import field, banner, authbrand %}
+{% block title %}Sign in · {{ brand.display_name }}{% endblock %}
+{% block bodyclass %}auth{% endblock %}
+{% block header %}{% endblock %}
+{% block content %}
+<section class="authcard" aria-labelledby="h1" id="card">
+{{ authbrand(brand) }}
+<h1 id="h1" tabindex="-1">Sign in</h1>
+{% if notice %}{{ banner('success', notice, 'status') }}{% endif %}
+{% if error %}{{ banner('error', error, 'alert') }}{% endif %}
+{% if challenge %}
+<p class="lead">We emailed a 6-digit code to your address. Enter it to finish signing in.</p>
+<form method="post" action="/t/{{ slug }}/login/verify" novalidate>
+  <input type="hidden" name="challenge" value="{{ challenge }}">
+  {{ field('code', 'Sign-in code', '', 'text', '', 'one-time-code') }}
+  <button class="primary wide" type="submit">Verify</button>
+</form>
+{% else %}
+<p class="lead">Use your {{ brand.display_name }} account to book and manage visits.</p>
+<form method="post" action="/t/{{ slug }}/login" novalidate>
+  {{ field('email', 'Email', email or '', 'email', '', 'email') }}
+  {{ field('password', 'Password', '', 'password', '', 'current-password') }}
+  <button class="primary wide" type="submit">Sign in</button>
+</form>
+<p class="links"><a href="/t/{{ slug }}/forgot">Forgot password?</a></p>
+<p class="alt">New here? <a href="/t/{{ slug }}/signup">Create an account</a></p>
+{% endif %}
+</section>
+{% endblock %}

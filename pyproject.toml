@@ -1,0 +1,9 @@
+[project]
+name = "carex"
+version = "1.0.0"
+description = "CareX: white-label multi-tenant healthcare appointment booking (Python only)"
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = ["ignore::DeprecationWarning"]

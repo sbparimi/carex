@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% from "_macros.html" import banner %}
+{% block title %}My appointments · {{ brand.display_name }}{% endblock %}
+{% block content %}
+<h1 id="h1">My appointments</h1>
+{% if notice %}{{ banner('success' if notice_ok else 'warning', notice, 'status') }}{% endif %}
+<p><a class="button primary" href="/t/{{ slug }}/book">Book a visit</a></p>
+
+<h2 class="h2-md">Upcoming</h2>
+{% for a in upcoming %}
+<div class="card-block">
+  <p><strong>{{ a.summary.visit_type.label }}</strong> with {{ a.summary.provider.display_name }}{% if a.status == 'arrived' %} <span class="tag ok">Checked in</span>{% endif %}<br>
+  {{ when(a.summary.starts_at, a.summary.time_zone) }}<br>
+  <small>{% if a.summary.modality == 'telehealth' %}By video{% else %}{{ a.summary.clinic.name }}, {{ a.summary.clinic.address }}{% endif %}{% if a.summary.patient_name %} · {{ a.summary.patient_name }}{% endif %} · Ref <span class="reference">{{ a.booking_id }}</span></small></p>
+  {% if a.summary.join_url %}<p><a href="{{ a.summary.join_url }}" rel="noopener">Join video visit</a></p>{% endif %}
+  {% if a.can_change %}
+  <div class="statusrow">
+    <a class="button small" href="/t/{{ slug }}/appointments/{{ a.booking_id }}/reschedule">Change time</a>
+    <form method="post" action="/t/{{ slug }}/appointments/{{ a.booking_id }}/cancel" class="statusrow">
+      <label class="sr-only" for="r-{{ a.booking_id }}">Reason for cancelling (optional)</label>
+      <input id="r-{{ a.booking_id }}" name="reason" type="text" placeholder="Reason (optional)" maxlength="200">
+      <button class="small danger" type="submit">Cancel appointment</button>
+    </form>
+  </div>
+  {% else %}<p class="hint">To change or cancel this appointment, please call the clinic{% if brand.support_phone %} on {{ brand.support_phone }}{% endif %}: it starts in under {{ a.change_notice_minutes // 60 }} hours.</p>{% endif %}
+</div>
+{% else %}<p>You have no upcoming appointments.</p>{% endfor %}
+
+{% if past %}
+<h2 class="h2-md">Past and cancelled</h2>
+<ul class="appts">
+{% for a in past %}<li class="appt"><span>{{ a.summary.visit_type.label }} · {{ a.summary.provider.display_name }}<br><small>{{ when(a.summary.starts_at, a.summary.time_zone) }}</small></span><span class="tag {{ 'bad' if a.status in ('cancelled', 'no_show') else 'ok' }}">{{ a.status|replace('_', ' ')|capitalize }}</span></li>{% endfor %}
+</ul>
+{% endif %}
+
+{% if waitlist %}
+<h2 class="h2-md">Waiting list</h2>
+{% for w in waitlist %}
+<div class="card-block statusrow">
+  <span>{{ w.visit_label }} · {{ w.clinic_name }}{% if w.provider_name %} · {{ w.provider_name }}{% endif %}{% if w.status == 'notified' %} <span class="tag ok">A time opened up</span>{% endif %}</span>
+  <form method="post" action="/t/{{ slug }}/waitlist/{{ w.id }}/leave"><button class="small" type="submit">Leave list</button></form>
+</div>
+{% endfor %}
+{% endif %}
+
+<h2 class="h2-md">Family members</h2>
+<ul class="appts">
+{% for p in patients %}<li class="appt"><span>{{ p.first_name }} {{ p.last_name }} <small>({{ 'me' if p.relationship == 'self' else p.relationship }})</small></span>
+{% if p.relationship != 'self' %}<form method="post" action="/t/{{ slug }}/patients/{{ p.id }}/remove"><button class="small" type="submit">Remove</button></form>{% endif %}</li>{% endfor %}
+</ul>
+<details class="subform"><summary>Add a family member</summary>
+  <form method="post" action="/t/{{ slug }}/patients/add">
+    <label class="field" for="rel">Relationship</label>
+    <select id="rel" name="relationship" required><option value="">Choose…</option><option value="child">Child</option><option value="spouse">Spouse or partner</option><option value="parent">Parent</option><option value="other">Other</option></select>
+    <label class="field" for="fn">First name</label><input id="fn" name="first_name" type="text" required>
+    <label class="field" for="ln">Last name</label><input id="ln" name="last_name" type="text" required>
+    <label class="field" for="dob">Date of birth</label><input id="dob" name="date_of_birth" type="date" required>
+    <div class="actions"><button class="primary" type="submit">Add</button></div>
+  </form>
+</details>
+
+<h2 class="h2-md">Reminders</h2>
+<form method="post" action="/t/{{ slug }}/notifications" class="card-block">
+  <label class="check"><input type="checkbox" name="email" value="1"{% if user.notify.email %} checked{% endif %}> <span>Email me confirmations and reminders</span></label>
+  <label class="check"><input type="checkbox" name="sms" value="1"{% if user.notify.sms %} checked{% endif %}> <span>Text me reminders at {{ user.phone }}. Message and data rates may apply. You can turn this off at any time.</span></label>
+  <div class="actions"><button type="submit">Save</button></div>
+</form>
+{% endblock %}

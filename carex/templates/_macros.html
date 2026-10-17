@@ -1,0 +1,27 @@
+{% macro field(name, label, value='', type='text', error='', autocomplete='', required=true, hint='') %}
+<div class="ff">
+  <input id="f-{{ name }}" name="{{ name }}" type="{{ type }}" value="{{ value or '' }}" placeholder=" "{% if autocomplete %} autocomplete="{{ autocomplete }}"{% endif %}{% if required %} required{% endif %}{% if error %} aria-invalid="true" aria-describedby="e-{{ name }}"{% elif hint %} aria-describedby="h-{{ name }}"{% endif %}>
+  <label for="f-{{ name }}">{{ label }}{% if required %}<span aria-hidden="true"> *</span>{% endif %}</label>
+</div>
+{% if error %}<div class="err" id="e-{{ name }}">{{ error }}</div>{% elif hint %}<div class="hint" id="h-{{ name }}">{{ hint }}</div>{% endif %}
+<div class="mb-sm"></div>
+{% endmacro %}
+
+{% macro banner(kind, text, role='') %}
+<div class="banner {{ kind }}"{% if role %} role="{{ role }}"{% endif %}><span class="icon" aria-hidden="true">{{ {'error': '✕', 'warning': '!', 'info': 'i', 'success': '✓', 'emergency': '!'}[kind] or 'i' }}</span><span class="text">{{ text }}</span></div>
+{% endmacro %}
+
+{% macro authbrand(brand) %}
+<div class="authbrand"><span class="mark" aria-hidden="true"></span>{% if brand.logo_url %}<img src="{{ brand.logo_url }}" alt="" height="36">{% endif %}<span class="authbrand-name">{{ brand.display_name }}</span></div>
+{% endmacro %}
+
+{% macro emergency() %}
+<div class="banner error emergency" role="alert"><span class="icon" aria-hidden="true">!</span><span class="text"><strong>This may be an emergency.</strong> Do not book online: call <a href="tel:911">911</a> now or go to the nearest emergency room. If you are thinking about harming yourself, call or text <a href="tel:988">988</a> (Suicide &amp; Crisis Lifeline) right away.</span></div>
+{% endmacro %}
+
+{% macro steps(current) %}
+{% set names = ['Location', 'Visit', 'Provider & time', 'Details', 'Review'] %}
+<ol class="steps" aria-label="Booking steps">
+{% for n in names %}<li{% if loop.index == current %} aria-current="step"{% elif loop.index < current %} class="done"{% endif %}>{{ loop.index }}. {{ n }}</li>{% endfor %}
+</ol>
+{% endmacro %}

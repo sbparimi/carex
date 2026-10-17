@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% from "_macros.html" import field, banner, authbrand %}
+{% block title %}Staff sign in · {{ brand.display_name }}{% endblock %}
+{% block bodyclass %}auth{% endblock %}
+{% block header %}{% endblock %}
+{% block content %}
+<section class="authcard" aria-labelledby="h1">
+{{ authbrand(brand) }}
+<h1 id="h1" tabindex="-1">Staff sign in</h1>
+{% if error %}{{ banner('error', error, 'alert') }}{% endif %}
+<form method="post" action="/t/{{ slug }}/staff/login" novalidate>
+  {{ field('email', 'Work email', email or '', 'email', '', 'email') }}
+  {{ field('password', 'Password', '', 'password', '', 'current-password') }}
+  <button class="primary wide" type="submit">Sign in</button>
+</form>
+</section>
+{% endblock %}

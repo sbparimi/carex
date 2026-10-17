@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>CareX</h1>
+<p class="lead">Choose your organisation to book a visit.</p>
+{% for x in tenants %}<a class="choice-link" href="/t/{{ x.slug }}/"><span>{{ x.display_name }}</span></a>{% else %}<p>No organisations are set up yet.</p>{% endfor %}
+{% endblock %}

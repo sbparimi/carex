@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% from "_macros.html" import steps, banner, emergency %}
+{% block title %}Visit details · {{ brand.display_name }}{% endblock %}
+{% block content %}
+{{ steps(4) }}
+<p class="back"><a href="/t/{{ slug }}/book/provider?clinic={{ clinic.id }}&amp;service={{ visit.id }}&amp;provider={{ provider.id }}">&larr; Change time</a></p>
+<h1 id="h1">Visit details</h1>
+<p class="lead">{{ visit.label }} with {{ provider.display_name }}<br>{{ when(slot.starts_at, slot.time_zone) }} · {{ clinic.name }}</p>
+{% if emergency_stop %}{{ emergency() }}{% endif %}
+{% if error %}{{ banner('error', error, 'alert') }}{% endif %}
+{% if cfg.coverage_notice %}{{ banner('info' if cfg.coverage_notice.covered else 'error', cfg.coverage_notice.text, 'status') }}{% endif %}
+<form method="post" action="/t/{{ slug }}/book/review" novalidate>
+  <input type="hidden" name="clinic" value="{{ clinic.id }}"><input type="hidden" name="service" value="{{ visit.id }}"><input type="hidden" name="provider" value="{{ provider.id }}"><input type="hidden" name="slot" value="{{ slot.id }}">
+
+  <fieldset>
+    <legend>Who is this visit for?</legend>
+    {% for p in patients %}<label class="radio"><input type="radio" name="patient_id" value="{{ p.id }}"{% if (v.patient_id or patients[0].id) == p.id %} checked{% endif %}> <span>{{ p.first_name }} {{ p.last_name }}{% if p.relationship == 'self' %} (me){% else %} ({{ p.relationship }}){% endif %}</span></label>{% endfor %}
+    <details class="subform"><summary>Add a family member</summary>
+      <label class="field" for="dep_rel">Relationship</label>
+      <select id="dep_rel" name="dep_relationship"><option value="">Choose…</option><option value="child">Child</option><option value="spouse">Spouse or partner</option><option value="parent">Parent</option><option value="other">Other</option></select>
+      <label class="field" for="dep_first">First name</label><input id="dep_first" name="dep_first_name" type="text" autocomplete="off">
+      <label class="field" for="dep_last">Last name</label><input id="dep_last" name="dep_last_name" type="text" autocomplete="off">
+      <label class="field" for="dep_dob">Date of birth</label><input id="dep_dob" name="dep_date_of_birth" type="date">
+      <p class="hint">If you fill this in, the visit is booked for this person.</p>
+    </details>
+  </fieldset>
+
+  <fieldset>
+    <legend>Safety check{% if cfg.intake_required %} <span aria-hidden="true">*</span>{% endif %}</legend>
+    <p class="hint">Does the patient have any of these right now? Select all that apply.</p>
+    {% for r in red_flags %}<label class="check"><input type="checkbox" name="flag" value="{{ r.key }}"{% if r.key in v.flags %} checked{% endif %}> <span>{{ r.label }}</span></label>{% endfor %}
+    <label class="check"><input type="checkbox" name="none_apply" value="1"{% if v.none_apply %} checked{% endif %}> <span><strong>None of these apply</strong></span></label>
+    <p class="hint">If this is an emergency, call 911. For thoughts of self-harm, call or text 988.</p>
+  </fieldset>
+
+  <label class="field" for="reason">What is the visit for?{% if cfg.intake_required %} <span aria-hidden="true">*</span>{% endif %}</label>
+  <textarea id="reason" name="reason" maxlength="300">{{ v.reason }}</textarea>
+
+  {% if visit.modality == 'either' %}
+  <fieldset><legend>How would you like to be seen?</legend>
+    <label class="radio"><input type="radio" name="modality" value="in_person"{% if v.modality != 'telehealth' %} checked{% endif %}> <span>In person</span></label>
+    <label class="radio"><input type="radio" name="modality" value="telehealth"{% if v.modality == 'telehealth' %} checked{% endif %}> <span>By video</span></label>
+  </fieldset>
+  {% elif visit.modality == 'telehealth' %}<input type="hidden" name="modality" value="telehealth"><p class="hint">This is a video visit.</p>
+  {% else %}<input type="hidden" name="modality" value="in_person">{% endif %}
+  {% if visit.modality != 'in_person' %}
+  <label class="field" for="patient_state">For a video visit: the state the patient will be in</label>
+  <select id="patient_state" name="patient_state"><option value="">Choose…</option>{% for st in US_STATES %}<option value="{{ st }}"{% if v.patient_state == st %} selected{% endif %}>{{ st }}</option>{% endfor %}</select>
+  {% endif %}
+
+  {% if visit.requires_referral %}
+  <label class="field" for="referral_ref">Referral number <span aria-hidden="true">*</span></label>
+  <input id="referral_ref" name="referral_ref" type="text" value="{{ v.referral_ref }}" maxlength="80">
+  {% endif %}
+
+  <label class="field" for="interp">Interpreter (optional)</label>
+  <select id="interp" name="interpreter_language"><option value="">No interpreter needed</option>{% for l in cfg.interpreter_languages %}<option value="{{ l }}"{% if v.interpreter_language == l %} selected{% endif %}>{{ l }}</option>{% endfor %}</select>
+
+  <label class="field" for="acc">Accessibility needs (optional)</label>
+  <textarea id="acc" name="accommodations" maxlength="300">{{ v.accommodations }}</textarea>
+
+  {% if cfg.intake_required %}
+  <h2 class="h2-md">Consent to treatment</h2>
+  <div class="consent">{{ cfg.consent_text }}</div>
+  <label class="check"><input type="checkbox" name="consent" value="{{ cfg.consent_version }}"{% if v.consent %} checked{% endif %}> <span>I have read and agree <span aria-hidden="true">*</span></span></label>
+  {% endif %}
+
+  <div class="actions"><button class="primary" type="submit">Review booking</button></div>
+</form>
+{% endblock %}

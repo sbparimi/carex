@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% from "_macros.html" import banner, emergency %}
+{% block title %}{{ 'Booked' if o.status == 'confirmed' else 'Booking' }} · {{ brand.display_name }}{% endblock %}
+{% block content %}
+{% if o.status == 'confirmed' %}
+<h1 id="h1" tabindex="-1">You're booked</h1>
+{{ banner('success', 'Your appointment is confirmed. We also sent you a confirmation.', 'status') }}
+<dl class="summary">
+  <dt>Reference</dt><dd class="reference">{{ o.booking_id }}</dd>
+  <dt>Visit</dt><dd>{{ o.summary.visit_type.label }}</dd>
+  <dt>When</dt><dd>{{ when(o.summary.starts_at, o.summary.time_zone) }}</dd>
+  <dt>Provider</dt><dd>{{ o.summary.provider.display_name }}</dd>
+  <dt>Where</dt><dd>{% if o.summary.modality == 'telehealth' %}By video{% else %}{{ o.summary.clinic.name }}, {{ o.summary.clinic.address }}, {{ o.summary.clinic.city }}{% endif %}</dd>
+  {% if o.summary.patient_name %}<dt>Patient</dt><dd>{{ o.summary.patient_name }}</dd>{% endif %}
+  <dt>Expected copay</dt><dd>{% if o.summary.copay_cents %}{{ o.summary.copay_cents|money }}, due at the visit{% else %}None{% endif %}</dd>
+  {% if o.summary.join_url %}<dt>Video link</dt><dd><a href="{{ o.summary.join_url }}" rel="noopener">Join your video visit</a></dd>{% endif %}
+</dl>
+<div class="actions"><a class="button" href="/t/{{ slug }}/appointments">My appointments</a><a class="button" href="/t/{{ slug }}/book">Book another</a></div>
+{% elif o.status == 'slot_unavailable' %}
+<h1 id="h1" tabindex="-1">That time is gone</h1>
+{{ banner('warning', o.message, 'alert') }}
+{% for sl in o.alternatives %}<a class="choice-link" href="/t/{{ slug }}/book/details?clinic={{ sl.clinic_id }}&amp;service={{ sl.service_id }}&amp;provider={{ sl.provider_id }}&amp;slot={{ sl.id }}"><span>{{ day_label(sl.starts_at, sl.time_zone) }} · {{ time_label(sl.starts_at, sl.time_zone) }}</span></a>{% endfor %}
+<p><a href="/t/{{ slug }}/book/provider?clinic={{ clinic_id }}&amp;service={{ service_id }}">See all times</a></p>
+{% elif o.code == 'emergency_redirect' %}
+<h1 id="h1" tabindex="-1">Please get help now</h1>
+{{ emergency() }}
+{% else %}
+<h1 id="h1" tabindex="-1">We couldn't book that</h1>
+{{ banner('error', o.message, 'alert') }}
+<p><a class="button" href="/t/{{ slug }}/book">Start again</a></p>
+{% endif %}
+{% endblock %}

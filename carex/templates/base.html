@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}{{ brand.display_name }}{% endblock %}</title>
+<link rel="stylesheet" href="/assets/app.css">
+{% if slug %}<link rel="stylesheet" href="/t/{{ slug }}/brand.css">{% endif %}
+</head>
+<body class="{% block bodyclass %}{% endblock %}">
+<a class="skip" href="#main">Skip to main content</a>
+{% block header %}
+<header class="site">
+  <div class="brand"><span class="mark" aria-hidden="true"></span>{% if brand.logo_url %}<img src="{{ brand.logo_url }}" alt="" height="28">{% endif %}<span>{{ brand.display_name }}</span></div>
+  {% if slug %}
+  <nav class="topnav" aria-label="Main">
+    {% if user %}
+    <a href="/t/{{ slug }}/book"{% if nav == 'book' %} aria-current="page"{% endif %}>Book a visit</a>
+    <a href="/t/{{ slug }}/appointments"{% if nav == 'appts' %} aria-current="page"{% endif %}>My appointments</a>
+    <span class="who">{{ user.first_name }}</span>
+    <form class="inline" method="post" action="/t/{{ slug }}/logout"><button class="linkish" type="submit">Sign out</button></form>
+    {% elif staff %}
+    <a href="/t/{{ slug }}/staff"{% if nav == 'day' %} aria-current="page"{% endif %}>Schedule</a>
+    {% if staff.role != 'provider' %}<a href="/t/{{ slug }}/staff/book"{% if nav == 'sbook' %} aria-current="page"{% endif %}>Book a patient</a>{% endif %}
+    <a href="/t/{{ slug }}/staff/hours"{% if nav == 'hours' %} aria-current="page"{% endif %}>Hours &amp; time off</a>
+    <span class="who">{{ staff.name }}</span>
+    <form class="inline" method="post" action="/t/{{ slug }}/staff/logout"><button class="linkish" type="submit">Sign out</button></form>
+    {% endif %}
+  </nav>
+  {% endif %}
+</header>
+{% endblock %}
+<main id="main">
+{% block content %}{% endblock %}
+</main>
+</body>
+</html>

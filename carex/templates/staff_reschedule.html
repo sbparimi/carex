@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% from "_macros.html" import banner %}
+{% block title %}Reschedule · {{ brand.display_name }}{% endblock %}
+{% block content %}
+<p class="back"><a href="/t/{{ slug }}/staff?date={{ r.date }}">&larr; Schedule</a></p>
+<h1 id="h1">Reschedule {{ r.patient_name }}</h1>
+<p class="lead">{{ r.visit_label }} with {{ r.provider_name }}. Currently {{ when(r.starts_at, r.time_zone) }}.</p>
+{% if error %}{{ banner('warning', error, 'alert') }}{% endif %}
+{% if days %}
+<form method="post" action="/t/{{ slug }}/staff/appointments/{{ r.id }}/reschedule">
+  <fieldset><legend class="sr-only">Open times</legend>
+  {% for d in days %}<div class="daylabel">{{ d.label }}</div><div class="slots">{% for sl in d.slots %}<label class="choice"><input type="radio" name="slot" value="{{ sl.id }}" required><span class="card">{{ sl.time }}</span></label>{% endfor %}</div>{% endfor %}
+  </fieldset>
+  <div class="actions"><button class="primary" type="submit">Move appointment</button></div>
+</form>
+{% else %}<p>No open times for this provider.</p>{% endif %}
+{% endblock %}

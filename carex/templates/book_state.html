@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% from "_macros.html" import steps %}
+{% block title %}Book a visit · {{ brand.display_name }}{% endblock %}
+{% block content %}
+{{ steps(1) }}
+<h1 id="h1">Where would you like care?</h1>
+{% if notice %}<div class="banner warning" role="status"><span class="icon" aria-hidden="true">!</span><span class="text">{{ notice }}</span></div>{% endif %}
+<h2 class="h2-md">1. Choose a state</h2>
+{% if not states %}<p>No locations are open for booking right now. Please contact {{ brand.support_email or 'the clinic' }}.</p>{% endif %}
+<ul class="appts">
+{% for st in states %}<li><a class="choice-link" href="/t/{{ slug }}/book?state={{ st }}"{% if st == state %} aria-current="true"{% endif %}><span>{{ st }}</span></a></li>{% endfor %}
+</ul>
+{% if state %}
+<h2 class="h2-md" id="clinics">2. Choose a clinic in {{ state }}</h2>
+{% for c in clinics %}<a class="choice-link" href="/t/{{ slug }}/book/visit?clinic={{ c.id }}"><span>{{ c.name }}<small>{{ c.address }}, {{ c.city }}</small></span></a>
+{% else %}<p>No clinics are open for booking in {{ state }}.</p>{% endfor %}
+{% endif %}
+{% endblock %}

@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% from "_macros.html" import field, banner, authbrand %}
+{% block title %}Choose a new password · {{ brand.display_name }}{% endblock %}
+{% block bodyclass %}auth{% endblock %}
+{% block header %}{% endblock %}
+{% block content %}
+<section class="authcard" aria-labelledby="h1">
+{{ authbrand(brand) }}
+<h1 id="h1" tabindex="-1">Choose a new password</h1>
+{% if error %}{{ banner('error', error, 'alert') }}{% endif %}
+<form method="post" action="/t/{{ slug }}/reset" novalidate>
+  <input type="hidden" name="token" value="{{ token }}">
+  {{ field('password', 'New password', '', 'password', '', 'new-password', hint='At least 10 characters.') }}
+  <button class="primary wide" type="submit">Save password</button>
+</form>
+<p class="alt"><a href="/t/{{ slug }}/forgot">Request a new link</a></p>
+</section>
+{% endblock %}

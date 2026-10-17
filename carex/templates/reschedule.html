@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% from "_macros.html" import banner %}
+{% block title %}Change time · {{ brand.display_name }}{% endblock %}
+{% block content %}
+<p class="back"><a href="/t/{{ slug }}/appointments">&larr; My appointments</a></p>
+<h1 id="h1">Choose a new time</h1>
+<p class="lead">{{ a.summary.visit_type.label }} with {{ a.summary.provider.display_name }}. Currently {{ when(a.summary.starts_at, a.summary.time_zone) }}.</p>
+{% if error %}{{ banner('warning', error, 'alert') }}{% endif %}
+{% if days %}
+<form method="post" action="/t/{{ slug }}/appointments/{{ a.booking_id }}/reschedule">
+  <fieldset><legend class="sr-only">Available times</legend>
+  {% for d in days %}<div class="daylabel">{{ d.label }}</div><div class="slots">{% for sl in d.slots %}<label class="choice"><input type="radio" name="slot" value="{{ sl.id }}" required><span class="card">{{ sl.time }}</span></label>{% endfor %}</div>{% endfor %}
+  </fieldset>
+  <div class="actions"><button class="primary" type="submit">Move my appointment</button><a class="button" href="/t/{{ slug }}/appointments">Keep current time</a></div>
+</form>
+{% else %}<p>No other times are open right now. Your appointment is unchanged.</p><p><a class="button" href="/t/{{ slug }}/appointments">Back</a></p>{% endif %}
+{% endblock %}

@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% from "_macros.html" import field, banner, authbrand %}
+{% block title %}Reset password · {{ brand.display_name }}{% endblock %}
+{% block bodyclass %}auth{% endblock %}
+{% block header %}{% endblock %}
+{% block content %}
+<section class="authcard" aria-labelledby="h1">
+{{ authbrand(brand) }}
+<h1 id="h1" tabindex="-1">Reset your password</h1>
+{% if sent %}
+{{ banner('success', 'If that email has an account, we sent a link to reset the password. It works once and expires in 30 minutes.', 'status') }}
+{% else %}
+<p class="lead">Enter your email and we will send you a link.</p>
+<form method="post" action="/t/{{ slug }}/forgot" novalidate>
+  {{ field('email', 'Email', '', 'email', '', 'email') }}
+  <button class="primary wide" type="submit">Send reset link</button>
+</form>
+{% endif %}
+<p class="alt"><a href="/t/{{ slug }}/login">Back to sign in</a></p>
+</section>
+{% endblock %}

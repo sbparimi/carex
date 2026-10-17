@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% from "_macros.html" import steps, banner %}
+{% block title %}Review · {{ brand.display_name }}{% endblock %}
+{% block content %}
+{{ steps(5) }}
+<h1 id="h1">Review and confirm</h1>
+<dl class="summary">
+  <dt>Visit</dt><dd>{{ visit.label }} ({{ visit.duration_min }} min)</dd>
+  <dt>When</dt><dd>{{ when(slot.starts_at, slot.time_zone) }}</dd>
+  <dt>Where</dt><dd>{% if dec.modality == 'telehealth' %}By video{% else %}{{ clinic.name }}, {{ clinic.address }}, {{ clinic.city }}{% endif %}</dd>
+  <dt>Provider</dt><dd>{{ provider.display_name }}</dd>
+  <dt>Patient</dt><dd>{{ dec.patient_first_name }} {{ dec.patient_last_name }}</dd>
+  {% if dec.reason %}<dt>Reason</dt><dd>{{ dec.reason }}</dd>{% endif %}
+  {% if dec.interpreter_language %}<dt>Interpreter</dt><dd>{{ dec.interpreter_language }}</dd>{% endif %}
+  <dt>Expected copay</dt><dd>{% if dec.copay_cents %}{{ dec.copay_cents|money }}, due at the visit{% else %}None{% endif %}</dd>
+</dl>
+<p class="hint">You can cancel or change this appointment online up to {{ notice_minutes // 60 }} hours before it starts.</p>
+<form method="post" action="/t/{{ slug }}/book/confirm">
+  {% for k, val in hidden %}<input type="hidden" name="{{ k }}" value="{{ val }}">{% endfor %}
+  <div class="actions">
+    <button class="primary" type="submit">Confirm booking</button>
+    <button type="submit" formaction="/t/{{ slug }}/book/details">Back</button>
+  </div>
+</form>
+{% endblock %}

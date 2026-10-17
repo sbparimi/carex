@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% from "_macros.html" import banner %}
+{% block title %}Schedule · {{ brand.display_name }}{% endblock %}
+{% block content %}
+<h1 id="h1">Schedule</h1>
+{% if notice %}{{ banner('success' if notice_ok else 'warning', notice, 'status') }}{% endif %}
+<form method="get" action="/t/{{ slug }}/staff" class="filters card-block">
+  <div><label class="field" for="date">Date</label><input id="date" name="date" type="date" value="{{ date }}" required></div>
+  <div><label class="field" for="clinic">Clinic</label><select id="clinic" name="clinic"><option value="">All clinics</option>{% for cl in cat.clinics %}<option value="{{ cl.id }}"{% if cl.id == clinic %} selected{% endif %}>{{ cl.name }}</option>{% endfor %}</select></div>
+  {% if staff.role != 'provider' %}<div><label class="field" for="prov">Provider</label><select id="prov" name="provider"><option value="">All providers</option>{% for p in providers %}<option value="{{ p.id }}"{% if p.id == provider %} selected{% endif %}>{{ p.display_name }}</option>{% endfor %}</select></div>{% endif %}
+  <div class="statusrow"><button class="primary" type="submit">Show</button>
+  <a class="button" href="/t/{{ slug }}/staff?date={{ prev }}&amp;clinic={{ clinic }}&amp;provider={{ provider }}">&larr; Previous day</a>
+  <a class="button" href="/t/{{ slug }}/staff?date={{ next }}&amp;clinic={{ clinic }}&amp;provider={{ provider }}">Next day &rarr;</a></div>
+</form>
+<p class="hint">{{ rows|length }} appointment{{ '' if rows|length == 1 else 's' }} on {{ date }}.</p>
+{% if rows %}
+<div class="tablewrap"><table class="grid">
+<caption class="sr-only">Appointments for {{ date }}</caption>
+<thead><tr><th scope="col">Time</th><th scope="col">Patient</th><th scope="col">Visit</th><th scope="col">Provider</th><th scope="col">Status</th><th scope="col">Actions</th></tr></thead>
+<tbody>
+{% for r in rows %}
+<tr class="row-{{ r.status }}">
+  <td>{{ time_label(r.starts_at, r.time_zone) }}<br><small>{{ r.clinic_name }}</small></td>
+  <td><strong>{{ r.patient_name }}</strong>{% if r.patient_dob %}<br><small>DOB {{ r.patient_dob }}</small>{% endif %}{% if r.phone %}<br><small>{{ r.phone }}</small>{% endif %}
+    {% if r.reason %}<br><small>{{ r.reason }}</small>{% endif %}
+    <br>{% if r.modality == 'telehealth' %}<span class="tag">Video</span>{% endif %}{% if r.interpreter_language %}<span class="tag warn">Interpreter: {{ r.interpreter_language }}</span>{% endif %}{% if r.accommodations %}<span class="tag warn">Access: {{ r.accommodations }}</span>{% endif %}{% if r.referral_ref %}<span class="tag">Referral {{ r.referral_ref }}</span>{% endif %}{% if r.booked_by == 'staff' %}<span class="tag">Booked by staff</span>{% endif %}{% if r.late_cancel %}<span class="tag bad">Late cancel</span>{% endif %}</td>
+  <td>{{ r.visit_label }}{% if r.copay_cents %}<br><small>Copay {{ r.copay_cents|money }}</small>{% endif %}</td>
+  <td>{{ r.provider_name }}</td>
+  <td><span class="tag {{ 'ok' if r.status in ('arrived', 'completed') else ('bad' if r.status in ('cancelled', 'no_show') else '') }}">{{ r.status|replace('_', ' ')|capitalize }}</span>{% if r.cancel_reason %}<br><small>{{ r.cancel_reason }}</small>{% endif %}</td>
+  <td>
+    <div class="statusrow">
+    {% for nxt in transitions[r.status] %}{% if staff.role != 'provider' or nxt in ('arrived', 'completed') %}
+      <form class="inline" method="post" action="/t/{{ slug }}/staff/appointments/{{ r.id }}/status"><input type="hidden" name="status" value="{{ nxt }}"><input type="hidden" name="back" value="{{ back }}"><button class="small" type="submit">{{ labels[nxt] }}</button></form>
+    {% endif %}{% endfor %}
+    {% if staff.role != 'provider' and r.status == 'confirmed' %}
+      <a class="button small" href="/t/{{ slug }}/staff/appointments/{{ r.id }}/reschedule">Reschedule</a>
+      <form class="inline statusrow" method="post" action="/t/{{ slug }}/staff/appointments/{{ r.id }}/cancel"><input type="hidden" name="back" value="{{ back }}"><label class="sr-only" for="cr-{{ r.id }}">Cancel reason</label><input id="cr-{{ r.id }}" name="reason" type="text" placeholder="Reason" maxlength="200"><button class="small danger" type="submit">Cancel</button></form>
+    {% endif %}
+    </div>
+  </td>
+</tr>
+{% endfor %}
+</tbody></table></div>
+{% endif %}
+{% if staff.role != 'provider' %}
+<h2 class="h2-md">Export</h2>
+<form method="get" action="/t/{{ slug }}/staff/export.csv" class="filters card-block">
+  <div><label class="field" for="from">From</label><input id="from" name="from" type="date" value="{{ date }}" required></div>
+  <div><label class="field" for="to">To</label><input id="to" name="to" type="date" value="{{ date }}" required></div>
+  <div class="statusrow"><button type="submit">Download CSV</button></div>
+</form>
+{% endif %}
+{% endblock %}

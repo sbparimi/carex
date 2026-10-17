@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% from "_macros.html" import banner %}
+{% block title %}Hours &amp; time off · {{ brand.display_name }}{% endblock %}
+{% block content %}
+<h1 id="h1">Hours &amp; time off</h1>
+{% if notice %}{{ banner('success' if notice_ok else 'warning', notice, 'status') }}{% endif %}
+<form method="get" action="/t/{{ slug }}/staff/hours" class="filters card-block">
+  <div><label class="field" for="clinic">Clinic</label><select id="clinic" name="clinic">{% for cl in cat.clinics %}<option value="{{ cl.id }}"{% if cl.id == clinic.id %} selected{% endif %}>{{ cl.name }}</option>{% endfor %}</select></div>
+  <div><label class="field" for="provider">Provider</label><select id="provider" name="provider">{% for p in clinic.providers %}<option value="{{ p.id }}"{% if p.id == provider.id %} selected{% endif %}>{{ p.display_name }}</option>{% endfor %}</select></div>
+  <div class="statusrow"><button type="submit">Show</button></div>
+</form>
+{% if provider %}
+<div class="card-block">
+<h2>Weekly hours: {{ provider.display_name }} at {{ clinic.name }}</h2>
+<p class="hint">Times are in {{ clinic.time_zone }}.</p>
+{% for rule in rules %}
+<div class="statusrow">{{ weekdays[rule.weekday] }} {{ hhmm(rule.start_minute) }}–{{ hhmm(rule.end_minute) }}
+{% if staff.role != 'provider' %}<form class="inline" method="post" action="/t/{{ slug }}/staff/hours/remove"><input type="hidden" name="clinic" value="{{ clinic.id }}"><input type="hidden" name="provider" value="{{ provider.id }}"><input type="hidden" name="index" value="{{ loop.index0 }}"><button class="small danger" type="submit">Remove</button></form>{% endif %}</div>
+{% else %}<p>No hours set: nothing is bookable.</p>{% endfor %}
+{% if staff.role != 'provider' %}
+<form method="post" action="/t/{{ slug }}/staff/hours/add" class="filters">
+  <input type="hidden" name="clinic" value="{{ clinic.id }}"><input type="hidden" name="provider" value="{{ provider.id }}">
+  <div><label class="field" for="wd">Day</label><select id="wd" name="weekday">{% for d in weekdays %}<option value="{{ loop.index0 }}">{{ d }}</option>{% endfor %}</select></div>
+  <div><label class="field" for="st">From</label><input id="st" name="start" type="time" value="09:00" required></div>
+  <div><label class="field" for="en">To</label><input id="en" name="end" type="time" value="17:00" required></div>
+  <div class="statusrow"><button class="primary" type="submit">Add hours</button></div>
+</form>
+{% endif %}
+</div>
+
+<div class="card-block">
+<h2>Time off: {{ provider.display_name }}</h2>
+{% for o in timeoff %}<div class="statusrow">{{ when(o.starts_at, clinic.time_zone) }} to {{ when(o.ends_at, clinic.time_zone) }}
+{% if staff.role != 'provider' %}<form class="inline" method="post" action="/t/{{ slug }}/staff/time-off/{{ o.id }}/remove"><input type="hidden" name="back" value="{{ back }}"><button class="small danger" type="submit">Remove</button></form>{% endif %}</div>
+{% else %}<p>No upcoming time off.</p>{% endfor %}
+<form method="post" action="/t/{{ slug }}/staff/time-off/add" class="filters">
+  <input type="hidden" name="clinic" value="{{ clinic.id }}"><input type="hidden" name="provider" value="{{ provider.id }}">
+  <div><label class="field" for="tos">Starts</label><input id="tos" name="starts" type="datetime-local" required></div>
+  <div><label class="field" for="toe">Ends</label><input id="toe" name="ends" type="datetime-local" required></div>
+  <div class="statusrow"><button class="primary" type="submit">Add time off</button></div>
+</form>
+</div>
+{% endif %}
+
+{% if staff.role != 'provider' %}
+<div class="card-block">
+<h2>Clinic closures: {{ clinic.name }}</h2>
+{% for z in closures %}<div class="statusrow">{{ when(z.starts_at, clinic.time_zone) }} to {{ when(z.ends_at, clinic.time_zone) }}{% if z.reason %} · {{ z.reason }}{% endif %}
+<form class="inline" method="post" action="/t/{{ slug }}/staff/closures/{{ z.id }}/remove"><input type="hidden" name="back" value="{{ back }}"><button class="small danger" type="submit">Remove</button></form></div>
+{% else %}<p>No upcoming closures.</p>{% endfor %}
+<form method="post" action="/t/{{ slug }}/staff/closures/add" class="filters">
+  <input type="hidden" name="clinic" value="{{ clinic.id }}"><input type="hidden" name="provider" value="{{ provider.id if provider else '' }}">
+  <div><label class="field" for="cs">Closes</label><input id="cs" name="starts" type="datetime-local" required></div>
+  <div><label class="field" for="ce">Reopens</label><input id="ce" name="ends" type="datetime-local" required></div>
+  <div><label class="field" for="cr">Reason</label><input id="cr" name="reason" type="text" maxlength="120"></div>
+  <div class="statusrow"><button class="primary" type="submit">Close clinic</button></div>
+</form>
+<p class="hint">Existing appointments in the window are not cancelled: move them from the schedule.</p>
+</div>
+{% endif %}
+{% endblock %}

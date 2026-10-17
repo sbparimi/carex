@@ -1,0 +1,116 @@
+"""SYNTHETIC DEMO DATA for local development and demos. Everything here is invented. Extends `synthetic_catalog()` (which the automated tests rely on and which
+stays unchanged) with more clinics, visit types, providers, hours, employers and insurers; `seed_demo_people` adds demo accounts, appointments and staff logins."""
+from __future__ import annotations
+
+from datetime import datetime
+from typing import Callable
+
+from .accounts import Accounts
+from .catalog import seed_db
+from .scheduling import ReserveInput, Scheduling
+from .seed import synthetic_catalog
+from .staff import StaffAccounts
+from .util import now as _now
+
+DEMO_PASSWORD = "Demo-Passw0rd-2026"
+DEMO_PATIENTS = [
+    {"tenant_id": "tn-north", "email": "alex.demo@example.test", "first": "Alex", "last": "Demo", "dob": "1988-03-14", "phone": "+1 415 555 0101", "door": ("employer", "em-n-1")},
+    {"tenant_id": "tn-north", "email": "maria.demo@example.test", "first": "Maria", "last": "Sample", "dob": "1976-11-02", "phone": "+1 415 555 0102", "door": ("insurer", "in-n-1")},
+    {"tenant_id": "tn-north", "email": "new.demo@example.test", "first": "Nia", "last": "Newcomer", "dob": "1995-07-30", "phone": "+1 415 555 0103", "door": ("employer", "em-n-5")},
+    {"tenant_id": "tn-bay", "email": "sam.demo@example.test", "first": "Sam", "last": "Bayview", "dob": "1990-01-21", "phone": "+1 510 555 0104", "door": ("employer", "em-b-1")},
+]
+DEMO_STAFF = [
+    {"tenant_id": "tn-north", "email": "frontdesk@northwind.example.test", "name": "Fran Frontdesk", "role": "front_desk"},
+    {"tenant_id": "tn-north", "email": "dr.alex@northwind.example.test", "name": "Dr. Alex Example", "role": "provider", "provider_id": "pr-a"},
+    {"tenant_id": "tn-north", "email": "admin@northwind.example.test", "name": "Avery Admin", "role": "admin"},
+]
+
+
+def demo_catalog() -> dict:
+    base = synthetic_catalog()
+    N, B = "tn-north", "tn-bay"
+
+    def wk(tenant, provider, clinic, days, frm, to):
+        return [{"tenant_id": tenant, "provider_id": provider, "clinic_id": clinic, "weekday": d, "start_minute": frm * 60, "end_minute": to * 60} for d in days]
+
+    def named(prefix, tenant, names, start):
+        return [{"id": f"{prefix}{start + i}", "tenant_id": tenant, "name": f"{n} (demo)"} for i, n in enumerate(names)]
+
+    def clinic(id, tenant, state, name, city, tz):
+        return {"id": id, "tenant_id": tenant, "state_code": state, "name": name, "city": city, "address": f"2 Example Way, {city}", "time_zone": tz, "status": "active", "bookable": True}
+
+    def svc(id, tenant, canonical, label):
+        return {"id": id, "tenant_id": tenant, "canonical_type": canonical, "label": label, "description": f"{label} visit", "status": "active"}
+
+    def el(tenant, clinic_id, service, provider):
+        return {"tenant_id": tenant, "clinic_id": clinic_id, "service_id": service, "provider_id": provider, "active": True}
+
+    d = dict(base)
+    d["clinics"] = base["clinics"] + [clinic("cl-sea", N, "WA", "Seattle Clinic", "Seattle", "America/Los_Angeles"), clinic("cl-den", N, "CO", "Denver Clinic", "Denver", "America/Denver"),
+                                      clinic("cl-sj", B, "CA", "San Jose Clinic", "San Jose", "America/Los_Angeles")]
+    d["services"] = base["services"] + [svc("sv-vision-b", B, "vision_care", "Vision Care"), svc("sv-coach-b", B, "health_coach", "Health Coach")]
+    d["providers"] = base["providers"] + [{"id": i, "tenant_id": t, "display_name": n, "status": "active"} for i, t, n in (
+        ("pr-d", N, "Dr. Dana Demo"), ("pr-e", N, "Riley Sample, OD"), ("pr-f", N, "Jordan Placeholder, Health Coach"), ("pr-g", N, "Dr. Morgan Example"),
+        ("pr-y", B, "Dr. Yara Example"), ("pr-x", B, "Kai Sample, Health Coach"))]
+    d["clinic_services"] = base["clinic_services"] + (
+        [{"tenant_id": N, "clinic_id": "cl-sea", "service_id": s, "active": True} for s in ("sv-pc-n", "sv-vision-n", "sv-coach-n")]
+        + [{"tenant_id": N, "clinic_id": "cl-den", "service_id": s, "active": True} for s in ("sv-pc-n", "sv-physio-n", "sv-fit-n")]
+        + [{"tenant_id": B, "clinic_id": "cl-sj", "service_id": s, "active": True} for s in ("sv-pc-b", "sv-vision-b")]
+        + [{"tenant_id": B, "clinic_id": "cl-oak", "service_id": "sv-coach-b", "active": True}])
+    d["eligibility"] = base["eligibility"] + [el(N, "cl-sea", "sv-pc-n", "pr-d"), el(N, "cl-sea", "sv-vision-n", "pr-e"), el(N, "cl-sea", "sv-coach-n", "pr-f"), el(N, "cl-den", "sv-pc-n", "pr-g"),
+                                              el(N, "cl-den", "sv-physio-n", "pr-b"), el(N, "cl-den", "sv-fit-n", "pr-f"), el(B, "cl-sj", "sv-pc-b", "pr-y"), el(B, "cl-sj", "sv-vision-b", "pr-y"),
+                                              el(B, "cl-oak", "sv-coach-b", "pr-x")]
+    d["availability"] = base["availability"] + (wk(N, "pr-d", "cl-sea", [1, 2, 3, 4, 5], 8, 16) + wk(N, "pr-e", "cl-sea", [2, 3, 4], 9, 17) + wk(N, "pr-f", "cl-sea", [1, 3, 5], 10, 15)
+                                                 + wk(N, "pr-g", "cl-den", [1, 2, 3, 4, 5], 9, 17) + wk(N, "pr-b", "cl-den", [2, 4], 8, 12) + wk(N, "pr-f", "cl-den", [2, 4], 13, 17)
+                                                 + wk(B, "pr-y", "cl-sj", [1, 2, 3, 4, 5], 9, 17) + wk(B, "pr-x", "cl-oak", [1, 3, 5], 10, 16))
+    d["employers"] = base["employers"] + named("em-n-", N, ["Vandelay Industries", "Stark Engineering", "Wayne Logistics", "Hooli Cloud", "Soylent Foods", "Wonka Confections", "Cyberdyne Systems",
+                                                          "Gringotts Bank", "Pied Piper Labs", "Dunder Mifflin Paper"], 5) + named("em-b-", B, ["Oceanic Airlines", "Tyrell Biotech", "Bluth Construction", "Prestige Worldwide", "Sterling Cooper"], 3)
+    d["insurers"] = base["insurers"] + named("in-n-", N, ["Demo Care Alliance", "Northstar Example Insurance", "Evergreen Sample Health", "Summit Placeholder Plan", "Riverbend Mutual"], 4) \
+        + named("in-b-", B, ["Bay Sample Health", "Golden Gate Example Plan", "Pacific Placeholder Mutual"], 2)
+    # The demo shows the full clinical flow: safety check, consent, video visits, copays.
+    d["tenant_settings"] = [{"tenant_id": N, "intake_required": True, "video_join_base_url": "https://video.example.test/join"}, {"tenant_id": B, "intake_required": True},
+                            {"tenant_id": "tn-off", "intake_required": False}]
+    d["rules"] = [{"tenant_id": N, "service_id": "sv-pc-n", "modality": "either", "buffer_after_min": 0}]
+    d["profiles"] = [{"tenant_id": N, "provider_id": "pr-a", "specialty": "Primary care", "languages": ["English", "Spanish"], "licensed_states": ["CA", "WA", "CO"], "accepting_new": True},
+                     {"tenant_id": N, "provider_id": "pr-g", "specialty": "Primary care", "languages": ["English"], "licensed_states": ["CO"], "accepting_new": True},
+                     {"tenant_id": N, "provider_id": "pr-d", "specialty": "Primary care", "languages": ["English", "Mandarin"], "licensed_states": ["WA", "CA"], "accepting_new": False}]
+    d["coverage"] = [{"tenant_id": N, "service_id": "sv-pc-n", "covered": True, "copay_cents": 2500}]
+    return d
+
+
+def load_demo(db) -> None:
+    seed_db(db, demo_catalog())
+
+
+def seed_demo_people(db, clock: Callable[[], datetime] = _now) -> None:
+    """Demo accounts, appointments and staff logins. Idempotent."""
+    accounts, sched, staff = Accounts(db, clock), Scheduling(db, clock), StaffAccounts(db, clock)
+    ids: dict[str, str] = {}
+    for p in DEMO_PATIENTS:
+        have = db.get("SELECT id FROM users WHERE tenant_id = ? AND email = ?", p["tenant_id"], p["email"])
+        if have:
+            ids[p["email"]] = have["id"]
+            continue
+        profile, _ = accounts.signup(p["tenant_id"], email=p["email"], password=DEMO_PASSWORD, first_name=p["first"], last_name=p["last"], date_of_birth=p["dob"], phone=p["phone"],
+                                     access_type=p["door"][0], access_id=p["door"][1])
+        ids[p["email"]] = profile["id"]
+
+    def book(email, tenant_id, clinic, service, provider, idx, key, cancel=False):
+        p = next(x for x in DEMO_PATIENTS if x["email"] == email)
+        if sched.lookup_by_key(tenant_id, key):
+            return
+        slots = sched.list_slots(tenant_id, clinic, service, provider)
+        if len(slots) <= idx:
+            return
+        rec = sched.reserve(ReserveInput(tenant_id, clinic, service, provider, slots[idx]["id"], key, p["first"], p["last"], email, user_id=ids[email]))
+        if cancel:
+            sched.cancel(tenant_id, rec["booking_id"])
+
+    book("alex.demo@example.test", "tn-north", "cl-sb", "sv-pc-n", "pr-a", 20, "demo-seed-alex-1")
+    book("alex.demo@example.test", "tn-north", "cl-sea", "sv-vision-n", "pr-e", 6, "demo-seed-alex-2", True)
+    book("maria.demo@example.test", "tn-north", "cl-sb", "sv-physio-n", "pr-b", 14, "demo-seed-maria-1")
+    book("maria.demo@example.test", "tn-north", "cl-den", "sv-pc-n", "pr-g", 30, "demo-seed-maria-2")
+    book("sam.demo@example.test", "tn-bay", "cl-oak", "sv-pc-b", "pr-z", 18, "demo-seed-sam-1")
+    for s in DEMO_STAFF:
+        if not db.get("SELECT 1 AS ok FROM staff_users WHERE tenant_id = ? AND email = ?", s["tenant_id"], s["email"]):
+            staff.create(s["tenant_id"], email=s["email"], name=s["name"], role=s["role"], password=DEMO_PASSWORD, provider_id=s.get("provider_id"))

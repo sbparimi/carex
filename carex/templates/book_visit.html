@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% from "_macros.html" import steps %}
+{% block title %}Choose a visit · {{ brand.display_name }}{% endblock %}
+{% block content %}
+{{ steps(2) }}
+<p class="back"><a href="/t/{{ slug }}/book?state={{ clinic.state_code }}">&larr; Back</a></p>
+<h1 id="h1">What kind of visit?</h1>
+<p class="lead">{{ clinic.name }} · {{ clinic.address }}, {{ clinic.city }}</p>
+{% for v in visits %}<a class="choice-link" href="/t/{{ slug }}/book/provider?clinic={{ clinic.id }}&amp;service={{ v.id }}"><span>{{ v.label }}<small>{{ v.duration_min }} min{% if v.modality == 'telehealth' %} · video{% elif v.modality == 'either' %} · in person or video{% endif %}{% if v.requires_referral %} · referral needed{% endif %}</small></span></a>
+{% else %}<p>No visit types are offered at this clinic right now.</p>{% endfor %}
+{% endblock %}
