@@ -1,6 +1,8 @@
 """Tenant-scoped configuration changes (ADR-004). Every statement filters on tenant_id; a row of another tenant is indistinguishable from a missing one."""
 from __future__ import annotations
 
+import csv
+import io
 import re
 import secrets
 from datetime import datetime
@@ -103,6 +105,67 @@ class Admin:
         cid = "cl-" + secrets.token_hex(5)
         self.db.run("INSERT INTO clinics (id, tenant_id, name, city, address, state_code, time_zone, status, bookable) VALUES (?,?,?,?,?,?,?,'inactive',0)", cid, tenant_id, name, city, addr, c["state_code"], tz)
         return {"id": cid, "name": name, "city": city, "address": addr, "state_code": c["state_code"], "time_zone": tz, "status": "inactive", "bookable": False}
+
+    IMPORT_COLUMNS = ("name", "city", "address", "state", "time_zone", "phone", "hours", "about", "photo_url")
+    IMPORT_MAX_ROWS = 500
+
+    def import_clinics(self, tenant_id: str, text: str, commit: bool = True) -> dict:
+        """Reads pasted CSV (header row: name, city, address, state, time_zone, then optional phone, hours, about, photo_url).
+
+        All or nothing: when any row is wrong nothing is saved and every problem is listed with its line number. Imported clinics start hidden,
+        like clinics added one by one, so nothing reaches patients until someone switches it on. Existing name+address pairs are skipped, so a re-upload is safe."""
+        self._tenant(tenant_id)
+        text = (text or "").replace("\ufeff", "").strip()
+        if not text:
+            _bad("paste the CSV, starting with the header row")
+        sample = text.splitlines()[0]
+        delim = ";" if sample.count(";") > sample.count(",") and sample.count(";") > sample.count("\t") else ("\t" if sample.count("\t") > sample.count(",") else ",")
+        rows = list(csv.reader(io.StringIO(text), delimiter=delim))
+        head = [h.strip().lower().replace(" ", "_") for h in rows[0]]
+        alias = {"timezone": "time_zone", "zone": "time_zone", "state_code": "state", "opening_hours": "hours", "hours_text": "hours", "image_url": "photo_url", "photo": "photo_url", "street": "address", "phone_number": "phone"}
+        head = [alias.get(h, h) for h in head]
+        missing = [k for k in ("name", "city", "address", "state", "time_zone") if k not in head]
+        if missing:
+            _bad("the header row is missing: " + ", ".join(missing))
+        body = [r for r in rows[1:] if any(c.strip() for c in r)]
+        if not body:
+            _bad("there are no clinic rows under the header")
+        if len(body) > self.IMPORT_MAX_ROWS:
+            _bad(f"at most {self.IMPORT_MAX_ROWS} clinics per import")
+        have = {(r["name"].strip().lower(), r["address"].strip().lower()) for r in self.db.all("SELECT name, address FROM clinics WHERE tenant_id = ?", tenant_id)}
+        good, errors, skipped, seen = [], [], 0, set()
+        for i, r in enumerate(body, start=2):
+            d = {h: (r[j].strip() if j < len(r) else "") for j, h in enumerate(head)}
+            try:
+                state = d["state"].upper()
+                if not re.fullmatch(r"[A-Z]{2}", state):
+                    _bad("state must be two letters, like TX")
+                row = {"name": _text(d["name"], "name"), "city": _text(d["city"], "city"), "address": _text(d["address"], "address", 200), "state_code": state, "time_zone": _tz(d["time_zone"]),
+                       "phone": d.get("phone", ""), "hours": d.get("hours", ""), "about": d.get("about", ""), "photo": d.get("photo_url", "")}
+                if row["phone"] and not re.fullmatch(r"[0-9+()\-. ]{5,30}", row["phone"]):
+                    _bad("phone is invalid")
+                if len(row["hours"]) > 200 or len(row["about"]) > 400:
+                    _bad("hours or notes are too long")
+                if row["photo"] and not re.fullmatch(r"https://\S{1,500}", row["photo"]):
+                    _bad("photo must be an https URL")
+            except AdminValidationError as e:
+                errors.append({"line": i, "problem": str(e)})
+                continue
+            key = (row["name"].lower(), row["address"].lower())
+            if key in have or key in seen:
+                skipped += 1
+                continue
+            seen.add(key)
+            good.append(row)
+        if errors:
+            return {"created": 0, "skipped": skipped, "errors": errors[:50], "more_errors": max(0, len(errors) - 50)}
+        if commit:
+            with self.db.tx() as tx:
+                for g in good:
+                    tx.run("""INSERT INTO clinics (id, tenant_id, name, city, address, state_code, time_zone, status, bookable, phone, hours_text, about, image_url)
+                              VALUES (?,?,?,?,?,?,?,'inactive',0,?,?,?,?)""", "cl-" + secrets.token_hex(5), tenant_id, g["name"], g["city"], g["address"], g["state_code"], g["time_zone"],
+                           g["phone"] or None, g["hours"] or None, g["about"] or None, g["photo"] or None)
+        return {"created": len(good), "skipped": skipped, "errors": [], "more_errors": 0, "committed": commit}
 
     def update_clinic(self, tenant_id: str, clinic_id: str, p: dict) -> dict:
         self._clinic(tenant_id, clinic_id)

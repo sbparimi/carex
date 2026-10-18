@@ -142,6 +142,10 @@ def test_first_screen_is_sign_in_and_demo_logins_are_prefilled_only_for_demo_dat
     assert "frontdesk@northwind.example.test" in s.text
     ok = client.post(S + "/login", data={"email": "alex.demo@example.test", "password": DEMO_PASSWORD})
     assert h1(ok) == "Find care"
+    hidden = TestClient(create_app(build(db=d, env={"CAREX_HIDE_DEMO": "1"})), base_url="http://testserver", follow_redirects=True)
+    r = hidden.get(S + "/login")
+    assert "Demo account" not in r.text and DEMO_PASSWORD not in r.text and 'value="alex.demo' not in r.text
+    assert "frontdesk@northwind.example.test" not in hidden.get(S + "/staff/login").text
 
 
 def test_state_picker_lists_all_56_and_every_state_has_at_least_20_clinics_in_tiers(demo):

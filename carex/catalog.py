@@ -9,7 +9,7 @@ from .db import Conn
 ACTIVE_CLINIC = "c.tenant_id = ? AND c.status = 'active' AND c.bookable = 1"
 CLINIC_COLS = "c.id, c.name, c.city, c.address, c.state_code, c.time_zone, c.tier, c.phone, c.hours_text, c.about, c.image_url"
 VISIT_COLS = "v.id, v.canonical_type, v.label, v.description, v.duration_min, v.modality, v.requires_referral, v.min_age, v.max_age"
-PROV_COLS = "p.id, p.display_name, p.specialty, p.languages, p.accepting_new, p.bio"
+PROV_COLS = "p.id, p.display_name, p.specialty, p.languages, p.accepting_new, p.bio, p.photo_url"
 
 
 def _clinic(r: dict) -> dict:
@@ -24,7 +24,7 @@ def _visit(r: dict) -> dict:
 
 def _provider(r: dict) -> dict:
     return {"id": r["id"], "display_name": r["display_name"], "specialty": r["specialty"] or "", "languages": json.loads(r["languages"] or "[]"),
-            "accepting_new": bool(r["accepting_new"]), "bio": r["bio"] or ""}
+            "accepting_new": bool(r["accepting_new"]), "bio": r["bio"] or "", "photo_url": r["photo_url"] or ""}
 
 
 class Catalog:
@@ -72,6 +72,23 @@ class Catalog:
                  JOIN visit_types v ON v.id = cv.visit_type_id AND v.tenant_id = c.tenant_id AND v.status = 'active'
                 WHERE {ACTIVE_CLINIC} AND c.id = ? ORDER BY v.label, v.id""", tenant_id, clinic_id)
         return [_visit(r) for r in rows]
+
+    def clinic_providers(self, tenant_id: str, clinic_id: str) -> list[dict]:
+        """Every active clinician who sees patients at this clinic, for the clinic page."""
+        rows = self.db.all(
+            f"""SELECT DISTINCT {PROV_COLS} FROM provider_eligibility pe
+                 JOIN providers p ON p.id = pe.provider_id AND p.tenant_id = pe.tenant_id AND p.status = 'active'
+                 JOIN clinics c ON c.id = pe.clinic_id AND c.tenant_id = pe.tenant_id
+                WHERE {ACTIVE_CLINIC} AND pe.active = 1 AND c.id = ? ORDER BY p.display_name, p.id""", tenant_id, clinic_id)
+        return [_provider(r) for r in rows]
+
+    def clinic_plans(self, tenant_id: str, clinic_id: str) -> list[dict]:
+        """Insurance plans accepted here. Same rule as booking: a plan with no network list is accepted everywhere, otherwise only at its listed clinics."""
+        return self.db.all(
+            """SELECT i.id, i.name FROM insurers i WHERE i.tenant_id = ?
+                  AND (NOT EXISTS (SELECT 1 FROM insurer_networks n WHERE n.tenant_id = i.tenant_id AND n.insurer_id = i.id)
+                       OR EXISTS (SELECT 1 FROM insurer_networks n WHERE n.tenant_id = i.tenant_id AND n.insurer_id = i.id AND n.clinic_id = ?))
+                ORDER BY i.name""", tenant_id, clinic_id)
 
     def providers(self, tenant_id: str, clinic_id: str, service_id: str) -> list[dict]:
         rows = self.db.all(

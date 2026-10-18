@@ -123,3 +123,10 @@
 {% macro pagehead(title, sub='', kind='') %}
 <header class="pagehead"><div class="ph-text"><h1 id="h1" class="largetitle">{{ title|safe }}</h1>{% if sub %}<p class="ph-sub">{{ sub }}</p>{% endif %}</div>{% if kind %}<span class="ph-art" aria-hidden="true">{{ vicon(kind, 64) }}</span>{% endif %}</header>
 {% endmacro %}
+
+{% macro clinician(p, tint=0) %}
+<li class="clin"><span class="clin-av av-{{ tint }}" aria-hidden="true">{% if p.photo_url %}<img src="{{ p.photo_url }}" alt="" loading="lazy">{% else %}{{ p.display_name.replace('Dr. ', '')[:1] }}{% endif %}</span>
+  <span class="clin-body"><strong>{{ p.display_name }}</strong>{% if p.specialty %}<small>{{ p.specialty }}</small>{% endif %}
+    {% if p.languages %}<small>Speaks {{ p.languages|join(', ') }}</small>{% endif %}
+    <em class="clin-tag{{ '' if p.accepting_new else ' no' }}">{{ 'Accepting new patients' if p.accepting_new else 'Existing patients only' }}</em></span></li>
+{% endmacro %}

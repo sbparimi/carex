@@ -201,4 +201,9 @@ V3 = [
     "CREATE INDEX events_tenant_time ON events(tenant_id, at)",
 ]
 
-MIGRATIONS = [V1, V2, V3]
+# Version 4: an optional clinician photo shown on clinic pages.
+V4 = [
+    "ALTER TABLE providers ADD COLUMN photo_url TEXT",
+]
+
+MIGRATIONS = [V1, V2, V3, V4]

@@ -31,6 +31,7 @@
   </form>
 </details>
 {% else %}<p class="hint">No clinics in this state yet.</p>{% endfor %}
+<p class="hint">Moving over from another system? <a href="/t/{{ slug }}/staff/setup/import">Import many clinics from a spreadsheet</a>.</p>
 <h3 class="tierhead">Add a clinic</h3>
 <form method="post" action="/t/{{ slug }}/staff/setup/clinic" class="stack">
   <label class="field" for="nn">Name</label><input id="nn" name="name" maxlength="120" required>

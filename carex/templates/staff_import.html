@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% from "_macros.html" import banner, pagehead %}
+{% block title %}Import clinics · {{ brand.display_name }}{% endblock %}
+{% block content %}
+{{ pagehead("Import clinics", "Paste a spreadsheet exported as CSV. Nothing is saved if any row is wrong.", "clinic") }}
+{% if error %}{{ banner('error', error, 'alert') }}{% endif %}
+{% if result %}
+  {% if result.errors %}
+  <section class="sheet" aria-labelledby="e-h"><h2 id="e-h" class="section">Fix these rows first</h2>
+  <ul class="importerrors">{% for e in result.errors %}<li>Line {{ e.line }}: {{ e.problem }}</li>{% endfor %}</ul>
+  {% if result.more_errors %}<p class="hint">And {{ result.more_errors }} more.</p>{% endif %}</section>
+  {% elif checked %}{{ banner('success', 'Looks good: ' ~ result.created ~ ' new clinic' ~ ('' if result.created == 1 else 's') ~ ' ready to import' ~ ((', ' ~ result.skipped ~ ' already exist and will be skipped') if result.skipped else '') ~ '. Press Import clinics to save.', 'status') }}
+  {% endif %}
+{% endif %}
+<section class="sheet" aria-labelledby="i-h"><h2 id="i-h" class="section">Your spreadsheet</h2>
+<p class="hint">First row must be the column names. Required: <code>name, city, address, state, time_zone</code>. Optional: <code>phone, hours, about, photo_url</code>. Example time zone: <code>America/Chicago</code>. Up to 500 clinics. Imported clinics start hidden; switch each on in Practice setup. Running it twice is safe: clinics that already exist are skipped.</p>
+<form method="post" action="/t/{{ slug }}/staff/setup/import" class="stack">
+  <label class="field" for="csv">CSV</label>
+  <textarea id="csv" name="csv" rows="12" spellcheck="false" required>{{ csv }}</textarea>
+  <div class="btnrow"><button class="ghost" type="submit" name="op" value="check">Check only</button><button class="primary" type="submit" name="op" value="save">Import clinics</button></div>
+</form></section>
+<p class="back"><a class="backlink" href="/t/{{ slug }}/staff/setup">Practice setup</a></p>
+{% endblock %}

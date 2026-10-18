@@ -49,18 +49,27 @@ def ink_for(hex_color: str) -> str:
     return "#000000" if lum > 0.35 else "#ffffff"
 
 
-async def form(request: Request) -> dict:
-    """urlencoded form body as {name: value}; repeated names become lists under `name` + `_all`. Size-limited."""
-    if int(request.headers.get("content-length") or 0) > MAX_BODY:
+async def _read_form(request: Request, limit: int) -> dict:
+    if int(request.headers.get("content-length") or 0) > limit:
         raise HTTPException(413, "Request too large")
     body = await request.body()
-    if len(body) > MAX_BODY:
+    if len(body) > limit:
         raise HTTPException(413, "Request too large")
     out: dict = {}
     for k, v in parse_qs(body.decode("utf-8", "replace"), keep_blank_values=True).items():
         out[k] = v[0]
         out[k + "_all"] = v
     return out
+
+
+async def form(request: Request) -> dict:
+    """urlencoded form body as {name: value}; repeated names become lists under `name` + `_all`. Size-limited."""
+    return await _read_form(request, MAX_BODY)
+
+
+async def form_big(request: Request) -> dict:
+    """Same, with room for a pasted spreadsheet (up to 300 KB)."""
+    return await _read_form(request, 300_000)
 
 
 def s(f: dict, k: str, mx: int = 500) -> str:
@@ -123,7 +132,7 @@ class Web:
     # ---- responses
     def demo(self, t: dict | None, kind: str) -> dict | None:
         """Demo sign-in details, only for databases loaded with `seed-demo` (the demo user exists). Real databases never match."""
-        if not t:
+        if not t or self.c.hide_demo:
             return None
         from .seed_demo import DEMO_PASSWORD, DEMO_PATIENTS, DEMO_STAFF
         rows = DEMO_STAFF if kind == "staff" else DEMO_PATIENTS

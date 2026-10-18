@@ -12,7 +12,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, Response
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from . import pages_auth, pages_patient, pages_staff, pages_staff2, pages_account
+from . import pages_auth, pages_patient, pages_staff, pages_staff2, pages_account, feed
 from .admin import AdminNotFoundError, AdminValidationError
 from .context import Ctx, build
 from .staff import StaffError, to_fhir
@@ -141,6 +141,7 @@ def create_app(ctx: Ctx | None = None) -> FastAPI:
     pages_staff.register(app, W)
     pages_staff2.register(app, W)
     pages_account.register(app, W)
+    feed.register(app, W)
     register_admin_api(app, W)
     return app
 

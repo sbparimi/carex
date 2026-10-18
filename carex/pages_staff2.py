@@ -11,9 +11,16 @@ from fastapi.responses import Response
 from .admin import AdminNotFoundError, AdminValidationError
 from .states import US_STATES
 from .util import local_parts, parse
-from .web import ID, Web, form, s
+from .web import ID, Web, form, form_big, s
 
 FIRST_HOUR, LAST_HOUR = 6, 21           # the grid shows 06:00 to 21:00 in quarter-hour rows
+
+
+def base_url_for(request: Request, slug: str) -> str:
+    """The public address of an organisation's pages, for links that leave the site (QR codes, feeds)."""
+    import os
+    configured = os.environ.get("APP_BASE_URL") or (("https://" + os.environ["VERCEL_PROJECT_PRODUCTION_URL"]) if os.environ.get("VERCEL_PROJECT_PRODUCTION_URL") else "")
+    return f"{(configured or str(request.base_url)).rstrip('/')}/t/{slug}"
 
 
 def register(app: FastAPI, W: Web) -> None:
@@ -24,10 +31,7 @@ def register(app: FastAPI, W: Web) -> None:
         if not all(isinstance(v, str) and ID.match(v) for v in vals):
             raise HTTPException(400, "Invalid request")
 
-    def base_url(request: Request, slug: str) -> str:
-        import os
-        configured = os.environ.get("APP_BASE_URL") or (("https://" + os.environ["VERCEL_PROJECT_PRODUCTION_URL"]) if os.environ.get("VERCEL_PROJECT_PRODUCTION_URL") else "")
-        return f"{(configured or str(request.base_url)).rstrip('/')}/t/{slug}"
+    base_url = base_url_for
 
     def pick_list(clinics: list[dict], selected: str) -> list[dict]:
         """The first 80 clinics for a drop-down, plus the selected one so the page always shows what it is filtered on."""
@@ -101,7 +105,7 @@ def register(app: FastAPI, W: Web) -> None:
         return W.render(request, "staff_insights.html", t=t, staff=st, nav="ins", m=m, days=days, clinic=clinic, clinics=pick_list(cats, clinic))
 
     # ------------------------------------------------------------------ practice setup
-    SETUP_NOTES = {"brand": "Branding saved.", "clinic": "Clinic added. It stays hidden from patients until you switch it on.", "toggled": "Clinic updated.", "details": "Clinic details saved."}
+    SETUP_NOTES = {"imported": "Clinics imported. They stay hidden from patients until you switch each one on.", "brand": "Branding saved.", "clinic": "Clinic added. It stays hidden from patients until you switch it on.", "toggled": "Clinic updated.", "details": "Clinic details saved."}
 
     @app.get(P + "/setup")
     def setup(slug: str, request: Request, state: str = "", n: str = "", error: str = ""):
@@ -142,6 +146,27 @@ def register(app: FastAPI, W: Web) -> None:
             return setup_back(slug, s(f, "state_code", 2).upper(), error=str(e))
         W.audit(request, t, "staff", "setup.clinic_create", actor_id=st["id"], target_type="clinic", target_id=new["id"])
         return setup_back(slug, new["state_code"], "clinic")
+
+    @app.post(P + "/setup/import")
+    def setup_import(slug: str, request: Request, f: dict = Depends(form_big)):
+        t = W.tenant(slug)
+        st = W.need_staff(request, t, "admin")
+        W.allow("write", W.client(request))
+        check = s(f, "op", 8) == "check"
+        try:
+            res = c.admin.import_clinics(t["id"], str(f.get("csv") or "")[:290_000], commit=not check)
+        except AdminValidationError as e:
+            return W.render(request, "staff_import.html", status=422, t=t, staff=st, nav="setup", csv=str(f.get("csv") or "")[:290_000], error=str(e), result=None)
+        W.audit(request, t, "staff", "setup.import_check" if check else "setup.import_clinics", actor_id=st["id"], detail={"created": res["created"], "skipped": res["skipped"], "errors": len(res["errors"])})
+        if res["errors"] or check:
+            return W.render(request, "staff_import.html", status=422 if res["errors"] else 200, t=t, staff=st, nav="setup", csv=str(f.get("csv") or "")[:290_000], error=None, result=res, checked=check)
+        return setup_back(slug, "", "imported")
+
+    @app.get(P + "/setup/import")
+    def setup_import_page(slug: str, request: Request):
+        t = W.tenant(slug)
+        st = W.need_staff(request, t, "admin")
+        return W.render(request, "staff_import.html", t=t, staff=st, nav="setup", csv="", error=None, result=None)
 
     @app.post(P + "/setup/clinic/{cid}")
     def setup_clinic_update(slug: str, cid: str, request: Request, f: dict = Depends(form)):

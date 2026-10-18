@@ -10,6 +10,7 @@
 <link rel="icon" type="image/svg+xml" href="{{ brand.logo_url or "/assets/favicon.svg" }}">
 <link rel="stylesheet" href="/assets/app.css">
 {% if slug %}<link rel="stylesheet" href="/t/{{ slug }}/brand.css">{% endif %}
+{% block head %}{% endblock %}
 </head>
 <body class="{% block bodyclass %}{% endblock %}">
 <a class="skip" href="#main">Skip to main content</a>

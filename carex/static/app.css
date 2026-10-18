@@ -1127,3 +1127,30 @@ h2.section::after { content: ""; position: absolute; left: 0; bottom: 0; width: 
 .actrow strong { font-weight: 600; } .actrow small { color: var(--muted); }
 .errorstate { margin: 2rem auto; max-width: 34rem; padding: 2.5rem 1.5rem; }
 .errorstate h1 { font-size: clamp(1.75rem, 4vw, 2.5rem); margin: 0; }
+
+/* clinician cards, accepted plans, network chip */
+.clinlist { list-style: none; margin: .5rem 0 1.5rem; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr)); gap: .875rem; }
+.clin { display: flex; gap: .875rem; align-items: center; background: #fff; border: 1px solid var(--sep); border-radius: var(--r); padding: .875rem 1rem; box-shadow: var(--shadow); }
+.clin-av { flex: none; width: 3.25rem; height: 3.25rem; border-radius: 50%; display: grid; place-items: center; color: #fff; font-weight: 700; font-size: 1.25rem; overflow: hidden; }
+.clin-av img { width: 100%; height: 100%; object-fit: cover; }
+.clin-body { display: grid; gap: .125rem; min-width: 0; }
+.clin-body small { color: var(--muted); }
+.clin-tag { font-style: normal; font-size: .8125rem; font-weight: 600; color: #0b6b3a; }
+.clin-tag.no { color: #8a4b00; }
+.plantag { display: inline-block; margin: 0 .375rem .375rem 0; padding: .125rem .625rem; border-radius: 999px; background: #eef4fb; color: #0f4c8a; font-size: .875rem; font-weight: 600; }
+.netchip { display: inline-block; margin: 0 0 1rem; padding: .375rem .875rem; border-radius: 999px; font-weight: 600; }
+.netchip.yes { background: #e3f4ea; color: #0b5a31; }
+.netchip.no { background: #fdf0e0; color: #7a4300; }
+.av-0 { background: hsl(215 58% 34%); }
+.av-1 { background: hsl(160 58% 34%); }
+.av-2 { background: hsl(265 58% 34%); }
+.av-3 { background: hsl(20 58% 34%); }
+.av-4 { background: hsl(335 58% 34%); }
+.av-5 { background: hsl(190 58% 34%); }
+.av-6 { background: hsl(45 58% 34%); }
+.av-7 { background: hsl(100 58% 34%); }
+
+.importerrors { margin: .5rem 0 0; padding-left: 1.25rem; color: #8a1c1c; }
+.btnrow { display: flex; gap: .75rem; flex-wrap: wrap; }
+#csv { font-family: ui-monospace, Menlo, monospace; font-size: .875rem; }
+.cover-mark svg { width: 1em; height: 1em; display: block; } @media (max-width: 51.99rem) { .cover-mark svg { width: 3.25rem; height: 3.25rem; } }

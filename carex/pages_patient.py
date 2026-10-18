@@ -129,6 +129,11 @@ def register(app: FastAPI, W: Web) -> None:
         if service and not visit:
             raise HTTPException(404, "Not found")
         log_event(t, "visit_chosen" if visit else "clinic_viewed", clinic)
+        team = c.catalog.clinic_providers(t["id"], clinic) if not visit else []
+        plans = c.catalog.clinic_plans(t["id"], clinic) if not visit else []
+        in_network = None
+        if u and not visit and (u.get("access") or {}).get("type") == "insurer":
+            in_network = any(x["id"] == u["access"]["id"] for x in plans)
         part = part if part in PARTS else ""
         coverage = {}
         if u:
@@ -165,7 +170,7 @@ def register(app: FastAPI, W: Web) -> None:
             nxt = {**f, "provider": p}
         return W.render(request, "book_provider.html", t=t, user=u, nav="book", clinic=cl, visits=visits, visit=visit, cards=cards, only=provider, joined=bool(joined), notice=notice[:120],
                         any_open=any(x["days"] for x in cards), nxt=nxt, soonest=soonest, overall=min(soonest.values(), key=lambda z: z["starts_at"], default=None), n_providers=len(providers),
-                        tint=W.env.globals["tint_of"](cl["id"]), part=part, lang=lang, langs=langs, coverage=coverage, maps_q=f"{cl['address']}, {cl['city']}, {cl['state_code']}")
+                        tint=W.env.globals["tint_of"](cl["id"]), part=part, lang=lang, langs=langs, coverage=coverage, team=team, plans=plans, in_network=in_network, maps_q=f"{cl['address']}, {cl['city']}, {cl['state_code']}")
 
     def details_ctx(t, u, clinic, service, provider, slot_id, v, **extra):
         elig = c.catalog.eligible(t["id"], clinic, service, provider)
