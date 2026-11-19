@@ -130,3 +130,21 @@ def test_production_context_hides_demo_access_and_seed_route(cx):
     client = TestClient(create_app(production), base_url="http://testserver", follow_redirects=False)
     response = client.post("/internal/seed-demo", headers={"authorization": f"Bearer {SECRET}"})
     assert response.status_code == 404
+
+
+def test_staff_admin_mutation_rolls_back_when_required_audit_fails(cx, monkeypatch):
+    from carex.audit import AuditWriteError
+
+    client = TestClient(create_app(cx), base_url="http://testserver", raise_server_exceptions=False)
+    headers = {"authorization": f"Bearer {cx.admin_keys.create('tn-north', 'audit-failure-test')}"}
+    before = cx.db.get("SELECT COUNT(*) AS n FROM staff_users WHERE tenant_id = ?", "tn-north")["n"]
+
+    def fail_audit(*args, **kwargs):
+        raise AuditWriteError("audit store unavailable")
+
+    monkeypatch.setattr(cx.audit, "record", fail_audit)
+    response = client.post(S + "/api/admin/staff", headers=headers,
+                           json={"email": "atomic@example.com", "name": "Atomic User", "role": "front_desk", "password": "a long enough pass"})
+    after = cx.db.get("SELECT COUNT(*) AS n FROM staff_users WHERE tenant_id = ?", "tn-north")["n"]
+    assert response.status_code == 500
+    assert after == before
