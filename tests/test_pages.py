@@ -121,16 +121,18 @@ def test_password_reset_flow(client, ctx):
     assert a.status_code == 200
 
 
-def test_first_screen_is_sign_in_and_demo_logins_are_prefilled_only_for_demo_data(client, ctx):
+def test_first_screen_is_sign_in_and_demo_logins_are_prefilled_only_for_demo_data(client, ctx, db):
     r = client.get("/")
     assert r.url.path.endswith("/login") and h1(r) == "Sign in"
     assert "Demo account" not in r.text and 'value="Demo' not in r.text          # synthetic test data is not the demo set
     from fastapi.testclient import TestClient
     from carex.app import create_app
     from carex.context import build
-    from carex.db import open_db
     from carex.seed_demo import DEMO_PASSWORD, load_demo, seed_demo_people
-    d = open_db()
+    tables = [r["tablename"] for r in db.all("SELECT tablename FROM pg_tables WHERE schemaname = current_schema() AND tablename <> 'carex_migrations'")]
+    if tables:
+        db.run("TRUNCATE " + ", ".join(tables) + " RESTART IDENTITY CASCADE")
+    d = db
     load_demo(d)
     seed_demo_people(d)
     client = TestClient(create_app(build(db=d, env={})), base_url="http://testserver", follow_redirects=True)
