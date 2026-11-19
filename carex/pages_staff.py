@@ -285,12 +285,11 @@ def register(app: FastAPI, W: Web) -> None:
             i = int(s(f, "index", 4))
             if 0 <= i < len(rules):
                 del rules[i]
-            c.admin.set_availability(t["id"], provider, clinic, rules)
+            c.admin.set_availability(t["id"], provider, clinic, rules, actor_id=st["id"])
         except (AdminValidationError, ValueError):
             return hours_redirect(slug, f, "bad")
         except AdminNotFoundError:
             raise HTTPException(404, "Not found")
-        W.audit(request, t, "staff", "schedule.hours_change", actor_id=st["id"], target_type="provider", target_id=provider)
         return hours_redirect(slug, f, "saved")
 
     def clinic_tz(t, clinic):
@@ -308,7 +307,7 @@ def register(app: FastAPI, W: Web) -> None:
         own(st, provider)
         try:
             tz = clinic_tz(t, clinic)
-            c.admin.add_time_off(t["id"], provider, local_to_utc(s(f, "starts", 16), tz), local_to_utc(s(f, "ends", 16), tz))
+            c.admin.add_time_off(t["id"], provider, local_to_utc(s(f, "starts", 16), tz), local_to_utc(s(f, "ends", 16), tz), actor_id=st["id"])
         except AdminValidationError:
             return hours_redirect(slug, f, "bad")
         except AdminNotFoundError:
@@ -333,7 +332,7 @@ def register(app: FastAPI, W: Web) -> None:
         bad_id(clinic)
         try:
             tz = clinic_tz(t, clinic)
-            r = c.admin.add_closure(t["id"], clinic, local_to_utc(s(f, "starts", 16), tz), local_to_utc(s(f, "ends", 16), tz), s(f, "reason", 120))
+            r = c.admin.add_closure(t["id"], clinic, local_to_utc(s(f, "starts", 16), tz), local_to_utc(s(f, "ends", 16), tz), s(f, "reason", 120), actor_id=st["id"])
         except AdminValidationError:
             return hours_redirect(slug, f, "bad")
         except AdminNotFoundError:
