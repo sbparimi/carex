@@ -1294,7 +1294,7 @@ button.primary:hover:not(:disabled), a.button.primary:hover, .btn.primary:hover,
   background: var(--cx-primary-hover);
   border-color: var(--cx-primary-hover);
 }
-button:not(.primary):not(.danger):not(.linkish), a.button:not(.primary) {
+button:not(.primary):not(.danger):not(.linkish), a.button:not(.primary):not(.danger) {
   border-color: var(--cx-primary);
   color: var(--cx-primary);
   background: #fff;
