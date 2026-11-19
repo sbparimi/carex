@@ -98,6 +98,37 @@ class Admin:
         self._tenant(tenant_id)
         return [{**r, "bookable": r["bookable"] == 1} for r in self.db.all("SELECT id, name, city, address, state_code, time_zone, status, bookable FROM clinics WHERE tenant_id = ? ORDER BY name, id", tenant_id)]
 
+    def practice_types(self) -> list[dict]:
+        """The platform-supported practice category catalogue."""
+        return self.db.all("SELECT code, label, description, sort_order FROM practice_types ORDER BY sort_order, label")
+
+    def clinic_practice_types(self, tenant_id: str, clinic_id: str) -> list[str]:
+        self._clinic(tenant_id, clinic_id)
+        return [r["practice_type_code"] for r in self.db.all(
+            "SELECT practice_type_code FROM clinic_practice_types WHERE tenant_id = ? AND clinic_id = ? AND active = 1 ORDER BY practice_type_code",
+            tenant_id, clinic_id)]
+
+    def set_clinic_practice_types(self, tenant_id: str, clinic_id: str, codes: list[str], actor_id: str | None = None) -> None:
+        """Replace a clinic's enabled practice categories atomically with the audit record."""
+        self._clinic(tenant_id, clinic_id)
+        if not isinstance(codes, list) or len(codes) > 20 or any(not isinstance(code, str) for code in codes):
+            _bad("select valid practice categories")
+        if len(set(codes)) != len(codes):
+            _bad("duplicate practice categories are not allowed")
+        available = {r["code"] for r in self.practice_types()}
+        if not set(codes).issubset(available):
+            _bad("one or more practice categories are not supported")
+        with self.db.tx() as tx:
+            for code in sorted(available):
+                tx.run(
+                    """INSERT INTO clinic_practice_types (tenant_id, clinic_id, practice_type_code, active)
+                       VALUES (?,?,?,?) ON CONFLICT(clinic_id, practice_type_code)
+                       DO UPDATE SET active = excluded.active""",
+                    tenant_id, clinic_id, code, 1 if code in codes else 0)
+            if self.audit and actor_id:
+                self.audit.record(tenant_id, "staff", "setup.clinic_update", actor_id=actor_id,
+                                  target_type="clinic", target_id=clinic_id, db=tx)
+
     def create_clinic(self, tenant_id: str, c: dict, actor_id: str | None = None) -> dict:
         """New clinics start inactive and not bookable: nothing becomes visible to patients until an admin activates it."""
         self._tenant(tenant_id)
