@@ -44,8 +44,8 @@ def _instant(s) -> datetime:
 
 
 class Admin:
-    def __init__(self, db, clock: Callable[[], datetime] = _now):
-        self.db, self.now = db, clock
+    def __init__(self, db, clock: Callable[[], datetime] = _now, audit=None):
+        self.db, self.now, self.audit = db, clock, audit
 
     def _tenant(self, t):
         if not self.db.get("SELECT 1 AS ok FROM tenants WHERE id = ?", t):
@@ -60,7 +60,7 @@ class Admin:
             raise AdminNotFoundError()
 
     # ---- brand and analytics
-    def update_brand(self, tenant_id: str, patch: dict) -> dict:
+    def update_brand(self, tenant_id: str, patch: dict, actor_id: str | None = None) -> dict:
         self._tenant(tenant_id)
         sets, args = [], []
         if "display_name" in patch:
@@ -95,7 +95,7 @@ class Admin:
         self._tenant(tenant_id)
         return [{**r, "bookable": r["bookable"] == 1} for r in self.db.all("SELECT id, name, city, address, state_code, time_zone, status, bookable FROM clinics WHERE tenant_id = ? ORDER BY name, id", tenant_id)]
 
-    def create_clinic(self, tenant_id: str, c: dict) -> dict:
+    def create_clinic(self, tenant_id: str, c: dict, actor_id: str | None = None) -> dict:
         """New clinics start inactive and not bookable: nothing becomes visible to patients until an admin activates it."""
         self._tenant(tenant_id)
         name, city, addr = _text(c.get("name"), "name"), _text(c.get("city"), "city"), _text(c.get("address"), "address", 200)
@@ -103,13 +103,16 @@ class Admin:
             _bad("state_code must be two capital letters")
         tz = _tz(c.get("time_zone"))
         cid = "cl-" + secrets.token_hex(5)
-        self.db.run("INSERT INTO clinics (id, tenant_id, name, city, address, state_code, time_zone, status, bookable) VALUES (?,?,?,?,?,?,?,'inactive',0)", cid, tenant_id, name, city, addr, c["state_code"], tz)
+        with self.db.tx() as tx:
+            tx.run("INSERT INTO clinics (id, tenant_id, name, city, address, state_code, time_zone, status, bookable) VALUES (?,?,?,?,?,?,?,'inactive',0)", cid, tenant_id, name, city, addr, c["state_code"], tz)
+            if self.audit and actor_id:
+                self.audit.record(tenant_id, "staff", "setup.clinic_create", actor_id=actor_id, target_type="clinic", target_id=cid, db=tx)
         return {"id": cid, "name": name, "city": city, "address": addr, "state_code": c["state_code"], "time_zone": tz, "status": "inactive", "bookable": False}
 
     IMPORT_COLUMNS = ("name", "city", "address", "state", "time_zone", "phone", "hours", "about", "photo_url")
     IMPORT_MAX_ROWS = 500
 
-    def import_clinics(self, tenant_id: str, text: str, commit: bool = True) -> dict:
+    def import_clinics(self, tenant_id: str, text: str, commit: bool = True, actor_id: str | None = None) -> dict:
         """Reads pasted CSV (header row: name, city, address, state, time_zone, then optional phone, hours, about, photo_url).
 
         All or nothing: when any row is wrong nothing is saved and every problem is listed with its line number. Imported clinics start hidden,
@@ -165,9 +168,12 @@ class Admin:
                     tx.run("""INSERT INTO clinics (id, tenant_id, name, city, address, state_code, time_zone, status, bookable, phone, hours_text, about, image_url)
                               VALUES (?,?,?,?,?,?,?,'inactive',0,?,?,?,?)""", "cl-" + secrets.token_hex(5), tenant_id, g["name"], g["city"], g["address"], g["state_code"], g["time_zone"],
                            g["phone"] or None, g["hours"] or None, g["about"] or None, g["photo"] or None)
+                if self.audit and actor_id:
+                    self.audit.record(tenant_id, "staff", "setup.import_clinics", actor_id=actor_id,
+                                      detail={"created": len(good), "skipped": skipped, "errors": 0}, db=tx)
         return {"created": len(good), "skipped": skipped, "errors": [], "more_errors": 0, "committed": commit}
 
-    def update_clinic(self, tenant_id: str, clinic_id: str, p: dict) -> dict:
+    def update_clinic(self, tenant_id: str, clinic_id: str, p: dict, actor_id: str | None = None) -> dict:
         self._clinic(tenant_id, clinic_id)
         sets, args = [], []
         for k, mx in (("name", 120), ("city", 120), ("address", 200)):
@@ -183,10 +189,14 @@ class Admin:
             if not isinstance(p["bookable"], bool):
                 _bad("bookable must be true or false")
             sets.append("bookable = ?"); args.append(1 if p["bookable"] else 0)
-        if sets:
-            self.db.run(f"UPDATE clinics SET {', '.join(sets)} WHERE tenant_id = ? AND id = ?", *args, tenant_id, clinic_id)
-        clinic = next(c for c in self.list_clinics(tenant_id) if c["id"] == clinic_id)
-        n = self.db.get("SELECT COUNT(*) AS n FROM appointments WHERE tenant_id = ? AND clinic_id = ? AND status = 'confirmed' AND starts_at > ?", tenant_id, clinic_id, iso(self.now()))
+        with self.db.tx() as tx:
+            if sets:
+                tx.run(f"UPDATE clinics SET {', '.join(sets)} WHERE tenant_id = ? AND id = ?", *args, tenant_id, clinic_id)
+            clinic = tx.get("SELECT id, name, city, address, state_code, time_zone, status, bookable FROM clinics WHERE tenant_id = ? AND id = ?", tenant_id, clinic_id)
+            n = tx.get("SELECT COUNT(*) AS n FROM appointments WHERE tenant_id = ? AND clinic_id = ? AND status = 'confirmed' AND starts_at > ?", tenant_id, clinic_id, iso(self.now()))
+            if self.audit and actor_id:
+                self.audit.record(tenant_id, "staff", "setup.clinic_update", actor_id=actor_id, target_type="clinic", target_id=clinic_id, db=tx)
+        clinic["bookable"] = clinic["bookable"] == 1
         return {**clinic, "affected_future_appointments": int(n["n"])}
 
     def update_clinic_details(self, tenant_id: str, clinic_id: str, p: dict) -> None:
@@ -213,7 +223,7 @@ class Admin:
         self._provider(tenant_id, provider_id); self._clinic(tenant_id, clinic_id)
         return self.db.all("SELECT weekday, start_minute, end_minute FROM availability_rules WHERE tenant_id = ? AND provider_id = ? AND clinic_id = ? ORDER BY weekday, start_minute", tenant_id, provider_id, clinic_id)
 
-    def set_availability(self, tenant_id: str, provider_id: str, clinic_id: str, rules: list[dict]) -> None:
+    def set_availability(self, tenant_id: str, provider_id: str, clinic_id: str, rules: list[dict], actor_id: str | None = None) -> None:
         """Replaces the whole weekly schedule in one transaction; invalid input changes nothing."""
         self._provider(tenant_id, provider_id); self._clinic(tenant_id, clinic_id)
         if not isinstance(rules, list) or len(rules) > 70:
@@ -233,40 +243,55 @@ class Admin:
             tx.run("DELETE FROM availability_rules WHERE tenant_id = ? AND provider_id = ? AND clinic_id = ?", tenant_id, provider_id, clinic_id)
             for r in s:
                 tx.run("INSERT INTO availability_rules (tenant_id, provider_id, clinic_id, weekday, start_minute, end_minute) VALUES (?,?,?,?,?,?)", tenant_id, provider_id, clinic_id, r["weekday"], r["start_minute"], r["end_minute"])
+            if self.audit and actor_id:
+                self.audit.record(tenant_id, "staff", "schedule.hours_change", actor_id=actor_id, target_type="provider", target_id=provider_id, db=tx)
 
-    def add_time_off(self, tenant_id: str, provider_id: str, starts_at: str, ends_at: str) -> int:
+    def add_time_off(self, tenant_id: str, provider_id: str, starts_at: str, ends_at: str, actor_id: str | None = None) -> int:
         self._provider(tenant_id, provider_id)
         s, e = _instant(starts_at), _instant(ends_at)
         if e <= s:
             _bad("time off must end after it starts")
-        r = self.db.get("INSERT INTO time_off (tenant_id, provider_id, starts_at, ends_at) VALUES (?,?,?,?) RETURNING id", tenant_id, provider_id, iso(s), iso(e))
+        with self.db.tx() as tx:
+            r = tx.get("INSERT INTO time_off (tenant_id, provider_id, starts_at, ends_at) VALUES (?,?,?,?) RETURNING id", tenant_id, provider_id, iso(s), iso(e))
+            if self.audit and actor_id:
+                self.audit.record(tenant_id, "staff", "schedule.time_off_add", actor_id=actor_id, target_type="provider", target_id=provider_id, db=tx)
         return int(r["id"])
 
-    def remove_time_off(self, tenant_id: str, id_: int) -> None:
-        if self.db.run("DELETE FROM time_off WHERE tenant_id = ? AND id = ?", tenant_id, id_) == 0:
-            raise AdminNotFoundError()
+    def remove_time_off(self, tenant_id: str, id_: int, actor_id: str | None = None) -> None:
+        with self.db.tx() as tx:
+            row = tx.get("SELECT provider_id FROM time_off WHERE tenant_id = ? AND id = ?", tenant_id, id_)
+            if not row or tx.run("DELETE FROM time_off WHERE tenant_id = ? AND id = ?", tenant_id, id_) == 0:
+                raise AdminNotFoundError()
+            if self.audit and actor_id:
+                self.audit.record(tenant_id, "staff", "schedule.time_off_remove", actor_id=actor_id, db=tx)
 
     def list_time_off(self, tenant_id: str, provider_id: str) -> list[dict]:
         self._provider(tenant_id, provider_id)
         return self.db.all("SELECT id, starts_at, ends_at FROM time_off WHERE tenant_id = ? AND provider_id = ? AND ends_at > ? ORDER BY starts_at", tenant_id, provider_id, iso(self.now()))
 
-    def add_closure(self, tenant_id: str, clinic_id: str, starts_at: str, ends_at: str, reason: str = "") -> dict:
+    def add_closure(self, tenant_id: str, clinic_id: str, starts_at: str, ends_at: str, reason: str = "", actor_id: str | None = None) -> dict:
         """Closes a clinic for a period: no provider is bookable there in that window. Existing appointments are untouched; staff move them."""
         self._clinic(tenant_id, clinic_id)
         s, e = _instant(starts_at), _instant(ends_at)
         if e <= s:
             _bad("a closure must end after it starts")
-        r = self.db.get("INSERT INTO clinic_closures (tenant_id, clinic_id, starts_at, ends_at, reason) VALUES (?,?,?,?,?) RETURNING id", tenant_id, clinic_id, iso(s), iso(e), str(reason or "")[:120])
-        n = self.db.get("SELECT COUNT(*) AS n FROM appointments WHERE tenant_id = ? AND clinic_id = ? AND status = 'confirmed' AND starts_at < ? AND ends_at > ?", tenant_id, clinic_id, iso(e), iso(s))
+        with self.db.tx() as tx:
+            r = tx.get("INSERT INTO clinic_closures (tenant_id, clinic_id, starts_at, ends_at, reason) VALUES (?,?,?,?,?) RETURNING id", tenant_id, clinic_id, iso(s), iso(e), str(reason or "")[:120])
+            n = tx.get("SELECT COUNT(*) AS n FROM appointments WHERE tenant_id = ? AND clinic_id = ? AND status = 'confirmed' AND starts_at < ? AND ends_at > ?", tenant_id, clinic_id, iso(e), iso(s))
+            if self.audit and actor_id:
+                self.audit.record(tenant_id, "staff", "schedule.closure_add", actor_id=actor_id, target_type="clinic", target_id=clinic_id, detail={"affected": int(n["n"])}, db=tx)
         return {"id": int(r["id"]), "affected_appointments": int(n["n"])}
 
     def list_closures(self, tenant_id: str, clinic_id: str) -> list[dict]:
         self._clinic(tenant_id, clinic_id)
         return self.db.all("SELECT id, starts_at, ends_at, reason FROM clinic_closures WHERE tenant_id = ? AND clinic_id = ? AND ends_at > ? ORDER BY starts_at", tenant_id, clinic_id, iso(self.now()))
 
-    def remove_closure(self, tenant_id: str, id_: int) -> None:
-        if self.db.run("DELETE FROM clinic_closures WHERE tenant_id = ? AND id = ?", tenant_id, id_) == 0:
-            raise AdminNotFoundError()
+    def remove_closure(self, tenant_id: str, id_: int, actor_id: str | None = None) -> None:
+        with self.db.tx() as tx:
+            if tx.run("DELETE FROM clinic_closures WHERE tenant_id = ? AND id = ?", tenant_id, id_) == 0:
+                raise AdminNotFoundError()
+            if self.audit and actor_id:
+                self.audit.record(tenant_id, "staff", "schedule.closure_remove", actor_id=actor_id, db=tx)
 
 
 _KEY = re.compile(r"^cxa_[A-Za-z0-9_-]{43}$")
