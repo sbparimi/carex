@@ -65,6 +65,9 @@ def test_911_text_is_informational_only_and_never_blocks(signed_in):
     assert details.status_code == 200 and 'class="infonote"' in details.text and "Safety check" not in details.text
     css = signed_in.get("/assets/app.css").text
     assert "emerg-pulse" not in css and "banner.emergency" not in css
+    modern_css = signed_in.get("/assets/ui-modern.css")
+    assert modern_css.status_code == 200
+    assert "--cx-radius-card" in modern_css.text and ".sheet" in modern_css.text
 
 
 def test_consent_is_required_when_intake_is_on(signed_in, ctx):

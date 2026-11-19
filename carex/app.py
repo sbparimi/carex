@@ -85,6 +85,10 @@ def create_app(ctx: Ctx | None = None) -> FastAPI:
     def css():
         return FileResponse(STATIC / "app.css", media_type="text/css", headers={"cache-control": "no-store", **SECURITY_HEADERS})
 
+    @app.get("/assets/ui-modern.css")
+    def ui_modern_css():
+        return FileResponse(STATIC / "ui-modern.css", media_type="text/css", headers={"cache-control": "no-store", **SECURITY_HEADERS})
+
     @app.get("/assets/logo.svg")
     @app.get("/assets/favicon.svg")
     def logo():
