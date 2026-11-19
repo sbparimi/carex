@@ -1276,8 +1276,8 @@ footer.site {
   --carex-red-soft: #fdebed;
   --carex-gray: #667085;
   --carex-gray-soft: #eef1f5;
-  --cx-primary: var(--accent, var(--carex-blue));
-  --cx-primary-hover: var(--accent-dark, var(--carex-blue-deep));
+  --cx-primary: var(--accent, var(--brand, var(--carex-blue)));
+  --cx-primary-hover: var(--accent-dark, color-mix(in srgb, var(--cx-primary) 82%, #000));
   --cx-focus: var(--cx-primary);
   --cx-progress-track: #e5eaf1;
   accent-color: var(--cx-primary);
