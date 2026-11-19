@@ -40,6 +40,15 @@ def synthetic_catalog() -> dict:
                      svc("sv-fit-n", "tn-north", "fitness", "Fitness"), svc("sv-pc-b", "tn-bay", "primary_care", "Primary Care")],
         "providers": [prov("pr-a", "tn-north", "Dr. Alex Example"), prov("pr-b", "tn-north", "Sam Sample, PT"), prov("pr-gone", "tn-north", "Retired Provider", "inactive"),
                       prov("pr-c", "tn-north", "Dr. Casey Placeholder"), prov("pr-z", "tn-bay", "Dr. Zed Example")],
+        "clinic_practice_types": [
+            {"tenant_id": "tn-north", "clinic_id": "cl-sb", "practice_type_code": "physiotherapy"},
+            {"tenant_id": "tn-north", "clinic_id": "cl-sb", "practice_type_code": "primary_care"},
+            {"tenant_id": "tn-north", "clinic_id": "cl-au", "practice_type_code": "fitness"},
+            {"tenant_id": "tn-north", "clinic_id": "cl-au", "practice_type_code": "womens_wellness"},
+            {"tenant_id": "tn-north", "clinic_id": "cl-au", "practice_type_code": "general_health"},
+            {"tenant_id": "tn-bay", "clinic_id": "cl-oak", "practice_type_code": "dental"},
+            {"tenant_id": "tn-bay", "clinic_id": "cl-oak", "practice_type_code": "primary_care"},
+        ],
         "clinic_services": [
             {"tenant_id": "tn-north", "clinic_id": "cl-sb", "service_id": "sv-physio-n", "active": True},
             {"tenant_id": "tn-north", "clinic_id": "cl-sb", "service_id": "sv-pc-n", "active": True},
