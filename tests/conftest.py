@@ -16,7 +16,7 @@ from carex.seed import synthetic_catalog
 
 # Monday 2026-10-19 12:00 UTC (5 am Pacific): a stable "now" for slot maths.
 NOW = datetime(2026, 10, 19, 12, 0, tzinfo=timezone.utc)
-PG = os.environ.get("CAREX_TEST_DATABASE_URL") or os.environ.get("DATABASE_URL")
+PG = os.environ.get("CAREX_TEST_DATABASE_URL")
 S = "/t/northwind-health"
 
 
