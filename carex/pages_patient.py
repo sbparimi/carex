@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import zlib
+from datetime import date
 
 import secrets
 
@@ -31,6 +32,11 @@ def group_days(slots: list[dict], limit: int = 200) -> list[dict]:
 def local_hour(iso_ts: str, tz: str) -> int:
     from .util import parse, zone
     return parse(iso_ts).astimezone(zone(tz)).hour
+
+
+def local_day(iso_ts: str, tz: str) -> str:
+    from .util import parse, zone
+    return parse(iso_ts).astimezone(zone(tz)).date().isoformat()
 
 
 def peek_days(slots: list[dict], full: bool = False, days: int = 3, per_day: int = 8) -> dict:
@@ -121,7 +127,7 @@ def register(app: FastAPI, W: Web) -> None:
     PARTS = {"morning": (0, 12), "afternoon": (12, 17), "evening": (17, 24)}
 
     @app.get(P + "/book/provider")
-    def book_provider(slug: str, request: Request, clinic: str = "", service: str = "", provider: str = "", joined: str = "", notice: str = "", part: str = "", lang: str = ""):
+    def book_provider(slug: str, request: Request, clinic: str = "", service: str = "", provider: str = "", joined: str = "", notice: str = "", part: str = "", lang: str = "", on_date: str = ""):
         t = W.tenant(slug)
         u = W.user(request, t)
         uid = u["id"] if u else None
@@ -129,6 +135,11 @@ def register(app: FastAPI, W: Web) -> None:
         cl = c.catalog.clinic(t["id"], clinic)
         if not cl:
             raise HTTPException(404, "Not found")
+        if on_date:
+            try:
+                on_date = date.fromisoformat(on_date).isoformat()
+            except ValueError:
+                raise HTTPException(400, "Choose a valid date")
         visits = c.catalog.visit_types(t["id"], clinic)
         # Soonest opening first: visit types are ordered by their earliest open time.
         soonest = {v["id"]: n for v in visits if (n := c.discover.soonest(t["id"], clinic, v["id"], uid))}
@@ -166,6 +177,8 @@ def register(app: FastAPI, W: Web) -> None:
                 if lang and lang not in p["languages"]:
                     continue
                 slots = c.booking.slots(t["id"], clinic, visit["id"], p["id"], uid)
+                if on_date:
+                    slots = [x for x in slots if local_day(x["starts_at"], x["time_zone"]) == on_date]
                 if part:
                     lo, hi = PARTS[part]
                     slots = [x for x in slots if lo <= local_hour(x["starts_at"], x["time_zone"]) < hi]
@@ -178,7 +191,7 @@ def register(app: FastAPI, W: Web) -> None:
             nxt = {**f, "provider": p}
         return W.render(request, "book_provider.html", t=t, user=u, nav="book", clinic=cl, visits=visits, visit=visit, cards=cards, only=provider, joined=bool(joined), notice=notice[:120],
                         any_open=any(x["days"] for x in cards), nxt=nxt, soonest=soonest, overall=min(soonest.values(), key=lambda z: z["starts_at"], default=None), n_providers=len(providers),
-                        tint=W.env.globals["tint_of"](cl["id"]), part=part, lang=lang, langs=langs, coverage=coverage, team=team, plans=plans, in_network=in_network, maps_q=f"{cl['address']}, {cl['city']}, {cl['state_code']}")
+                        tint=W.env.globals["tint_of"](cl["id"]), part=part, lang=lang, on_date=on_date, langs=langs, coverage=coverage, team=team, plans=plans, in_network=in_network, maps_q=f"{cl['address']}, {cl['city']}, {cl['state_code']}")
 
     def details_ctx(t, u, clinic, service, provider, slot_id, v, **extra):
         elig = c.catalog.eligible(t["id"], clinic, service, provider)
