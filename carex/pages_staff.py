@@ -71,7 +71,6 @@ def register(app: FastAPI, W: Web) -> None:
         except StaffError as e:
             W.audit(request, t, "anonymous", "staff.login_failed", detail={"identifier_hash": hashlib.sha256(email.encode()).hexdigest()[:12]})
             return W.render(request, "staff_login.html", STATUS.get(e.code, 401), t=t, error=str(e), email=email)
-        W.audit(request, t, "staff", "staff.login", actor_id=st["id"])
         r = W.redirect(f"/t/{slug}/staff")
         W.set_cookie(r, STAFF_COOKIE, token, slug, STAFF_SECONDS, samesite="strict")
         return r
@@ -82,7 +81,6 @@ def register(app: FastAPI, W: Web) -> None:
         st = W.staff(request, t)
         c.staff_accounts.logout(t["id"], request.cookies.get(STAFF_COOKIE))
         if st:
-            W.audit(request, t, "staff", "staff.logout", actor_id=st["id"])
         r = W.redirect(f"/t/{slug}/staff/login")
         W.set_cookie(r, STAFF_COOKIE, None, slug, 0, samesite="strict")
         return r
