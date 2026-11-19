@@ -267,12 +267,11 @@ def register(app: FastAPI, W: Web) -> None:
         try:
             rules = c.admin.get_availability(t["id"], provider, clinic)
             rules.append({"weekday": int(s(f, "weekday", 2)), "start_minute": minute(s(f, "start", 5)), "end_minute": minute(s(f, "end", 5))})
-            c.admin.set_availability(t["id"], provider, clinic, rules)
+            c.admin.set_availability(t["id"], provider, clinic, rules, actor_id=st["id"])
         except (AdminValidationError, ValueError):
             return hours_redirect(slug, f, "bad")
         except AdminNotFoundError:
             raise HTTPException(404, "Not found")
-        W.audit(request, t, "staff", "schedule.hours_change", actor_id=st["id"], target_type="provider", target_id=provider)
         return hours_redirect(slug, f, "saved")
 
     @app.post(P + "/hours/remove")
@@ -314,7 +313,6 @@ def register(app: FastAPI, W: Web) -> None:
             return hours_redirect(slug, f, "bad")
         except AdminNotFoundError:
             raise HTTPException(404, "Not found")
-        W.audit(request, t, "staff", "schedule.time_off_add", actor_id=st["id"], target_type="provider", target_id=provider)
         return hours_redirect(slug, f, "saved")
 
     @app.post(P + "/time-off/{tid}/remove")
@@ -322,10 +320,9 @@ def register(app: FastAPI, W: Web) -> None:
         t = W.tenant(slug)
         st = W.need_staff(request, t, "front_desk", "admin")
         try:
-            c.admin.remove_time_off(t["id"], tid)
+            c.admin.remove_time_off(t["id"], tid, actor_id=st["id"])
         except AdminNotFoundError:
             raise HTTPException(404, "Not found")
-        W.audit(request, t, "staff", "schedule.time_off_remove", actor_id=st["id"])
         return W.redirect(back_to(slug, f, f"/t/{slug}/staff/hours"))
 
     @app.post(P + "/closures/add")
@@ -341,7 +338,6 @@ def register(app: FastAPI, W: Web) -> None:
             return hours_redirect(slug, f, "bad")
         except AdminNotFoundError:
             raise HTTPException(404, "Not found")
-        W.audit(request, t, "staff", "schedule.closure_add", actor_id=st["id"], target_type="clinic", target_id=clinic, detail={"affected": r["affected_appointments"]})
         return hours_redirect(slug, f, f"closed:{r['affected_appointments']}")
 
     @app.post(P + "/closures/{zid}/remove")
@@ -349,10 +345,9 @@ def register(app: FastAPI, W: Web) -> None:
         t = W.tenant(slug)
         st = W.need_staff(request, t, "front_desk", "admin")
         try:
-            c.admin.remove_closure(t["id"], zid)
+            c.admin.remove_closure(t["id"], zid, actor_id=st["id"])
         except AdminNotFoundError:
             raise HTTPException(404, "Not found")
-        W.audit(request, t, "staff", "schedule.closure_remove", actor_id=st["id"])
         return W.redirect(back_to(slug, f, f"/t/{slug}/staff/hours"))
 
     # ------------------------------------------------------------------ export
