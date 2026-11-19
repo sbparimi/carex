@@ -1157,7 +1157,7 @@ h2.section::after { content: ""; position: absolute; left: 0; bottom: 0; width: 
 
 /* CareX 2026 experience layer. Server-rendered and usable without JavaScript. */
 :root {
-  color-scheme: light;
+  color-scheme: normal;
   --cx-canvas: #f5f7fb;
   --cx-ink: #172033;
   --cx-muted: #596579;
