@@ -1258,3 +1258,111 @@ footer.site {
   :root { --cx-border: #8994a5; }
   .hint, .lead, .muted, small { color: #354052; }
 }
+
+
+/* CareX brand system — shared tokens for tenant and platform surfaces */
+:root {
+  --carex-blue: #1b6fb5;
+  --carex-blue-deep: #15578f;
+  --carex-blue-soft: #eaf3fb;
+  --carex-orange: #f7941d;
+  --carex-orange-deep: #9a4d00;
+  --carex-orange-soft: #fff2df;
+  --carex-teal: #087e78;
+  --carex-teal-soft: #e2f5f2;
+  --carex-green: #237a45;
+  --carex-green-soft: #e7f4eb;
+  --carex-red: #b4232d;
+  --carex-red-soft: #fdebed;
+  --carex-gray: #667085;
+  --carex-gray-soft: #eef1f5;
+  --cx-primary: var(--accent, var(--carex-blue));
+  --cx-primary-hover: var(--accent-dark, var(--carex-blue-deep));
+  --cx-focus: var(--cx-primary);
+  --cx-progress-track: #e5eaf1;
+  accent-color: var(--cx-primary);
+}
+
+/* Consistent action hierarchy: one primary action, neutral secondary, semantic destructive */
+button, a.button { border-radius: 12px; }
+button.primary, a.button.primary, .btn.primary, .navcta {
+  background: var(--cx-primary);
+  border-color: var(--cx-primary);
+  color: #fff;
+}
+button.primary:hover:not(:disabled), a.button.primary:hover, .btn.primary:hover, .navcta:hover {
+  background: var(--cx-primary-hover);
+  border-color: var(--cx-primary-hover);
+}
+button:not(.primary):not(.danger):not(.linkish), a.button:not(.primary) {
+  border-color: var(--cx-primary);
+  color: var(--cx-primary);
+  background: #fff;
+}
+button:not(.primary):not(.danger):not(.linkish):hover:not(:disabled), a.button:not(.primary):hover {
+  background: color-mix(in srgb, var(--cx-primary) 8%, #fff);
+}
+button.danger, a.button.danger { color: var(--carex-red); border-color: var(--carex-red); background: #fff; }
+button.danger:hover:not(:disabled), a.button.danger:hover { background: var(--carex-red-soft); }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline-color: var(--cx-focus);
+}
+input[type=checkbox], input[type=radio], input[type=date], input[type=datetime-local], input[type=time], progress {
+  accent-color: var(--cx-primary);
+}
+
+/* Branded booking progress: blue is the active/completed journey, orange is a highlight only */
+.progress { background: var(--cx-progress-track); }
+.progress .bar { background: var(--cx-primary); border-radius: inherit; }
+ol.steps li[aria-current="step"] { border-color: var(--cx-primary); color: var(--cx-primary); }
+ol.steps li.done { border-color: var(--carex-green); color: var(--carex-green); }
+.stepper .step.active, .stepper [aria-current="step"] { color: var(--cx-primary); }
+
+/* Appointment status palette — consistent in calendar blocks, tables and status chips */
+.status-confirmed, .calblk.st-confirmed {
+  --status-fg: #15578f; --status-bg: #eaf3fb; --status-border: #1b6fb5;
+}
+.status-arrived, .calblk.st-arrived {
+  --status-fg: #08665f; --status-bg: #e2f5f2; --status-border: #087e78;
+}
+.status-completed, .calblk.st-completed {
+  --status-fg: #216b3d; --status-bg: #e7f4eb; --status-border: #237a45;
+}
+.status-cancelled, .calblk.st-cancelled {
+  --status-fg: #596273; --status-bg: #eef1f5; --status-border: #7b8493;
+}
+.status-no_show, .calblk.st-no_show {
+  --status-fg: #a51f2a; --status-bg: #fdebed; --status-border: #b4232d;
+}
+.status-pending, .calblk.st-pending {
+  --status-fg: #874600; --status-bg: #fff2df; --status-border: #c66a0a;
+}
+.tag[class*="status-"], .statuschip[class*="status-"] {
+  color: var(--status-fg);
+  background: var(--status-bg);
+  border: 1px solid color-mix(in srgb, var(--status-border) 35%, transparent);
+}
+.calblk[class*="st-"] {
+  color: var(--status-fg, #172033);
+  background: var(--status-bg, var(--carex-blue-soft));
+  border-left: 4px solid var(--status-border, var(--carex-blue));
+}
+.calblk[class*="st-"] strong { color: var(--status-fg, #172033); }
+.calblk[class*="st-"] small { color: var(--status-fg, #172033); opacity: .9; }
+.row-confirmed { box-shadow: inset 3px 0 var(--carex-blue); }
+.row-arrived { box-shadow: inset 3px 0 var(--carex-teal); }
+.row-completed { box-shadow: inset 3px 0 var(--carex-green); }
+.row-cancelled { box-shadow: inset 3px 0 var(--carex-gray); }
+.row-no_show { box-shadow: inset 3px 0 var(--carex-red); }
+.status-legend { display: flex; flex-wrap: wrap; gap: .5rem 1rem; margin: .75rem 0 1rem; }
+.status-legend .legend-item { display: inline-flex; align-items: center; gap: .4rem; color: var(--muted); font-size: .875rem; }
+.status-legend .swatch { width: .7rem; height: .7rem; border-radius: 3px; background: var(--status-bg); border: 2px solid var(--status-border); }
+.status-legend .confirmed { --status-bg: var(--carex-blue-soft); --status-border: var(--carex-blue); }
+.status-legend .arrived { --status-bg: var(--carex-teal-soft); --status-border: var(--carex-teal); }
+.status-legend .completed { --status-bg: var(--carex-green-soft); --status-border: var(--carex-green); }
+.status-legend .no-show { --status-bg: var(--carex-red-soft); --status-border: var(--carex-red); }
+.badge-s.status-confirmed, .tag.status-confirmed { color: #15578f; background: #eaf3fb; }
+.badge-s.status-arrived, .tag.status-arrived { color: #08665f; background: #e2f5f2; }
+.badge-s.status-completed, .tag.status-completed { color: #216b3d; background: #e7f4eb; }
+.badge-s.status-cancelled, .tag.status-cancelled { color: #596273; background: #eef1f5; }
+.badge-s.status-no_show, .tag.status-no_show { color: #a51f2a; background: #fdebed; }
