@@ -64,7 +64,7 @@ def build(db: Db | None = None, env: Mapping[str, str] | None = None, clock: Cal
     prod = bool(env.get("VERCEL") or env.get("CAREX_ENV") == "production") if production is None else production
     ch = channels or channels_from_env(env)
     audit = Audit(db, clock)
-    catalog, sched, intake = Catalog(db), Scheduling(db, clock, audit=audit), Intake(db, clock)
+    catalog, sched, intake = Catalog(db), Scheduling(db, clock, audit=audit), Intake(db, clock, audit=audit)
     return Ctx(db=db, clock=clock, catalog=catalog, sched=sched, intake=intake, booking=BookingService(catalog, sched, intake, clock),
                accounts=Accounts(db, clock, mailer or AccountMailer(ch, prod)), waitlist=Waitlist(db, clock), audit=audit, notifier=Notifier(db, ch, clock),
                staff_accounts=StaffAccounts(db, clock), desk=StaffDesk(db, sched, intake, clock, audit=audit), admin=Admin(db, clock), admin_keys=AdminKeys(db, clock), channels=ch,
