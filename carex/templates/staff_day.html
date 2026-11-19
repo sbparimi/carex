@@ -26,7 +26,7 @@
     <br>{% if r.modality == 'telehealth' %}<span class="tag">Video</span>{% endif %}{% if r.interpreter_language %}<span class="tag warn">Interpreter: {{ r.interpreter_language }}</span>{% endif %}{% if r.accommodations %}<span class="tag warn">Access: {{ r.accommodations }}</span>{% endif %}{% if r.referral_ref %}<span class="tag">Referral {{ r.referral_ref }}</span>{% endif %}{% if r.booked_by == 'staff' %}<span class="tag">Booked by staff</span>{% endif %}{% if r.late_cancel %}<span class="tag bad">Late cancel</span>{% endif %}</td>
   <td>{{ r.visit_label }}{% if r.copay_cents %}<br><small>Copay {{ r.copay_cents|money }}</small>{% endif %}</td>
   <td>{{ r.provider_name }}</td>
-  <td><span class="tag {{ 'ok' if r.status in ('arrived', 'completed') else ('bad' if r.status in ('cancelled', 'no_show') else '') }}">{{ r.status|replace('_', ' ')|capitalize }}</span>{% if r.cancel_reason %}<br><small>{{ r.cancel_reason }}</small>{% endif %}</td>
+  <td><span class="tag status-{{ r.status }} {{ 'ok' if r.status in ('arrived', 'completed') else ('bad' if r.status in ('cancelled', 'no_show') else '') }}">{{ r.status|replace('_', ' ')|capitalize }}</span>{% if r.cancel_reason %}<br><small>{{ r.cancel_reason }}</small>{% endif %}</td>
   <td>
     <div class="statusrow">
     {% for nxt in transitions[r.status] %}{% if staff.role != 'provider' or nxt in ('arrived', 'completed') %}
