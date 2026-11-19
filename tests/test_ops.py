@@ -122,3 +122,11 @@ def test_cli_creates_tenant_and_seeds_demo(tmp_path, monkeypatch, capsys):
     assert ops.main(["seed-demo"]) == 1                               # needs --yes
     assert ops.main(["seed-demo", "--yes"]) == 0
     assert ops.main(["dispatch"]) == 0
+
+
+def test_production_context_hides_demo_access_and_seed_route(cx):
+    production = build(db=cx.db, env={"CRON_SECRET": SECRET}, clock=Clock(), mailer=Outbox(), production=True)
+    assert production.hide_demo is True
+    client = TestClient(create_app(production), base_url="http://testserver", follow_redirects=False)
+    response = client.post("/internal/seed-demo", headers={"authorization": f"Bearer {SECRET}"})
+    assert response.status_code == 404
