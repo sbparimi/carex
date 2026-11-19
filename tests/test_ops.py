@@ -178,3 +178,34 @@ def test_signup_rolls_back_user_and_session_when_audit_fails(cx, monkeypatch):
     after = cx.db.get("SELECT COUNT(*) AS n FROM users WHERE tenant_id = ?", "tn-north")["n"]
     assert after == before
     assert cx.db.get("SELECT 1 AS ok FROM users WHERE tenant_id = ? AND email = ?", "tn-north", "signup-atomic@example.com") is None
+
+
+def test_practice_category_catalog_and_patient_discovery_are_tenant_scoped(cx):
+    categories = {row["code"]: row["label"] for row in cx.admin.practice_types()}
+    assert set(categories) == {
+        "physiotherapy", "dental", "fitness", "primary_care", "womens_wellness", "general_health"
+    }
+    north = {row["code"] for row in cx.catalog.practice_types("tn-north")}
+    assert north == {"physiotherapy", "fitness", "womens_wellness", "general_health", "primary_care"}
+    physio_clinics = cx.catalog.clinics_for_practice("tn-north", "physiotherapy")
+    assert [row["id"] for row in physio_clinics] == ["cl-sb"]
+    assert {row["code"] for row in physio_clinics[0]["practice_types"]} >= {"physiotherapy", "primary_care"}
+    assert cx.catalog.clinics_for_practice("tn-north", "dental") == []
+    assert [row["id"] for row in cx.catalog.clinics_for_practice("tn-bay", "dental")] == ["cl-oak"]
+
+
+def test_clinic_practice_category_changes_are_validated_and_audited_atomically(cx):
+    cx.admin.set_clinic_practice_types(
+        "tn-north", "cl-sb", ["dental", "womens_wellness"], actor_id="staff-test"
+    )
+    assert set(cx.admin.clinic_practice_types("tn-north", "cl-sb")) == {"dental", "womens_wellness"}
+    event = cx.db.get(
+        "SELECT action, target_type, target_id FROM audit_log WHERE tenant_id = ? ORDER BY id DESC LIMIT 1",
+        "tn-north",
+    )
+    assert event == {"action": "setup.clinic_update", "target_type": "clinic", "target_id": "cl-sb"}
+    with pytest.raises(Exception):
+        cx.admin.set_clinic_practice_types("tn-north", "cl-sb", ["not-a-practice"], actor_id="staff-test")
+    assert set(cx.admin.clinic_practice_types("tn-north", "cl-sb")) == {"dental", "womens_wellness"}
+    with pytest.raises(Exception):
+        cx.admin.set_clinic_practice_types("tn-bay", "cl-sb", ["dental"], actor_id="staff-test")
