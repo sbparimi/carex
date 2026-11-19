@@ -225,7 +225,7 @@ V6 = [
     "INSERT INTO practice_types (code, label, description, sort_order) VALUES ('dental','Dental care','Preventive and general oral healthcare',20)",
     "INSERT INTO practice_types (code, label, description, sort_order) VALUES ('fitness','Fitness','Fitness assessments, coaching and exercise programmes',30)",
     "INSERT INTO practice_types (code, label, description, sort_order) VALUES ('primary_care','Primary care','Everyday healthcare, prevention and ongoing care',40)",
-    "INSERT INTO practice_types (code, label, description, sort_order) VALUES ('womens_wellness','Women’s wellness','Women’s health and wellbeing services',50)",
+    "INSERT INTO practice_types (code, label, description, sort_order) VALUES ('womens_wellness','Women’s wellness & health','Women’s health and wellbeing services',50)",
     "INSERT INTO practice_types (code, label, description, sort_order) VALUES ('general_health','General health','General health and wellbeing services',60)",
     """CREATE TABLE clinic_practice_types (
         tenant_id TEXT NOT NULL REFERENCES tenants(id),
