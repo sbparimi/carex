@@ -81,9 +81,12 @@ class Admin:
             if patch["support_phone"] is not None and not re.fullmatch(r"[0-9+()\-. ]{5,30}", str(patch["support_phone"])):
                 _bad("support_phone is invalid")
             sets.append("support_phone = ?"); args.append(patch["support_phone"])
-        if sets:
-            self.db.run(f"UPDATE tenants SET {', '.join(sets)} WHERE id = ?", *args, tenant_id)
-        r = self.db.get("SELECT display_name, primary_color, logo_url, support_email, support_phone FROM tenants WHERE id = ?", tenant_id)
+        with self.db.tx() as tx:
+            if sets:
+                tx.run(f"UPDATE tenants SET {', '.join(sets)} WHERE id = ?", *args, tenant_id)
+            if self.audit and actor_id:
+                self.audit.record(tenant_id, "staff", "setup.brand", actor_id=actor_id, db=tx)
+            r = tx.get("SELECT display_name, primary_color, logo_url, support_email, support_phone FROM tenants WHERE id = ?", tenant_id)
         return {k: v for k, v in r.items() if v is not None}
 
     def set_analytics(self, tenant_id: str, enabled: bool) -> None:
