@@ -347,7 +347,7 @@ def register(app: FastAPI, W: Web) -> None:
             if "ChangeWindow" in type(e).__name__:
                 return W.redirect(f"/t/{slug}/m/{token}?n=late")
             raise
-        W.audit(request, t, "patient", "booking.cancel_by_link", target_type="appointment", target_id=m["booking_id"])
+        W.audit(request, t, "anonymous", "booking.cancel_by_link", target_type="appointment", target_id=m["booking_id"])
         W.notify_now(m["booking_id"])
         return W.redirect(f"/t/{slug}/m/{token}?n=cancelled")
 
