@@ -202,7 +202,7 @@ class Admin:
         clinic["bookable"] = clinic["bookable"] == 1
         return {**clinic, "affected_future_appointments": int(n["n"])}
 
-    def update_clinic_details(self, tenant_id: str, clinic_id: str, p: dict) -> None:
+    def update_clinic_details(self, tenant_id: str, clinic_id: str, p: dict, actor_id: str | None = None) -> None:
         """What patients see on the clinic page: phone, opening hours, a short note (parking, access) and an optional https photo."""
         self._clinic(tenant_id, clinic_id)
         phone, hours, about, img = ((p.get(k) or "").strip() for k in ("phone", "hours_text", "about", "image_url"))
@@ -212,7 +212,10 @@ class Admin:
             _bad("hours or notes are too long")
         if img and not re.fullmatch(r"https://\S{1,500}", img):
             _bad("photo must be an https URL")
-        self.db.run("UPDATE clinics SET phone = ?, hours_text = ?, about = ?, image_url = ? WHERE tenant_id = ? AND id = ?", phone or None, hours or None, about or None, img or None, tenant_id, clinic_id)
+        with self.db.tx() as tx:
+            tx.run("UPDATE clinics SET phone = ?, hours_text = ?, about = ?, image_url = ? WHERE tenant_id = ? AND id = ?", phone or None, hours or None, about or None, img or None, tenant_id, clinic_id)
+            if self.audit and actor_id:
+                self.audit.record(tenant_id, "staff", "setup.clinic_update", actor_id=actor_id, target_type="clinic", target_id=clinic_id, db=tx)
 
     def set_clinic_visit_type(self, tenant_id: str, clinic_id: str, visit_type_id: str, active: bool) -> None:
         self._clinic(tenant_id, clinic_id)
