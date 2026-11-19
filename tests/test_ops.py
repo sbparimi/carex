@@ -159,3 +159,22 @@ def test_pending_account_cannot_reuse_an_existing_session(cx):
     assert profile and cx.accounts.authenticate("tn-north", token)
     cx.db.run("UPDATE users SET closure_status = 'pending' WHERE tenant_id = ? AND id = ?", "tn-north", profile["id"])
     assert cx.accounts.authenticate("tn-north", token) is None
+
+
+def test_signup_rolls_back_user_and_session_when_audit_fails(cx, monkeypatch):
+    from carex.audit import AuditWriteError
+
+    def fail_audit(*args, **kwargs):
+        raise AuditWriteError("audit store unavailable")
+
+    monkeypatch.setattr(cx.audit, "record", fail_audit)
+    before = cx.db.get("SELECT COUNT(*) AS n FROM users WHERE tenant_id = ?", "tn-north")["n"]
+    with pytest.raises(AuditWriteError):
+        cx.accounts.signup(
+            "tn-north", email="signup-atomic@example.com", password="a long enough pass",
+            first_name="Atomic", last_name="Signup", date_of_birth="1990-01-01",
+            phone="555-123-4567", access_type="employer", access_id="em-n-1",
+        )
+    after = cx.db.get("SELECT COUNT(*) AS n FROM users WHERE tenant_id = ?", "tn-north")["n"]
+    assert after == before
+    assert cx.db.get("SELECT 1 AS ok FROM users WHERE tenant_id = ? AND email = ?", "tn-north", "signup-atomic@example.com") is None
