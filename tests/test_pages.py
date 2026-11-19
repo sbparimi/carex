@@ -121,6 +121,25 @@ def test_password_reset_flow(client, ctx):
     assert a.status_code == 200
 
 
+def test_patient_booking_filters_slots_by_clinic_local_date(client, ctx):
+    from carex.util import parse, zone
+
+    slots = ctx.booking.slots("tn-north", "cl-sb", "sv-physio-n", "pr-b", None)
+    assert len(slots) > 1
+    selected = parse(slots[0]["starts_at"]).astimezone(zone(slots[0]["time_zone"])).date().isoformat()
+    expected = {
+        item["id"] for item in slots
+        if parse(item["starts_at"]).astimezone(zone(item["time_zone"])).date().isoformat() == selected
+    }
+    other = {item["id"] for item in slots} - expected
+    response = client.get(f"{S}/book/provider?clinic=cl-sb&service=sv-physio-n&provider=pr-b&on_date={selected}")
+    assert response.status_code == 200
+    assert f'value="{selected}"' in response.text
+    assert expected and all(slot_id in response.text for slot_id in expected)
+    assert all(slot_id not in response.text for slot_id in other)
+    assert client.get(f"{S}/book/provider?clinic=cl-sb&service=sv-physio-n&on_date=not-a-date").status_code == 400
+
+
 def test_first_screen_is_sign_in_and_demo_logins_are_prefilled_only_for_demo_data(client, ctx, db):
     r = client.get("/")
     assert r.url.path.endswith("/login") and h1(r) == "Sign in"
