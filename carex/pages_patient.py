@@ -273,7 +273,6 @@ def register(app: FastAPI, W: Web) -> None:
         except DomainError as e:
             raise HTTPException({"not_found": 404, "idempotency_conflict": 422}.get(e.code, 400), str(e))
         if o["status"] == "confirmed":
-            W.audit(request, t, "user", "booking.create", actor_id=u["id"], target_type="appointment", target_id=o["booking_id"])
             W.notify_now(o["booking_id"])
             log_event(t, "booked", req["clinic_id"])
         status = {"confirmed": 201, "slot_unavailable": 409}.get(o["status"], 503 if o.get("retryable") else 409)
@@ -342,12 +341,11 @@ def register(app: FastAPI, W: Web) -> None:
         W.allow("auth", W.client(request))
         m = by_token(t, token)
         try:
-            c.sched.cancel(t["id"], m["booking_id"], "", "patient")
+            c.sched.cancel(t["id"], m["booking_id"], "", "link")
         except Exception as e:                       # noqa: BLE001
             if "ChangeWindow" in type(e).__name__:
                 return W.redirect(f"/t/{slug}/m/{token}?n=late")
             raise
-        W.audit(request, t, "anonymous", "booking.cancel_by_link", target_type="appointment", target_id=m["booking_id"])
         W.notify_now(m["booking_id"])
         return W.redirect(f"/t/{slug}/m/{token}?n=cancelled")
 
@@ -405,7 +403,6 @@ def register(app: FastAPI, W: Web) -> None:
             if e.code == "change_window_closed":
                 return W.redirect(f"/t/{slug}/appointments?n=late")
             raise HTTPException(404, "Not found")
-        W.audit(request, t, "user", "booking.cancel", actor_id=u["id"], target_type="appointment", target_id=bid)
         log_event(t, "cancelled")
         W.notify_now(bid)
         return W.redirect(f"/t/{slug}/appointments?n=cancelled")
@@ -441,7 +438,6 @@ def register(app: FastAPI, W: Web) -> None:
             raise HTTPException(404, "Not found")
         if o["status"] == "slot_unavailable":
             return W.redirect(f"/t/{slug}/appointments/{bid}/reschedule?error=That time is no longer available. Your appointment is unchanged; please pick another.")
-        W.audit(request, t, "user", "booking.reschedule", actor_id=u["id"], target_type="appointment", target_id=bid)
         W.notify_now(bid)
         return W.redirect(f"/t/{slug}/appointments?n=moved")
 
