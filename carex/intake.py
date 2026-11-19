@@ -29,8 +29,8 @@ def _patient(r: dict) -> dict:
 
 
 class Intake:
-    def __init__(self, db, clock: Callable[[], datetime] = _now):
-        self.db, self.now = db, clock
+    def __init__(self, db, clock: Callable[[], datetime] = _now, audit=None):
+        self.db, self.now, self.audit = db, clock, audit
 
     def config(self, tenant_id: str) -> dict:
         t = self.db.get("SELECT intake_required, consent_version, video_join_base_url FROM tenants WHERE id = ?", tenant_id) or {}
@@ -71,17 +71,25 @@ class Intake:
             fields["date_of_birth"] = "Enter a valid date of birth"
         if fields:
             raise IntakeError("invalid_patient", next(iter(fields.values())))
-        if len(self.list(tenant_id, user_id)) >= 12:
-            raise IntakeError("too_many_patients", "You can add up to 11 family members")
         pid = "pt_" + secrets.token_urlsafe(9)
-        self.db.run("INSERT INTO patients (id, tenant_id, user_id, relationship, first_name, last_name, date_of_birth, created_at) VALUES (?,?,?,?,?,?,?,?)",
-                    pid, tenant_id, user_id, relationship, first, last, dob, iso(self.now()))
+        with self.db.tx() as tx:
+            count = tx.get("SELECT COUNT(*) AS n FROM patients WHERE tenant_id = ? AND user_id = ?", tenant_id, user_id)
+            if count and int(count["n"]) >= 12:
+                raise IntakeError("too_many_patients", "You can add up to 11 family members")
+            tx.run("INSERT INTO patients (id, tenant_id, user_id, relationship, first_name, last_name, date_of_birth, created_at) VALUES (?,?,?,?,?,?,?,?)",
+                   pid, tenant_id, user_id, relationship, first, last, dob, iso(self.now()))
+            if self.audit:
+                self.audit.record(tenant_id, "user", "patient.add", actor_id=user_id, target_type="patient", target_id=pid, db=tx)
         return {"id": pid, "relationship": relationship, "first_name": first, "last_name": last, "date_of_birth": dob}
 
     def remove_dependent(self, tenant_id: str, user_id: str, patient_id: str) -> bool:
-        if self.db.get("SELECT 1 AS ok FROM appointments WHERE tenant_id = ? AND patient_id = ? AND status <> 'cancelled' LIMIT 1", tenant_id, patient_id):
-            raise IntakeError("patient_in_use", "This person has appointments. Cancel them first.")
-        return self.db.run("DELETE FROM patients WHERE tenant_id = ? AND user_id = ? AND id = ? AND relationship <> 'self'", tenant_id, user_id, patient_id) > 0
+        with self.db.tx() as tx:
+            if tx.get("SELECT 1 AS ok FROM appointments WHERE tenant_id = ? AND patient_id = ? AND status <> 'cancelled' LIMIT 1", tenant_id, patient_id):
+                raise IntakeError("patient_in_use", "This person has appointments. Cancel them first.")
+            changed = tx.run("DELETE FROM patients WHERE tenant_id = ? AND user_id = ? AND id = ? AND relationship <> 'self'", tenant_id, user_id, patient_id) > 0
+            if changed and self.audit:
+                self.audit.record(tenant_id, "user", "patient.remove", actor_id=user_id, target_type="patient", target_id=patient_id, db=tx)
+            return changed
 
     def prepare(self, tenant_id: str, user_id: str, req: dict) -> dict:
         t = self.db.get("SELECT intake_required, consent_version, video_join_base_url FROM tenants WHERE id = ?", tenant_id)
