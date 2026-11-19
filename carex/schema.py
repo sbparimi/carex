@@ -213,4 +213,29 @@ V5 = [
     "CREATE INDEX users_closure_status ON users(tenant_id, closure_status)",
 ]
 
-MIGRATIONS = [V1, V2, V3, V4, V5]
+
+# Version 6: first-class practice categories. Categories are assigned per clinic;
+# booking continues to use visit_types, providers and availability.
+V6 = [
+    """CREATE TABLE practice_types (
+        code TEXT PRIMARY KEY, label TEXT NOT NULL, description TEXT NOT NULL,
+        sort_order INTEGER NOT NULL DEFAULT 100
+    )""",
+    "INSERT INTO practice_types (code, label, description, sort_order) VALUES ('physiotherapy','Physiotherapy','Movement, recovery and physical rehabilitation',10)",
+    "INSERT INTO practice_types (code, label, description, sort_order) VALUES ('dental','Dental care','Preventive and general oral healthcare',20)",
+    "INSERT INTO practice_types (code, label, description, sort_order) VALUES ('fitness','Fitness','Fitness assessments, coaching and exercise programmes',30)",
+    "INSERT INTO practice_types (code, label, description, sort_order) VALUES ('primary_care','Primary care','Everyday healthcare, prevention and ongoing care',40)",
+    "INSERT INTO practice_types (code, label, description, sort_order) VALUES ('womens_wellness','Women’s wellness','Women’s health and wellbeing services',50)",
+    "INSERT INTO practice_types (code, label, description, sort_order) VALUES ('general_health','General health','General health and wellbeing services',60)",
+    """CREATE TABLE clinic_practice_types (
+        tenant_id TEXT NOT NULL REFERENCES tenants(id),
+        clinic_id TEXT NOT NULL REFERENCES clinics(id),
+        practice_type_code TEXT NOT NULL REFERENCES practice_types(code),
+        active INTEGER NOT NULL DEFAULT 1 CHECK (active IN (0,1)),
+        PRIMARY KEY (clinic_id, practice_type_code)
+    )""",
+    "CREATE INDEX clinic_practice_types_tenant ON clinic_practice_types(tenant_id, practice_type_code, active)",
+]
+
+MIGRATIONS = [V1, V2, V3, V4, V5, V6]
+
