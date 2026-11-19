@@ -122,6 +122,7 @@ def test_password_reset_flow(client, ctx):
 
 
 def test_patient_booking_filters_slots_by_clinic_local_date(client, ctx):
+    from urllib.parse import quote_plus
     from carex.util import parse, zone
 
     slots = ctx.booking.slots("tn-north", "cl-sb", "sv-physio-n", "pr-b", None)
@@ -135,8 +136,8 @@ def test_patient_booking_filters_slots_by_clinic_local_date(client, ctx):
     response = client.get(f"{S}/book/provider?clinic=cl-sb&service=sv-physio-n&provider=pr-b&on_date={selected}")
     assert response.status_code == 200
     assert f'value="{selected}"' in response.text
-    assert expected and all(slot_id in response.text for slot_id in expected)
-    assert all(slot_id not in response.text for slot_id in other)
+    assert expected and all(quote_plus(slot_id) in response.text for slot_id in expected)
+    assert all(quote_plus(slot_id) not in response.text for slot_id in other)
     assert client.get(f"{S}/book/provider?clinic=cl-sb&service=sv-physio-n&on_date=not-a-date").status_code == 400
 
 
