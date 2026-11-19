@@ -43,21 +43,39 @@ class Privacy:
         return sorted(out, key=lambda r: r["at"], reverse=True)[:limit]
 
     def erase(self, tenant_id: str, user_id: str) -> bool:
-        u = self.db.get("SELECT id FROM users WHERE tenant_id = ? AND id = ?", tenant_id, user_id)
-        if not u:
-            return False
+        # Transition to pending under a row lock. Scheduling.reserve locks the same
+        # row before creating an appointment, so either a booking commits first and
+        # is included below, or closure commits first and the booking is rejected.
+        with self.db.tx() as tx:
+            u = tx.get(f"SELECT closure_status FROM users WHERE tenant_id = ? AND id = ?{tx.for_update}", tenant_id, user_id)
+            if not u:
+                return False
+            if u["closure_status"] == "erased":
+                return True
+            if u["closure_status"] == "active":
+                tx.run("UPDATE users SET closure_status = 'pending' WHERE tenant_id = ? AND id = ?", tenant_id, user_id)
+                self.audit.record(tenant_id, "system", "account.erase_requested", target_type="user", target_id=user_id, db=tx)
+
+        # Cancellation is intentionally resumable. Each cancellation is atomic and
+        # idempotent; a failure leaves closure_status='pending' and blocks new bookings.
         now = iso(self.now())
-        # Do not anonymise while future confirmed appointments remain active.
-        # A cancellation failure leaves the account intact and the operation retryable.
-        upcoming = self.db.all("SELECT id FROM appointments WHERE tenant_id = ? AND user_id = ? AND status = 'confirmed' AND starts_at > ?", tenant_id, user_id, now)
+        upcoming = self.db.all("SELECT id FROM appointments WHERE tenant_id = ? AND user_id = ? AND status = 'confirmed' AND starts_at > ? ORDER BY starts_at, id", tenant_id, user_id, now)
         for appointment in upcoming:
             self.sched.cancel(tenant_id, appointment["id"], "Account closure requested", "staff")
-        remaining = self.db.get("SELECT COUNT(*) AS n FROM appointments WHERE tenant_id = ? AND user_id = ? AND status = 'confirmed' AND starts_at > ?", tenant_id, user_id, now)
-        if remaining and int(remaining["n"]) > 0:
-            raise RuntimeError("Account closure is pending: upcoming appointments could not all be cancelled")
-        # Persist intent before destructive changes. If this fails, no PII is changed.
-        self.audit.record(tenant_id, "system", "account.erase_requested", target_type="user", target_id=user_id)
+
+        # Final anonymisation and completion audit are one transaction. Re-check under
+        # lock so a retry or concurrent closure cannot partially erase the account.
         with self.db.tx() as tx:
+            u = tx.get(f"SELECT closure_status FROM users WHERE tenant_id = ? AND id = ?{tx.for_update}", tenant_id, user_id)
+            if not u:
+                return False
+            if u["closure_status"] == "erased":
+                return True
+            if u["closure_status"] != "pending":
+                raise RuntimeError("Account closure state changed; retry the request")
+            remaining = tx.get("SELECT COUNT(*) AS n FROM appointments WHERE tenant_id = ? AND user_id = ? AND status = 'confirmed' AND starts_at > ?", tenant_id, user_id, now)
+            if remaining and int(remaining["n"]) > 0:
+                raise RuntimeError("Account closure is pending: upcoming appointments remain")
             tx.run("UPDATE appointments SET patient_first_name = 'Former', patient_last_name = 'Patient', patient_email = NULL, patient_phone = NULL, patient_dob = NULL, reason = NULL, accommodations = NULL, referral_ref = NULL, join_url = NULL, manage_token = NULL, user_id = NULL, patient_id = NULL WHERE tenant_id = ? AND user_id = ?", tenant_id, user_id)
             tx.run("UPDATE outbox SET to_email = NULL, to_phone = NULL, to_name = NULL, status = CASE WHEN status = 'pending' THEN 'skipped' ELSE status END, last_error = CASE WHEN status = 'pending' THEN 'account_erased' ELSE last_error END, user_id = NULL WHERE tenant_id = ? AND user_id = ?", tenant_id, user_id)
             tx.run("DELETE FROM waitlist WHERE tenant_id = ? AND user_id = ?", tenant_id, user_id)
@@ -66,7 +84,7 @@ class Privacy:
             tx.run("DELETE FROM password_resets WHERE user_id = ?", user_id)
             tx.run("DELETE FROM mfa_challenges WHERE user_id = ?", user_id)
             tx.run("UPDATE patients SET first_name = 'Former', last_name = 'Patient', date_of_birth = '1900-01-01' WHERE tenant_id = ? AND user_id = ?", tenant_id, user_id)
-            tx.run("UPDATE users SET email = ?, password_hash = ?, first_name = 'Former', last_name = 'Patient', date_of_birth = '1900-01-01', phone = '', notify_email = 0, notify_sms = 0, locked_until = '9999-12-31T00:00:00Z' WHERE tenant_id = ? AND id = ?",
+            tx.run("UPDATE users SET email = ?, password_hash = ?, first_name = 'Former', last_name = 'Patient', date_of_birth = '1900-01-01', phone = '', notify_email = 0, notify_sms = 0, locked_until = '9999-12-31T00:00:00Z', closure_status = 'erased' WHERE tenant_id = ? AND id = ?",
                    f"erased+{secrets.token_hex(8)}@erased.invalid", "!" + secrets.token_hex(16), tenant_id, user_id)
-        self.audit.record(tenant_id, "system", "account.erased", target_type="user", target_id=user_id)
+            self.audit.record(tenant_id, "system", "account.erased", target_type="user", target_id=user_id, db=tx)
         return True
