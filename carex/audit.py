@@ -21,14 +21,30 @@ class Audit:
     def __init__(self, db, clock: Callable[[], datetime] = _now):
         self.db, self.now = db, clock
 
+    # Detail is deliberately event-specific. Clinical/free text and arbitrary caller data are never accepted.
+    DETAIL_FIELDS = {"export.fhir": {"count": int}}
+
     def record(self, tenant_id: str, actor_type: str, action: str, actor_id: str | None = None, target_type: str | None = None,
-               target_id: str | None = None, ip: str | None = None, detail: dict | None = None) -> None:
-        # Audit is a security control, not best-effort telemetry.
+               target_id: str | None = None, ip: str | None = None, detail: dict | None = None, db=None) -> None:
+        if actor_type not in {"user", "staff", "admin", "system", "anonymous"}:
+            raise ValueError("Unsupported audit actor type")
+        safe_detail = None
+        if detail is not None:
+            schema = self.DETAIL_FIELDS.get(action)
+            if schema is None or not isinstance(detail, dict) or set(detail) != set(schema):
+                raise ValueError("Audit detail is not allowed for this event")
+            for key, expected in schema.items():
+                value = detail[key]
+                if expected is int and (isinstance(value, bool) or not isinstance(value, int) or value < 0):
+                    raise ValueError("Invalid audit detail value")
+            safe_detail = json.dumps(detail, separators=(",", ":"), allow_nan=False)
+            if len(safe_detail.encode("utf-8")) > 256:
+                raise ValueError("Audit detail exceeds the event schema limit")
+        # Pass the active transaction connection for events coupled to a state mutation.
+        target_db = db or self.db
         try:
-            safe_detail = json.dumps(detail, separators=(",", ":"), default=str)[:1000] if detail else None
-            self.db.run("INSERT INTO audit_log (tenant_id, at, actor_type, actor_id, action, target_type, target_id, ip_hash, detail) VALUES (?,?,?,?,?,?,?,?,?)",
-                        tenant_id, iso(self.now()), actor_type, actor_id, action, target_type, target_id, sha256(ip)[:16] if ip else None,
-                        safe_detail)
+            target_db.run("INSERT INTO audit_log (tenant_id, at, actor_type, actor_id, action, target_type, target_id, ip_hash, detail) VALUES (?,?,?,?,?,?,?,?,?)",
+                          tenant_id, iso(self.now()), actor_type, actor_id, action, target_type, target_id, sha256(ip)[:16] if ip else None, safe_detail)
         except Exception as e:
             log.error("audit_write_failed action=%s error=%s", action, type(e).__name__)
             raise AuditWriteError("Required audit event could not be persisted") from e
