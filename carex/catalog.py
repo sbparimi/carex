@@ -38,23 +38,67 @@ class Catalog:
         return {"id": r["id"], "slug": r["slug"], "brand": {"display_name": r["display_name"], "primary_color": r["primary_color"], "logo_url": r["logo_url"],
                                                            "support_email": r["support_email"], "support_phone": r["support_phone"]}}
 
+    def _attach_practice_types(self, tenant_id: str, clinics: list[dict]) -> list[dict]:
+        if not clinics:
+            return clinics
+        ids = [x["id"] for x in clinics]
+        marks = ",".join("?" for _ in ids)
+        rows = self.db.all(
+            f"""SELECT cpt.clinic_id, pt.code, pt.label
+                  FROM clinic_practice_types cpt
+                  JOIN practice_types pt ON pt.code = cpt.practice_type_code
+                 WHERE cpt.tenant_id = ? AND cpt.active = 1 AND cpt.clinic_id IN ({marks})
+                 ORDER BY pt.sort_order, pt.label""", tenant_id, *ids)
+        by_clinic = {clinic_id: [] for clinic_id in ids}
+        for row in rows:
+            by_clinic[row["clinic_id"]].append({"code": row["code"], "label": row["label"]})
+        for clinic in clinics:
+            clinic["practice_types"] = by_clinic[clinic["id"]]
+        return clinics
+
+    def practice_types(self, tenant_id: str) -> list[dict]:
+        """Practice categories offered by at least one active, bookable clinic."""
+        return self.db.all(
+            """SELECT DISTINCT pt.code, pt.label, pt.description, pt.sort_order
+                 FROM practice_types pt
+                 JOIN clinic_practice_types cpt ON cpt.practice_type_code = pt.code AND cpt.active = 1
+                 JOIN clinics c ON c.id = cpt.clinic_id AND c.tenant_id = cpt.tenant_id
+                WHERE cpt.tenant_id = ? AND c.status = 'active' AND c.bookable = 1
+                ORDER BY pt.sort_order, pt.label""", tenant_id)
+
+    def clinics_for_practice(self, tenant_id: str, practice_type: str, limit: int = 100) -> list[dict]:
+        rows = self.db.all(
+            f"""SELECT {CLINIC_COLS} FROM clinics c
+                 WHERE {ACTIVE_CLINIC}
+                   AND EXISTS (SELECT 1 FROM clinic_practice_types cpt
+                                WHERE cpt.tenant_id = c.tenant_id AND cpt.clinic_id = c.id
+                                  AND cpt.practice_type_code = ? AND cpt.active = 1)
+                 ORDER BY c.sort_order, c.name, c.id LIMIT ?""", tenant_id, practice_type, min(max(limit, 1), 200))
+        return self._attach_practice_types(tenant_id, [_clinic(r) for r in rows])
+
     def states(self, tenant_id: str) -> list[str]:
         return [r["state_code"] for r in self.db.all(f"SELECT DISTINCT c.state_code FROM clinics c WHERE {ACTIVE_CLINIC} ORDER BY c.state_code", tenant_id)]
 
     def clinics(self, tenant_id: str, state_code: str) -> list[dict]:
-        return [_clinic(r) for r in self.db.all(f"SELECT {CLINIC_COLS} FROM clinics c WHERE {ACTIVE_CLINIC} AND c.state_code = ? ORDER BY c.sort_order, c.name, c.id", tenant_id, state_code)]
+        rows = self.db.all(f"SELECT {CLINIC_COLS} FROM clinics c WHERE {ACTIVE_CLINIC} AND c.state_code = ? ORDER BY c.sort_order, c.name, c.id", tenant_id, state_code)
+        return self._attach_practice_types(tenant_id, [_clinic(r) for r in rows])
 
-    def search_clinics(self, tenant_id: str, q: str = "", state_code: str = "", limit: int = 40) -> list[dict]:
+    def search_clinics(self, tenant_id: str, q: str = "", state_code: str = "", limit: int = 40, practice_type: str = "") -> list[dict]:
         """Clinics matching a name or city (and optionally a state), headquarters and prominent locations first."""
         where, args = [ACTIVE_CLINIC], [tenant_id]
         if state_code:
             where.append("c.state_code = ?"); args.append(state_code)
+        if practice_type:
+            where.append("""EXISTS (SELECT 1 FROM clinic_practice_types cpt
+                                     WHERE cpt.tenant_id = c.tenant_id AND cpt.clinic_id = c.id
+                                       AND cpt.practice_type_code = ? AND cpt.active = 1)""")
+            args.append(practice_type)
         q = (q or "").strip()[:60]
         if q:
             like = "%" + q.lower().replace("%", "").replace("_", "") + "%"
             where.append("(LOWER(c.name) LIKE ? OR LOWER(c.city) LIKE ? OR LOWER(c.address) LIKE ?)"); args += [like, like, like]
         rows = self.db.all(f"SELECT {CLINIC_COLS} FROM clinics c WHERE {' AND '.join(where)} ORDER BY c.sort_order, c.name, c.id LIMIT ?", *args, limit)
-        return [_clinic(r) for r in rows]
+        return self._attach_practice_types(tenant_id, [_clinic(r) for r in rows])
 
     def visit_kinds(self, tenant_id: str) -> list[dict]:
         """Visit types patients can look for across clinics: one entry per kind of visit, e.g. Primary care."""
@@ -63,7 +107,7 @@ class Catalog:
 
     def clinic(self, tenant_id: str, clinic_id: str) -> dict | None:
         r = self.db.get(f"SELECT {CLINIC_COLS} FROM clinics c WHERE {ACTIVE_CLINIC} AND c.id = ?", tenant_id, clinic_id)
-        return _clinic(r) if r else None
+        return self._attach_practice_types(tenant_id, [_clinic(r)])[0] if r else None
 
     def visit_types(self, tenant_id: str, clinic_id: str) -> list[dict]:
         rows = self.db.all(
