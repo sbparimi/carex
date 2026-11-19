@@ -19,6 +19,7 @@
 <span itemprop="parentOrganization" itemscope itemtype="https://schema.org/Organization"><meta itemprop="name" content="{{ brand.display_name }}"></span>{% endif %}
 <p class="back"><a class="backlink" href="{% if only %}/t/{{ slug }}/book/provider?clinic={{ clinic.id }}&amp;service={{ visit.id }}{% elif visit %}/t/{{ slug }}/book/provider?clinic={{ clinic.id }}{% else %}/t/{{ slug }}/book?state={{ clinic.state_code }}{% endif %}">{% if only %}All providers{% elif visit %}Visit types{% else %}Clinics{% endif %}</a></p>
 <h1 id="h1" class="largetitle"{% if not visit %} itemprop="name"{% endif %}>{{ clinic.name }}</h1>
+{% if clinic.practice_types %}<div class="practice-chips clinic-practice-tags" aria-label="Practice categories">{% for pt in clinic.practice_types %}<span class="practice-chip">{{ pt.label }}</span>{% endfor %}</div>{% endif %}
 {% set fx = nxt or overall %}
 <ul class="facts">
   <li><span class="factbadge">{% if fx %}<b>{{ fx.month }}</b><span>{{ fx.day }}</span>{% else %}<b>&ndash;</b><span>&ndash;</span>{% endif %}</span>
@@ -88,7 +89,9 @@
   <select id="part" name="part"><option value="">Any time of day</option>{% for k, lbl in [('morning','Morning'),('afternoon','Afternoon'),('evening','Evening')] %}<option value="{{ k }}"{% if part == k %} selected{% endif %}>{{ lbl }}</option>{% endfor %}</select>
   {% if langs|length > 1 %}<label class="sr-only" for="lang">Language</label>
   <select id="lang" name="lang"><option value="">Any language</option>{% for l in langs %}<option value="{{ l }}"{% if lang == l %} selected{% endif %}>{{ l }}</option>{% endfor %}</select>{% endif %}
-  <button class="ghost" type="submit">Filter</button>
+  <label class="sr-only" for="on_date">Appointment date</label><input id="on_date" name="on_date" type="date" value="{{ on_date }}" aria-label="Filter appointments by date">
+  <button class="ghost" type="submit">Apply filters</button>
+  {% if part or lang or on_date %}<a class="filter-reset" href="/t/{{ slug }}/book/provider?clinic={{ clinic.id }}&amp;service={{ visit.id }}">Clear filters</a>{% endif %}
 </form>
 <div class="vt-{{ vtc[visit.id] }}">
 {% for card in cards %}
@@ -107,22 +110,22 @@
       <div class="daylabel">{{ d.full }} <span class="tzabbr">{{ d.tz }}</span></div>
       <div class="slots">
       {% for sl in d.slots %}<a class="slot" href="/t/{{ slug }}/book/details?clinic={{ clinic.id }}&amp;service={{ visit.id }}&amp;provider={{ card.p.id }}&amp;slot={{ sl.id|urlencode }}" aria-label="{{ d.full }} at {{ sl.time }} {{ d.tz }} with {{ card.p.display_name }}">{{ sl.time }}</a>{% endfor %}
-      {% if d.hidden %}<a class="hint morelnk" href="/t/{{ slug }}/book/provider?clinic={{ clinic.id }}&amp;service={{ visit.id }}&amp;provider={{ card.p.id }}{% if part %}&amp;part={{ part }}{% endif %}">+{{ d.hidden }} more</a>{% endif %}
+      {% if d.hidden %}<a class="hint morelnk" href="/t/{{ slug }}/book/provider?clinic={{ clinic.id }}&amp;service={{ visit.id }}&amp;provider={{ card.p.id }}{% if part %}&amp;part={{ part }}{% endif %}{% if on_date %}&amp;on_date={{ on_date }}{% endif %}">+{{ d.hidden }} more</a>{% endif %}
       </div>
     </div>
   </div>
   {% else %}
-  <p class="hint">No times are open for {{ card.p.display_name }} right now.</p>
+  <p class="hint">{% if on_date %}No times are open for {{ card.p.display_name }} on {{ on_date }}. Choose another date or clear the date filter.{% else %}No times are open for {{ card.p.display_name }} right now.{% endif %}</p>
   {% endfor %}
-  {% if not only and (card.more or card.days) %}<p class="morelink"><a href="/t/{{ slug }}/book/provider?clinic={{ clinic.id }}&amp;service={{ visit.id }}&amp;provider={{ card.p.id }}">See all times for {{ card.p.display_name }}</a></p>{% endif %}
+  {% if not only and (card.more or card.days) %}<p class="morelink"><a href="/t/{{ slug }}/book/provider?clinic={{ clinic.id }}&amp;service={{ visit.id }}&amp;provider={{ card.p.id }}{% if on_date %}&amp;on_date={{ on_date }}{% endif %}">See all times for {{ card.p.display_name }}</a></p>{% endif %}
 </article>
 {% else %}
 <div class="sheet empty"><strong>No providers for this visit yet</strong></div>
 {% endfor %}
 </div>
 {% if not any_open and cards %}
-<div class="sheet" id="waitlist"><h2 class="section">Nothing open right now</h2>
-<p>Join the waiting list and we'll message you when a time opens up.</p>
+<div class="sheet" id="waitlist"><h2 class="section">{% if on_date %}No openings on {{ on_date }}{% else %}Nothing open right now{% endif %}</h2>
+<p>Choose another date or join the waiting list and we'll message you when a time opens up.</p>
 <form method="post" action="/t/{{ slug }}/waitlist/join"><input type="hidden" name="clinic_id" value="{{ clinic.id }}"><input type="hidden" name="service_id" value="{{ visit.id }}"><button class="primary wide" type="submit">Join the waiting list</button></form></div>
 {% endif %}
 {% else %}
