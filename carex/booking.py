@@ -123,6 +123,8 @@ class BookingService:
                                                   sms_ok=False))
         except IdempotencyConflictError:
             raise DomainError("idempotency_conflict", "this Idempotency-Key was used with a different request")
+        except BookingNotFoundError:
+            raise DomainError("not_found", "not found")
         except SlotTakenError:
             return self._unavailable(self.sched.list_slots(tenant_id, req["clinic_id"], req["service_id"], req["provider_id"], user["id"], pid))
         if rec["status"] != "confirmed":
