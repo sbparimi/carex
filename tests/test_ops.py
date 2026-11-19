@@ -204,8 +204,36 @@ def test_clinic_practice_category_changes_are_validated_and_audited_atomically(c
         "tn-north",
     )
     assert event == {"action": "setup.clinic_update", "target_type": "clinic", "target_id": "cl-sb"}
-    with pytest.raises(Exception):
+    from carex.admin import AdminNotFoundError, AdminValidationError
+    with pytest.raises(AdminValidationError):
         cx.admin.set_clinic_practice_types("tn-north", "cl-sb", ["not-a-practice"], actor_id="staff-test")
     assert set(cx.admin.clinic_practice_types("tn-north", "cl-sb")) == {"dental", "womens_wellness"}
-    with pytest.raises(Exception):
+    with pytest.raises(AdminNotFoundError):
         cx.admin.set_clinic_practice_types("tn-bay", "cl-sb", ["dental"], actor_id="staff-test")
+
+
+def test_patient_finder_renders_practice_categories_and_filters_clinics(web):
+    landing = web.get(S + "/book")
+    assert landing.status_code == 200
+    for label in ("Physiotherapy", "Fitness", "Primary care", "Women’s wellness", "General health"):
+        assert label in landing.text
+    filtered = web.get(S + "/book?practice=physiotherapy")
+    assert filtered.status_code == 200 and "San Bernardo Clinic" in filtered.text
+    assert "Austin Clinic" not in filtered.text
+    assert "Physiotherapy" in filtered.text
+
+
+def test_practice_category_update_rolls_back_if_audit_write_fails(cx, monkeypatch):
+    from carex.audit import AuditWriteError
+
+    before = cx.admin.clinic_practice_types("tn-north", "cl-sb")
+
+    def fail_audit(*args, **kwargs):
+        raise AuditWriteError("audit store unavailable")
+
+    monkeypatch.setattr(cx.audit, "record", fail_audit)
+    with pytest.raises(AuditWriteError):
+        cx.admin.set_clinic_practice_types(
+            "tn-north", "cl-sb", ["dental", "womens_wellness"], actor_id="staff-test"
+        )
+    assert cx.admin.clinic_practice_types("tn-north", "cl-sb") == before
