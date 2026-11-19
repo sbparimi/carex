@@ -11,6 +11,15 @@ CLINIC_COLS = "c.id, c.name, c.city, c.address, c.state_code, c.time_zone, c.tie
 VISIT_COLS = "v.id, v.canonical_type, v.label, v.description, v.duration_min, v.modality, v.requires_referral, v.min_age, v.max_age"
 PROV_COLS = "p.id, p.display_name, p.specialty, p.languages, p.accepting_new, p.bio, p.photo_url"
 
+PRACTICE_TYPE_DEFAULTS = (
+    ("physiotherapy", "Physiotherapy", "Movement, recovery and physical rehabilitation", 10),
+    ("dental", "Dental care", "Preventive and general oral healthcare", 20),
+    ("fitness", "Fitness", "Fitness assessments, coaching and exercise programmes", 30),
+    ("primary_care", "Primary care", "Everyday healthcare, prevention and ongoing care", 40),
+    ("womens_wellness", "Women’s wellness & health", "Women’s health and wellbeing services", 50),
+    ("general_health", "General health", "General health and wellbeing services", 60),
+)
+
 
 def _clinic(r: dict) -> dict:
     return {"id": r["id"], "name": r["name"], "city": r["city"], "address": r["address"], "state_code": r["state_code"], "time_zone": r["time_zone"], "tier": r["tier"], "phone": r["phone"] or "", "hours_text": r["hours_text"] or "",
@@ -184,6 +193,9 @@ def seed_db(db, d: dict) -> None:
     """Load catalog data (the synthetic seed, the demo seed, or an admin import). `d` uses snake_case keys; every list is optional."""
     with db.tx() as raw:
         t = _Batcher(raw)
+        # Static reference rows are restored after test databases are truncated between Postgres tests.
+        for practice_type in PRACTICE_TYPE_DEFAULTS:
+            t.run("INSERT INTO practice_types (code, label, description, sort_order) VALUES (?,?,?,?) ON CONFLICT(code) DO NOTHING", *practice_type)
         for x in d.get("tenants", []):
             t.run("INSERT INTO tenants (id, slug, status, display_name, primary_color, logo_url, support_email, support_phone, analytics_enabled) VALUES (?,?,?,?,?,?,?,?,?)",
                   x["id"], x["slug"], x.get("status", "active"), x["display_name"], x["primary_color"], x.get("logo_url"), x.get("support_email"), x.get("support_phone"), _b(x.get("analytics_enabled", True)))
