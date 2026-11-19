@@ -61,7 +61,7 @@ class Privacy:
         now = iso(self.now())
         upcoming = self.db.all("SELECT id FROM appointments WHERE tenant_id = ? AND user_id = ? AND status = 'confirmed' AND starts_at > ? ORDER BY starts_at, id", tenant_id, user_id, now)
         for appointment in upcoming:
-            self.sched.cancel(tenant_id, appointment["id"], "Account closure requested", "staff")
+            self.sched.cancel(tenant_id, appointment["id"], "Account closure requested", "system")
 
         # Final anonymisation and completion audit are one transaction. Re-check under
         # lock so a retry or concurrent closure cannot partially erase the account.
