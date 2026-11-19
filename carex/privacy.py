@@ -47,11 +47,16 @@ class Privacy:
         if not u:
             return False
         now = iso(self.now())
-        for a in self.db.all("SELECT id FROM appointments WHERE tenant_id = ? AND user_id = ? AND status = 'confirmed' AND starts_at > ?", tenant_id, user_id, now):
-            try:
-                self.sched.cancel(tenant_id, a["id"], "Account closed", "staff")                # frees the time for someone else; ignores the change-notice window
-            except Exception:                                                                    # noqa: BLE001 - erasure goes on even if one cancel fails
-                pass
+        # Do not anonymise while future confirmed appointments remain active.
+        # A cancellation failure leaves the account intact and the operation retryable.
+        upcoming = self.db.all("SELECT id FROM appointments WHERE tenant_id = ? AND user_id = ? AND status = 'confirmed' AND starts_at > ?", tenant_id, user_id, now)
+        for appointment in upcoming:
+            self.sched.cancel(tenant_id, appointment["id"], "Account closure requested", "staff")
+        remaining = self.db.get("SELECT COUNT(*) AS n FROM appointments WHERE tenant_id = ? AND user_id = ? AND status = 'confirmed' AND starts_at > ?", tenant_id, user_id, now)
+        if remaining and int(remaining["n"]) > 0:
+            raise RuntimeError("Account closure is pending: upcoming appointments could not all be cancelled")
+        # Persist intent before destructive changes. If this fails, no PII is changed.
+        self.audit.record(tenant_id, "system", "account.erase_requested", target_type="user", target_id=user_id)
         with self.db.tx() as tx:
             tx.run("UPDATE appointments SET patient_first_name = 'Former', patient_last_name = 'Patient', patient_email = NULL, patient_phone = NULL, patient_dob = NULL, reason = NULL, accommodations = NULL, referral_ref = NULL, join_url = NULL, manage_token = NULL, user_id = NULL, patient_id = NULL WHERE tenant_id = ? AND user_id = ?", tenant_id, user_id)
             tx.run("UPDATE outbox SET to_email = NULL, to_phone = NULL, to_name = NULL, status = CASE WHEN status = 'pending' THEN 'skipped' ELSE status END, last_error = CASE WHEN status = 'pending' THEN 'account_erased' ELSE last_error END, user_id = NULL WHERE tenant_id = ? AND user_id = ?", tenant_id, user_id)
