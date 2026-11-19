@@ -148,3 +148,14 @@ def test_staff_admin_mutation_rolls_back_when_required_audit_fails(cx, monkeypat
     after = cx.db.get("SELECT COUNT(*) AS n FROM staff_users WHERE tenant_id = ?", "tn-north")["n"]
     assert response.status_code == 500
     assert after == before
+
+
+def test_pending_account_cannot_reuse_an_existing_session(cx):
+    profile, token = cx.accounts.signup(
+        "tn-north", email="closure@example.com", password="a long enough pass",
+        first_name="Closure", last_name="Test", date_of_birth="1990-01-01",
+        phone="555-123-4567", access_type="employer", access_id="em-n-1",
+    )
+    assert profile and cx.accounts.authenticate("tn-north", token)
+    cx.db.run("UPDATE users SET closure_status = 'pending' WHERE tenant_id = ? AND id = ?", "tn-north", profile["id"])
+    assert cx.accounts.authenticate("tn-north", token) is None
