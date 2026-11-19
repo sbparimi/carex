@@ -7,7 +7,7 @@
 
 CareX uses Neon as its only supported database platform. The application requires `DATABASE_URL` to contain a Neon endpoint under `.neon.tech`. The database adapter uses `psycopg` because Neon exposes the PostgreSQL wire protocol.
 
-There is no SQLite mode, local database file, generic self-managed PostgreSQL target, or automatic fallback when configuration is missing.
+This decision supersedes earlier development/test guidance that allowed SQLite or a separately hosted PostgreSQL server. There is no SQLite mode, local database file, generic self-managed PostgreSQL target, or automatic fallback when configuration is missing.
 
 ## Runtime configuration
 
