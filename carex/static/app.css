@@ -1284,7 +1284,7 @@ footer.site {
 }
 
 /* Consistent action hierarchy: one primary action, neutral secondary, semantic destructive */
-button, a.button { border-radius: 12px; }
+ .button, .btn, button.primary, button.danger, a.button { border-radius: 12px; }
 button.primary, a.button.primary, .btn.primary, .navcta {
   background: var(--cx-primary);
   border-color: var(--cx-primary);
@@ -1294,12 +1294,12 @@ button.primary:hover:not(:disabled), a.button.primary:hover, .btn.primary:hover,
   background: var(--cx-primary-hover);
   border-color: var(--cx-primary-hover);
 }
-button:not(.primary):not(.danger):not(.linkish), a.button:not(.primary):not(.danger) {
+ .button:not(.primary):not(.danger), .btn:not(.primary):not(.danger), button.secondary {
   border-color: var(--cx-primary);
   color: var(--cx-primary);
   background: #fff;
 }
-button:not(.primary):not(.danger):not(.linkish):hover:not(:disabled), a.button:not(.primary):hover {
+ .button:not(.primary):not(.danger):hover, .btn:not(.primary):not(.danger):hover, button.secondary:hover:not(:disabled) {
   background: color-mix(in srgb, var(--cx-primary) 8%, #fff);
 }
 button.danger, a.button.danger { color: var(--carex-red); border-color: var(--carex-red); background: #fff; }
