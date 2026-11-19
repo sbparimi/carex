@@ -78,17 +78,25 @@ def register(app: FastAPI, W: Web) -> None:
         c.events.log(t["id"], name, ref)
 
     @app.get(P + "/book")
-    def book(slug: str, request: Request, state: str = "", q: str = "", notice: str = ""):
+    def book(slug: str, request: Request, state: str = "", q: str = "", practice: str = "", notice: str = ""):
         t = W.tenant(slug)
         u = W.user(request, t)                                  # browsing needs no account
         state = state.upper()[:2]
         known = dict(STATES56)
         q = q.strip()[:60]
+        practice_types = c.catalog.practice_types(t["id"])
+        practice = practice if any(x["code"] == practice for x in practice_types) else ""
+        practice_label = next((x["label"] for x in practice_types if x["code"] == practice), "")
         if q:
             log_event(t, "search")
-        clinics = c.catalog.clinics(t["id"], state) if state in known and not q else (c.catalog.search_clinics(t["id"], q, state if state in known else "", 30) if q else [])
+        if practice:
+            clinics = (c.catalog.search_clinics(t["id"], q, state if state in known else "", 100, practice)
+                       if q or state in known else c.catalog.clinics_for_practice(t["id"], practice))
+        else:
+            clinics = c.catalog.clinics(t["id"], state) if state in known and not q else (c.catalog.search_clinics(t["id"], q, state if state in known else "", 30) if q else [])
         return W.render(request, "book_state.html", t=t, user=u, nav="book", states=STATES56, state=state if state in known else "", state_name=known.get(state, ""), q=q,
-                        clinics=clinics, notice=notice[:120] if notice else "", kinds=c.catalog.visit_kinds(t["id"]))
+                        practice=practice, practice_label=practice_label, practice_types=practice_types, clinics=clinics,
+                        notice=notice[:120] if notice else "", kinds=c.catalog.visit_kinds(t["id"]))
 
     @app.get(P + "/book/find")
     def book_find(slug: str, request: Request, kind: str = "", state: str = "", q: str = ""):
