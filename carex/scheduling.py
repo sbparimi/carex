@@ -89,8 +89,8 @@ def to_managed(r: dict) -> dict:
 
 
 class Scheduling:
-    def __init__(self, db, clock: Callable[[], datetime] = _now, horizon_days: int = 14, min_lead_minutes: int = 60, min_change_notice_minutes: int = 120):
-        self.db, self.now = db, clock
+    def __init__(self, db, clock: Callable[[], datetime] = _now, horizon_days: int = 14, min_lead_minutes: int = 60, min_change_notice_minutes: int = 120, audit=None):
+        self.db, self.now, self.audit = db, clock, audit
         self.horizon_days, self.min_lead, self.min_notice = horizon_days, min_lead_minutes, min_change_notice_minutes
 
     # ---- reads
@@ -171,6 +171,10 @@ class Scheduling:
                 enqueue_reminders(tx, nowd, tenant_id=i.tenant_id, appointment_id=bid, starts_at=slot["starts_at"], user_id=i.user_id, direct=direct)
             if i.user_id:
                 waitlist.mark_booked(tx, i.tenant_id, i.user_id, i.clinic_id, i.service_id)
+            if self.audit and i.user_id:
+                self.audit.record(i.tenant_id, "user", "booking.create", actor_id=i.user_id, target_type="appointment", target_id=bid, db=tx)
+            elif self.audit and i.staff_id:
+                self.audit.record(i.tenant_id, "staff", "staff.booking_create", actor_id=i.staff_id, target_type="appointment", target_id=bid, db=tx)
             return {"booking_id": bid, "tenant_id": i.tenant_id, "slot_id": i.slot_id, "idempotency_key": i.idempotency_key,
                     "starts_at": slot["starts_at"], "ends_at": slot["ends_at"], "status": "confirmed"}
 
@@ -178,7 +182,7 @@ class Scheduling:
         if ms(row["starts_at"]) - ms(self.now()) < self.min_notice * MINUTE:
             raise ChangeWindowClosedError("Too close to the appointment time to change it online")
 
-    def cancel(self, tenant_id: str, booking_id: str, reason: str | None = None, by: str = "patient") -> dict:
+    def cancel(self, tenant_id: str, booking_id: str, reason: str | None = None, by: str = "patient", actor_id: str | None = None) -> dict:
         with self.db.tx() as tx:
             row = self._find_managed(tx, tenant_id, booking_id, lock=True)
             if not row:
@@ -199,9 +203,18 @@ class Scheduling:
             if who:
                 enqueue(tx, nowd, tenant_id=tenant_id, kind="cancellation", appointment_id=booking_id, dedupe=f"cancellation:{booking_id}", **who)
             waitlist.notify_opening(tx, nowd, tenant_id=tenant_id, clinic_id=row["clinic_id"], service_id=row["visit_type_id"], provider_id=row["provider_id"], starts_at=row["starts_at"])
+            if self.audit:
+                if by == "patient":
+                    self.audit.record(tenant_id, "user", "booking.cancel", actor_id=row.get("user_id"), target_type="appointment", target_id=booking_id, db=tx)
+                elif by == "staff":
+                    self.audit.record(tenant_id, "staff", "staff.booking_cancel", actor_id=actor_id, target_type="appointment", target_id=booking_id, db=tx)
+                elif by == "system":
+                    self.audit.record(tenant_id, "system", "system.booking_cancel", target_type="appointment", target_id=booking_id, db=tx)
+                else:
+                    self.audit.record(tenant_id, "anonymous", "booking.cancel_by_link", target_type="appointment", target_id=booking_id, db=tx)
             return to_managed({**row, "status": "cancelled"})
 
-    def reschedule(self, tenant_id: str, booking_id: str, new_slot_id: str, by: str = "patient", provider_id: str | None = None) -> dict:
+    def reschedule(self, tenant_id: str, booking_id: str, new_slot_id: str, by: str = "patient", provider_id: str | None = None, actor_id: str | None = None) -> dict:
         with self.db.tx() as tx:
             row = self._find_managed(tx, tenant_id, booking_id, lock=True)
             if not row or row["status"] != "confirmed":
@@ -232,6 +245,11 @@ class Scheduling:
                 enqueue(tx, nowd, tenant_id=tenant_id, kind="rescheduled", appointment_id=booking_id, dedupe=f"rescheduled:{booking_id}:{slot['starts_at']}", **who)
                 enqueue_reminders(tx, nowd, tenant_id=tenant_id, appointment_id=booking_id, starts_at=slot["starts_at"], **who)
             waitlist.notify_opening(tx, nowd, tenant_id=tenant_id, clinic_id=row["clinic_id"], service_id=row["visit_type_id"], provider_id=row["provider_id"], starts_at=row["starts_at"])
+            if self.audit:
+                if by == "staff":
+                    self.audit.record(tenant_id, "staff", "staff.booking_reschedule", actor_id=actor_id, target_type="appointment", target_id=booking_id, db=tx)
+                else:
+                    self.audit.record(tenant_id, "user", "booking.reschedule", actor_id=row.get("user_id"), target_type="appointment", target_id=booking_id, db=tx)
             return to_managed({**row, "starts_at": slot["starts_at"], "ends_at": slot["ends_at"], "provider_id": new_provider})
 
     # ---- internals
