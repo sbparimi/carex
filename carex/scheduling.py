@@ -130,6 +130,10 @@ class Scheduling:
                 if existing["request_hash"] != h:
                     raise IdempotencyConflictError("Idempotency-Key was reused for a different request")
                 return to_record(existing)
+            if i.user_id:
+                account = tx.get(f"SELECT closure_status FROM users WHERE tenant_id = ? AND id = ?{tx.for_update}", i.tenant_id, i.user_id)
+                if not account or account["closure_status"] != "active":
+                    raise BookingNotFoundError("This account is not available for booking")
             tx.lock(f"{i.tenant_id}:{i.provider_id}")        # overlapping (not just identical) slots can never both commit
             q = dict(tenant_id=i.tenant_id, clinic_id=i.clinic_id, service_id=i.service_id, provider_id=i.provider_id, user_id=i.user_id,
                      patient_id=(i.intake or {}).get("patient_id") or None, dob=i.patient_dob, require_user=not i.staff_id)
