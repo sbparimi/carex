@@ -189,7 +189,7 @@ class Scheduling:
                 raise BookingNotFoundError("Booking not found")
             if row["status"] == "cancelled":
                 return to_managed(row)
-            if by != "staff":
+            if by not in {"staff", "system"}:
                 self._assert_change_allowed(row)
             nowd = self.now()
             pol = tx.get("SELECT late_cancel_hours FROM tenants WHERE id = ?", tenant_id)
