@@ -802,7 +802,7 @@ form.filters { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center;
    CareX theme: white background, flat colourful icons, deep-blue actions. Palette: blue, teal, orange, red, peach, navy.
    ===================================================================================================================== */
 :root {
-  color-scheme: light;
+  color-scheme: normal;
   --c-blue: #1b6fb5; --c-navy: #0e4a86; --c-teal: #18a999; --c-orange: #f7941d; --c-red: #e3262e; --c-peach: #fcc27a;
   --bg: #ffffff; --card: #ffffff; --ink: #111827; --muted: #4b5563; --line: #8a94a3; --sep: #e3e8ef; --fill: #f1f5f9;
   --accent: #1565ad; --accent-dark: #0e4a86; --brand-ink-alt: var(--accent);
@@ -810,7 +810,7 @@ form.filters { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center;
   --r: 14px; --r-sm: 10px; --r-lg: 18px;
   --tint: var(--accent);
 }
-html, body { background: #fff !important; color: var(--ink); }
+html, body { color: var(--ink); }
 body, input, select, textarea, button { font-family: "Helvetica Neue", Helvetica, Arial, system-ui, sans-serif; }
 /* Headings are bold sans; descriptive text is set in a serif, as on the reference site */
 h1, h2, h3, .largetitle, main > h1, .regbar, .section, .tierhead { font-family: "Helvetica Neue", Helvetica, Arial, system-ui, sans-serif; font-weight: 700; letter-spacing: -.01em; color: var(--ink); }
@@ -828,7 +828,7 @@ header.site .brand { font-weight: 800; color: var(--accent-dark); }
 /* buttons */
 button.primary, a.button.primary, .cta, .quickbook, .navcta { background: var(--accent); border-color: var(--accent); color: #fff !important; }
 button.primary:hover, a.button.primary:hover, .cta:hover, .quickbook:hover { background: var(--accent-dark); border-color: var(--accent-dark); }
-button, a.button { background: #fff; color: var(--accent); border: 2px solid var(--accent); border-radius: 999px; }
+button, a.button { border-radius: var(--r, .5rem); }
 button:hover, a.button:hover { background: #e8f2fb; }
 button.danger, .danger { border-color: var(--c-red); color: #b3141c; background: #fff; }
 .cta.ghost { background: #fff; color: var(--accent) !important; border-color: var(--accent); }
@@ -1225,7 +1225,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 }
 button, a.button {
   min-height: 46px;
-  border-radius: 999px;
+  border-radius: var(--r, .5rem);
   font-weight: 650;
   letter-spacing: -.01em;
   transition: transform .15s ease, box-shadow .15s ease, background-color .15s ease;
