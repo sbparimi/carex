@@ -32,7 +32,7 @@ pip install -r requirements-dev.txt
 python -m pytest -q
 ```
 
-Tests require a dedicated, empty Neon branch. Set `CAREX_TEST_DATABASE_URL` to that branch's pooled connection string, then run `python -m pytest -q`. The suite truncates tables between tests; never point it at production.
+Tests require a dedicated, empty Neon branch. Set `CAREX_TEST_DATABASE_URL` to that branch's pooled connection string, then run `python -m pytest -q`. The suite truncates tables between tests; never point it at production. CI reads the equivalent value from the GitHub repository secret `NEON_TEST_DATABASE_URL`; without that secret, database integration tests are skipped.
 
 ## Command-line tool
 
