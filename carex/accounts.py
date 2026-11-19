@@ -281,9 +281,12 @@ class Accounts:
             self.db.run("UPDATE users SET notify_sms = ? WHERE tenant_id = ? AND id = ?", 1 if sms else 0, tenant_id, user_id)
 
     def _new_session(self, tenant_id: str, user_id: str, db=None, action: str = "user.login") -> str:
+        if db is None:
+            with self.db.tx() as tx:
+                return self._new_session(tenant_id, user_id, db=tx, action=action)
         tok = new_token()
         t = self.now()
-        target_db = db or self.db
+        target_db = db
         target_db.run("INSERT INTO sessions (token_hash, user_id, tenant_id, created_at, expires_at, last_seen_at) VALUES (?,?,?,?,?,?)",
                       sha256(tok), user_id, tenant_id, iso(t), iso(t + timedelta(milliseconds=SESSION_MS)), iso(t))
         if self.audit:
