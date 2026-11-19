@@ -53,7 +53,7 @@ class Audit:
                     raise ValueError("Invalid audit detail value")
             if "identifier_hash" in detail and (len(detail["identifier_hash"]) != 12 or any(ch not in "0123456789abcdef" for ch in detail["identifier_hash"])):
                 raise ValueError("Invalid audit identifier hash")
-            if "date" in detail and not __import__("re").fullmatch(r"\\d{4}-\\d{2}-\\d{2}", detail["date"]):
+            if "date" in detail and not __import__("re").fullmatch(r"\d{4}-\d{2}-\d{2}", detail["date"]):
                 raise ValueError("Invalid audit date")
             if "status" in detail and detail["status"] not in {"confirmed", "arrived", "completed", "no_show", "cancelled"}:
                 raise ValueError("Invalid appointment status")
