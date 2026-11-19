@@ -215,7 +215,7 @@ def test_clinic_practice_category_changes_are_validated_and_audited_atomically(c
 def test_patient_finder_renders_practice_categories_and_filters_clinics(web):
     landing = web.get(S + "/book")
     assert landing.status_code == 200
-    for label in ("Physiotherapy", "Fitness", "Primary care", "Women’s wellness", "General health"):
+    for label in ("Physiotherapy", "Fitness", "Primary care", "Women’s wellness &amp; health", "General health"):
         assert label in landing.text
     filtered = web.get(S + "/book?practice=physiotherapy")
     assert filtered.status_code == 200 and "San Bernardo Clinic" in filtered.text
