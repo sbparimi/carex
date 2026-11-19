@@ -61,5 +61,5 @@ Needs clinical review (red-flag list, consent text), legal review (privacy notic
 
 ## Trying the emails end to end
 
-Set `RESEND_API_KEY`, `EMAIL_FROM` and `DEMO_EMAIL_TEMPLATE` (see `.env.example`) in your local `.env`, then `rm -f carex.db`, `python -m carex.ops seed-demo --yes`, `python -m carex.ops serve`.
+Set `RESEND_API_KEY`, `EMAIL_FROM` and `DEMO_EMAIL_TEMPLATE` (see `.env.example`) in your local `.env`, then use a fresh Neon development branch, run `python -m carex.ops seed-demo --yes`, and start `python -m carex.ops serve`.
 Each demo patient gets a numbered inbox (`...+test001@...`, `...+test002@...`). Sign in as that patient, book, reschedule or cancel, and the emails arrive there. Reminders go out when `python -m carex.ops dispatch` runs (or `/internal/dispatch` is called on a schedule).
