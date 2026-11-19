@@ -246,7 +246,6 @@ def register(app: FastAPI, W: Web) -> None:
         try:
             if any(s(f, k) for k in ("dep_relationship", "dep_first_name", "dep_last_name", "dep_date_of_birth")):
                 pt = c.intake.add_dependent(t["id"], u["id"], s(f, "dep_relationship", 20), s(f, "dep_first_name", 80), s(f, "dep_last_name", 80), s(f, "dep_date_of_birth", 10))
-                W.audit(request, t, "user", "patient.add", actor_id=u["id"], target_type="patient", target_id=pt["id"])
                 v["patient_id"] = pt["id"]
             req = build_req(f, v)
             dec = c.intake.prepare(t["id"], u["id"], req)
@@ -457,7 +456,6 @@ def register(app: FastAPI, W: Web) -> None:
             pt = c.intake.add_dependent(t["id"], u["id"], s(f, "relationship", 20), s(f, "first_name", 80), s(f, "last_name", 80), s(f, "date_of_birth", 10))
         except IntakeError as e:
             return W.redirect(f"/t/{slug}/appointments?n=bad")
-        W.audit(request, t, "user", "patient.add", actor_id=u["id"], target_type="patient", target_id=pt["id"])
         return W.redirect(f"/t/{slug}/appointments?n=added")
 
     @app.post(P + "/patients/{pid}/remove")
@@ -471,5 +469,4 @@ def register(app: FastAPI, W: Web) -> None:
             return W.redirect(f"/t/{slug}/appointments?n=inuse")
         if not ok:
             raise HTTPException(404, "Not found")
-        W.audit(request, t, "user", "patient.remove", actor_id=u["id"], target_type="patient", target_id=pid)
         return W.redirect(f"/t/{slug}/appointments?n=removed")
