@@ -25,8 +25,9 @@ No migration or deployment is implied by this target design. Current Vercel + Ne
 - Privileged support access must be time-bound, justified, approved, logged and reviewable.
 
 ## Audit and privacy
-- Required security audit writes must not fail silently.
-- Audit details use an allowlist; do not store passwords, secrets, raw request bodies or free-text clinical content.
+- Required security audit writes must not fail silently. Mutating service operations write their audit event in the same database transaction; a failed write rolls back the mutation.
+- Read/access events are fail-closed: the request is not served if its required audit write fails. Failed-login counters remain independent throttling state; a failed audit does not erase the counter increment.
+- Audit details use action-specific schemas and reject unknown fields or values; do not store passwords, secrets, raw request bodies or free-text clinical content. Serialized detail is never truncated.
 - Audit history needs restricted write/delete permissions, retention policy, monitoring and tamper-evidence appropriate to the threat model.
 - Account closure is a stateful workflow with reconciliation, cancellation checks, retention/legal holds and retry handling; it is not a single blind anonymisation operation.
 - Retention and deletion schedules require legal/privacy approval per jurisdiction and record type.
