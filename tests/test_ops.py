@@ -1,6 +1,8 @@
 """Health check, scheduled dispatch, operator API and the command-line tool."""
 from __future__ import annotations
 
+import os
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -60,10 +62,9 @@ def test_seed_demo_endpoint_is_protected_and_only_fills_an_empty_database(web, c
     assert r.status_code == 409 and r.json()["status"] == "refused"      # the test database already has tenants
 
 
-def test_seed_demo_endpoint_seeds_an_empty_database(monkeypatch):
+def test_seed_demo_endpoint_seeds_an_empty_database(db, monkeypatch):
     from carex.context import build
-    from carex.db import open_db
-    c = build(db=open_db(path=":memory:"), env={"CRON_SECRET": SECRET})
+    c = build(db=db, env={"CRON_SECRET": SECRET})
     w = TestClient(create_app(c), base_url="http://testserver")
     r = w.post("/internal/seed-demo", headers={"authorization": f"Bearer {SECRET}"})
     assert r.status_code == 200 and r.json()["status"] == "seeded" and r.json()["clinics"] > 1000
@@ -109,16 +110,16 @@ def test_errors_are_json_for_api_and_html_for_pages(web):
     assert r.headers["content-type"].startswith("text/html") and "Traceback" not in r.text
 
 
-def test_cli_creates_tenant_and_seeds_demo(tmp_path, monkeypatch, capsys):
-    monkeypatch.setenv("CAREX_DB", str(tmp_path / "t.db"))
-    monkeypatch.delenv("DATABASE_URL", raising=False)
-    monkeypatch.chdir(tmp_path)
+def test_cli_creates_tenant_and_seeds_demo(db, monkeypatch, capsys):
+    monkeypatch.setenv("DATABASE_URL", os.environ.get("CAREX_TEST_DATABASE_URL") or os.environ["DATABASE_URL"])
     assert ops.main(["create-tenant", "acme-care", "Acme Care", "#336699"]) == 0
     assert ops.main(["create-tenant", "Bad Slug", "x", "#336699"]) == 1
     assert ops.main(["admin-key", "acme-care", "ci"]) == 0
     assert "cxa_" in capsys.readouterr().out
     assert ops.main(["seed-demo", "--yes"]) == 1                      # refuses: already has tenants
-    monkeypatch.setenv("CAREX_DB", str(tmp_path / "fresh.db"))
+    tables = [r["tablename"] for r in db.all("SELECT tablename FROM pg_tables WHERE schemaname = current_schema() AND tablename <> 'carex_migrations'")]
+    if tables:
+        db.run("TRUNCATE " + ", ".join(tables) + " RESTART IDENTITY CASCADE")
     assert ops.main(["seed-demo"]) == 1                               # needs --yes
     assert ops.main(["seed-demo", "--yes"]) == 0
     assert ops.main(["dispatch"]) == 0
