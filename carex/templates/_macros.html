@@ -54,7 +54,7 @@
 {% macro vicon(kind, size=44) %}
 {% set k = (kind or '')|lower %}
 <svg class="vicon" viewBox="0 0 64 64" width="{{ size }}" height="{{ size }}" aria-hidden="true" focusable="false">
-{% if 'prim' in k or 'general' in k or 'doctor' in k %}
+{% if 'prim' in k or 'doctor' in k %}
   <path d="M10 60c0-14 9-22 22-22s22 8 22 22z" fill="#1b6fb5"/><circle cx="32" cy="22" r="12" fill="#fcc27a"/><path d="M20 17c1-9 7-12 13-12s11 4 11 11c-4-3-9-5-14-5s-8 2-10 6z" fill="#e3262e"/>
   <path d="M22 42v8a6 6 0 0 0 12 0v-8" fill="none" stroke="#18a999" stroke-width="3.5" stroke-linecap="round"/><circle cx="40" cy="52" r="3.5" fill="#f7941d"/>
 {% elif 'physio' in k or 'therap' in k or 'rehab' in k %}
