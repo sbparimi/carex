@@ -104,7 +104,7 @@ def register(app: FastAPI, W: Web) -> None:
         return W.render(request, "staff_insights.html", t=t, staff=st, nav="ins", m=m, days=days, clinic=clinic, clinics=pick_list(cats, clinic))
 
     # ------------------------------------------------------------------ practice setup
-    SETUP_NOTES = {"imported": "Clinics imported. They stay hidden from patients until you switch each one on.", "brand": "Branding saved.", "clinic": "Clinic added. It stays hidden from patients until you switch it on.", "toggled": "Clinic updated.", "details": "Clinic details saved."}
+    SETUP_NOTES = {"imported": "Clinics imported. They stay hidden from patients until you switch each one on.", "brand": "Branding saved.", "clinic": "Clinic added. It stays hidden from patients until you switch it on.", "toggled": "Clinic updated.", "details": "Clinic details saved.", "practices": "Practice categories saved."}
 
     @app.get(P + "/setup")
     def setup(slug: str, request: Request, state: str = "", n: str = "", error: str = ""):
@@ -114,8 +114,15 @@ def register(app: FastAPI, W: Web) -> None:
         known = dict(US_STATES)
         state = state if state in known else (c.db.get("SELECT state_code FROM clinics WHERE tenant_id = ? ORDER BY sort_order, name LIMIT 1", t["id"]) or {}).get("state_code", "")
         clinics = c.db.all("""SELECT id, name, city, address, state_code, time_zone, status, bookable, phone, hours_text, about, image_url, tier FROM clinics WHERE tenant_id = ? AND state_code = ? ORDER BY sort_order, name""", t["id"], state)
+        selected = c.db.all("SELECT clinic_id, practice_type_code FROM clinic_practice_types WHERE tenant_id = ? AND active = 1", t["id"])
+        selected_by_clinic = {}
+        for row in selected:
+            selected_by_clinic.setdefault(row["clinic_id"], []).append(row["practice_type_code"])
+        for clinic in clinics:
+            clinic["practice_type_codes"] = selected_by_clinic.get(clinic["id"], [])
+        practice_types = c.admin.practice_types()
         tenant = c.db.get("SELECT display_name, primary_color, logo_url, support_email, support_phone FROM tenants WHERE id = ?", t["id"])
-        return W.render(request, "staff_setup.html", t=t, staff=st, nav="setup", state=state, states=US_STATES, clinics=clinics, tenant=tenant, notice=SETUP_NOTES.get(n, ""), error=error[:200])
+        return W.render(request, "staff_setup.html", t=t, staff=st, nav="setup", state=state, states=US_STATES, clinics=clinics, tenant=tenant, practice_types=practice_types, notice=SETUP_NOTES.get(n, ""), error=error[:200])
 
     def setup_back(slug, state, n="", error=""):
         return W.redirect(f"/t/{slug}/staff/setup?state={quote(state)}" + (f"&n={n}" if n else "") + (f"&error={quote(error)}" if error else ""))
@@ -186,6 +193,24 @@ def register(app: FastAPI, W: Web) -> None:
         except AdminValidationError as e:
             return setup_back(slug, state, error=str(e))
         return setup_back(slug, state, note)
+
+    @app.post(P + "/setup/clinic/{cid}/practices")
+    def setup_clinic_practices(slug: str, cid: str, request: Request, f: dict = Depends(form)):
+        t = W.tenant(slug)
+        st = W.need_staff(request, t, "admin")
+        W.allow("write", W.client(request))
+        bad_id(cid)
+        state = s(f, "state", 2)
+        selected = f.get("practice_type_all", [])
+        if isinstance(selected, str):
+            selected = [selected] if selected else []
+        try:
+            c.admin.set_clinic_practice_types(t["id"], cid, selected, actor_id=st["id"])
+        except AdminNotFoundError:
+            raise HTTPException(404, "Not found")
+        except AdminValidationError as e:
+            return setup_back(slug, state, error=str(e))
+        return setup_back(slug, state, "practices")
 
     # ------------------------------------------------------------------ share links and QR codes
     @app.get(P + "/share")
