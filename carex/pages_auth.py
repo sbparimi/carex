@@ -38,7 +38,7 @@ def register(app: FastAPI, W: Web) -> None:
         try:
             r = c.accounts.begin_login(t["id"], email, f.get("password") or "")
         except AccountError as e:
-            W.audit(request, t, "anonymous", "user.login_failed", detail={"email": hashlib.sha256(email.encode()).hexdigest()[:12]})
+            W.audit(request, t, "anonymous", "user.login_failed", detail={"identifier_hash": hashlib.sha256(email.encode()).hexdigest()[:12]})
             return W.render(request, "login.html", 401 if e.code != "locked" else 423, t=t, error=str(e), email=email, nxt=W.safe_next(slug, s(f, "next", 600)))
         if r.get("mfa"):
             return W.render(request, "login.html", t=t, challenge=r["mfa"]["challenge"], nxt=W.safe_next(slug, s(f, "next", 600)))
