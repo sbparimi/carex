@@ -121,16 +121,38 @@ def test_password_reset_flow(client, ctx):
     assert a.status_code == 200
 
 
-def test_first_screen_is_sign_in_and_demo_logins_are_prefilled_only_for_demo_data(client, ctx):
+def test_patient_booking_filters_slots_by_clinic_local_date(client, ctx):
+    from urllib.parse import quote_plus
+    from carex.util import parse, zone
+
+    slots = ctx.booking.slots("tn-north", "cl-sb", "sv-physio-n", "pr-b", None)
+    assert len(slots) > 1
+    selected = parse(slots[0]["starts_at"]).astimezone(zone(slots[0]["time_zone"])).date().isoformat()
+    expected = {
+        item["id"] for item in slots
+        if parse(item["starts_at"]).astimezone(zone(item["time_zone"])).date().isoformat() == selected
+    }
+    other = {item["id"] for item in slots} - expected
+    response = client.get(f"{S}/book/provider?clinic=cl-sb&service=sv-physio-n&provider=pr-b&on_date={selected}")
+    assert response.status_code == 200
+    assert f'value="{selected}"' in response.text
+    assert expected and all(quote_plus(slot_id) in response.text for slot_id in expected)
+    assert all(quote_plus(slot_id) not in response.text for slot_id in other)
+    assert client.get(f"{S}/book/provider?clinic=cl-sb&service=sv-physio-n&on_date=not-a-date").status_code == 400
+
+
+def test_first_screen_is_sign_in_and_demo_logins_are_prefilled_only_for_demo_data(client, ctx, db):
     r = client.get("/")
     assert r.url.path.endswith("/login") and h1(r) == "Sign in"
     assert "Demo account" not in r.text and 'value="Demo' not in r.text          # synthetic test data is not the demo set
     from fastapi.testclient import TestClient
     from carex.app import create_app
     from carex.context import build
-    from carex.db import open_db
     from carex.seed_demo import DEMO_PASSWORD, load_demo, seed_demo_people
-    d = open_db()
+    tables = [r["tablename"] for r in db.all("SELECT tablename FROM pg_tables WHERE schemaname = current_schema() AND tablename <> 'carex_migrations'")]
+    if tables:
+        db.run("TRUNCATE " + ", ".join(tables) + " RESTART IDENTITY CASCADE")
+    d = db
     load_demo(d)
     seed_demo_people(d)
     client = TestClient(create_app(build(db=d, env={})), base_url="http://testserver", follow_redirects=True)

@@ -1,4 +1,4 @@
-"""Test fixtures. Every test runs on SQLite; set CAREX_TEST_PG to a postgresql:// URL of an EMPTY database to run the same tests on Postgres too."""
+"""Test fixtures use a dedicated, empty Neon test database. Never point this at production."""
 from __future__ import annotations
 
 import os
@@ -16,7 +16,7 @@ from carex.seed import synthetic_catalog
 
 # Monday 2026-10-19 12:00 UTC (5 am Pacific): a stable "now" for slot maths.
 NOW = datetime(2026, 10, 19, 12, 0, tzinfo=timezone.utc)
-PG = os.environ.get("CAREX_TEST_PG")
+PG = os.environ.get("CAREX_TEST_DATABASE_URL")
 S = "/t/northwind-health"
 
 
@@ -31,23 +31,21 @@ class Clock:
 _pg = {}
 
 
-def _fresh_db(kind: str):
-    if kind == "sqlite":
-        return open_db()
+def _fresh_db():
+    if not PG:
+        pytest.skip("Set CAREX_TEST_DATABASE_URL to a dedicated Neon test branch.")
     if "db" not in _pg:
         _pg["db"] = open_db(url=PG)
     db = _pg["db"]
     tables = [r["tablename"] for r in db.all("SELECT tablename FROM pg_tables WHERE schemaname = current_schema() AND tablename <> 'carex_migrations'")]
-    db.run("TRUNCATE " + ", ".join(tables) + " RESTART IDENTITY CASCADE")
+    if tables:
+        db.run("TRUNCATE " + ", ".join(tables) + " RESTART IDENTITY CASCADE")
     return db
 
 
-@pytest.fixture(params=["sqlite"] + (["postgres"] if PG else []))
-def db(request):
-    d = _fresh_db(request.param)
-    yield d
-    if request.param == "sqlite":
-        d.close()
+@pytest.fixture
+def db():
+    return _fresh_db()
 
 
 @pytest.fixture

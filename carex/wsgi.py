@@ -1,4 +1,4 @@
-"""ASGI entry point: `uvicorn carex.wsgi:app`. Reads DATABASE_URL / CAREX_DB and the other settings from the environment (and a local .env file)."""
+"""ASGI entry point: `uvicorn carex.wsgi:app`. Reads the Neon DATABASE_URL and other settings from the environment (and a local .env file)."""
 import re
 import traceback
 

@@ -5,17 +5,21 @@
 {% macro card(c, i) %}
   <a class="clinic" href="/t/{{ slug }}/book/provider?clinic={{ c.id }}">
     <span class="cliniciconbig" aria-hidden="true">{{ vicon('clinic', 96) }}</span>
-    <span class="clinic-body"><strong>{{ c.name }}</strong><small>{{ c.address }}{% if c.city not in c.address %}, {{ c.city }}{% endif %}</small><small class="zone">{{ zone_name(c.time_zone) }}</small></span>
+    <span class="clinic-body"><strong>{{ c.name }}</strong><small>{{ c.address }}{% if c.city not in c.address %}, {{ c.city }}{% endif %}</small><small class="zone">{{ zone_name(c.time_zone) }}</small>
+      {% if c.practice_types %}<span class="practice-chips" aria-label="Practice categories">{% for pt in c.practice_types %}<span class="practice-chip">{{ pt.label }}</span>{% endfor %}</span>{% endif %}
+    </span>
     <span class="chev" aria-hidden="true"></span>
   </a>
 {% endmacro %}
 {% macro finder() %}
 <div class="quickfind" id="book">
   <form class="qf" method="get" action="/t/{{ slug }}/book" role="search">
+    {% if practice %}<input type="hidden" name="practice" value="{{ practice }}">{% endif %}
     <label for="q">Search clinics</label>
     <span class="qfrow"><input id="q" name="q" type="search" value="{{ q }}" maxlength="60" placeholder="Clinic name or city" autocomplete="off"><button class="primary" type="submit">Search</button></span>
   </form>
   <form class="qf" method="get" action="/t/{{ slug }}/book">
+    {% if practice %}<input type="hidden" name="practice" value="{{ practice }}">{% endif %}
     <label for="state">State or territory</label>
     <span class="qfrow"><span class="selectwrap"><select id="state" name="state" required>
       <option value="">Choose a state&hellip;</option>
@@ -25,13 +29,22 @@
 </div>
 {% endmacro %}
 {% if notice %}{{ banner('warning', notice, 'status') }}{% endif %}
-{% if not q and not state %}
+{% if not q and not state and not practice %}
 <section class="homehero" aria-labelledby="h1">
   <div class="homehero-text">
     <p class="eyebrow">{{ TAGLINE }}</p>
     <h1 id="h1" class="largetitle">Find care</h1>
     <p class="hero-sub">What do you need today?</p>
+    {% if practice_types %}
+    <h2 class="section">Browse by practice</h2>
+    <ul class="starttiles practice-tiles" aria-label="Choose a practice category">
+      {% for pt in practice_types %}
+      <li><a class="starttile" href="/t/{{ slug }}/book?practice={{ pt.code }}"><span class="st-icon" aria-hidden="true">{{ vicon(pt.code, 56) }}</span><span class="st-text"><strong>{{ pt.label }}</strong><small>{{ pt.description }}</small></span><span class="st-go" aria-hidden="true"></span></a></li>
+      {% endfor %}
+    </ul>
+    {% endif %}
     {% if kinds %}
+    <h2 class="section">Browse by visit type</h2>
     <ul class="starttiles" aria-label="Choose a visit type to see the soonest openings">
       {% for k in kinds %}
       <li><a class="starttile" href="/t/{{ slug }}/book/find?kind={{ k.kind }}"><span class="st-icon" aria-hidden="true">{{ vicon(k.kind, 56) }}</span><span class="st-text"><strong>{{ k.label }}</strong><small>See soonest times</small></span><span class="st-go" aria-hidden="true"></span></a></li>
@@ -71,14 +84,14 @@
 <h2 class="section" id="clinics">Results for &ldquo;{{ q }}&rdquo;</h2>
 {% if not clinics %}<div class="sheet empty"><strong>No clinics match</strong><p class="hint">Try a city name or a shorter search.</p></div>{% endif %}
 <div class="clinics">{% for c in clinics %}{{ card(c, loop.index) }}{% endfor %}</div>
-{% elif state %}
-<h2 class="section" id="clinics">Clinics in {{ state_name }}</h2>
+{% elif state or practice %}
+<h2 class="section" id="clinics">{% if practice %}Clinics offering {{ practice_label }}{% else %}Clinics in {{ state_name }}{% endif %}</h2>
 
 {% set hq = clinics | selectattr('tier', 'equalto', 'hq') | list %}
 {% set major = clinics | selectattr('tier', 'equalto', 'major') | list %}
 {% set other = clinics | selectattr('tier', 'equalto', 'other') | list %}
 {% if not clinics %}
-<div class="sheet empty"><strong>No clinics open in {{ state_name }} yet</strong><p class="hint">Try another state, or contact {{ brand.support_email or 'the clinic' }}.</p></div>
+<div class="sheet empty"><strong>{% if practice %}No clinics currently list {{ practice_label }}{% else %}No clinics open in {{ state_name }} yet{% endif %}</strong><p class="hint">Try another practice category or contact {{ brand.support_email or 'the clinic' }}.</p></div>
 {% endif %}
 {% if hq %}
 <h3 class="tierhead">Headquarters location</h3>
@@ -89,7 +102,7 @@
 <div class="clinics">{% for c in major %}{{ card(c, loop.index) }}{% endfor %}</div>
 {% endif %}
 {% if other %}
-<h3 class="tierhead">More locations in {{ state_name }} <span class="count">{{ other | length }}</span></h3>
+<h3 class="tierhead">{% if practice %}More locations offering {{ practice_label }}{% else %}More locations in {{ state_name }}{% endif %} <span class="count">{{ other | length }}</span></h3>
 <div class="sheet morelist">
   {% for c in other %}
   <a class="morerow" href="/t/{{ slug }}/book/provider?clinic={{ c.id }}"><span class="thumb th-{{ tint_of(c.id) }}" aria-hidden="true">{{ c.name[:1] }}</span><span class="clinic-body"><strong>{{ c.name }}</strong><small>{{ zone_name(c.time_zone) }}</small></span><span class="chev" aria-hidden="true"></span></a>

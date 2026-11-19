@@ -1,55 +1,68 @@
-# CareX booking: requirement traceability
+# CareX product traceability and implementation status
 
-Status as of 2026-10-17. The product is now Python-only (ADR-009); behaviour is unchanged from the TypeScript build. The system of record is the CareX-native scheduling engine on SQLite or Postgres. Test names quoted in the Evidence column come from the earlier TypeScript suite; the same behaviour is covered by the pytest suite in `tests/` (83 tests; 162 runs counting the repeat on Postgres): engine and concurrency in `test_engine.py`, screening and consent in `test_intake.py`, accounts in `test_accounts.py`, reminders and waiting list in `test_notify.py`, patient pages in `test_pages.py`, staff desk in `test_staff.py`, health, API and CLI in `test_ops.py`.
+**Reviewed:** 2026-11-19  
+**Source of truth:** current Python implementation on the repository default branch. This document supersedes older TypeScript/Node-era evidence. A passing test count is not asserted here; use the current CI run as the authoritative execution record.
 
-Test runs: 83 pytest tests, run on SQLite and on Postgres 16 (162 runs). Browser accessibility checks (axe) are not yet re-run on the Python pages.
+## Product boundary
+CareX currently provides multi-tenant appointment booking and outpatient practice operations. It is **not yet a complete electronic health record (EHR)** and must not be marketed as one. The current clinical record scope is limited; there are no production-ready encounter, diagnosis, medication, allergy, order or result workflows.
 
-| Requirement | Status | Evidence |
+The supported runtime is Python, FastAPI, Jinja-rendered HTML and SQLite/PostgreSQL. ADR-009 is authoritative. The application is intentionally usable without JavaScript.
+
+## Current capabilities
+| Area | Current implementation | Important limitation |
 |---|---|---|
-| FR-001 tenant resolution, no fallback | Done | api.test "does not fall back when the tenant is unknown, suspended or malformed"; e2e "unknown, suspended or malformed tenant shows a safe page" |
-| FR-002 states with bookable clinics only | Done | api.test "shows only states with an active, bookable clinic" |
-| FR-003 clinic filtering by state and tenant | Done | api.test "lists only active clinics in the state for the tenant"; e2e "tenants are isolated and branded" |
-| FR-004 visit types from clinic config; reset on clinic change | Done | api.test "offers only visit types switched on at that clinic"; selection.test; e2e "changing an upstream choice invalidates downstream choices" |
-| FR-005 eligible providers only | Done | api.test "offers only active, eligible providers" |
-| FR-006 slots only from the source; time zone shown; stale slot blocked | Done (real engine) | api.test "returns provisional slots only for an eligible provider"; e2e happy path (time zone), "slot taken before confirmation" |
-| FR-007 review and edit | Done | e2e happy path, "changing an upstream choice..." |
-| FR-008 confirm with idempotency, atomic revalidation, no false success | Done against the real engine | api.test "booking integrity" group (10 tests); e2e "double-clicking Confirm", "timeout after the booking was saved", "scheduling outage" |
-| FR-009 refresh and session resilience | Partly | e2e "refresh resilience" (selection revalidated, forged slot dropped). Patient details are deliberately not persisted. Session expiry is not modelled. |
-| FR-010 telemetry without PHI, per-tenant switch | Server-side events done | api.test "privacy: logs and telemetry". Client-side step events (state_selected etc.) are defined in the allowlist but not yet emitted by the UI. |
-| BR-001 / BR-012 tenant isolation | Done at the data-access layer | api.test "tenant isolation and safe errors" |
-| BR-002 branding | Partly | brand colour, display name with contrast guardrail (theme.test, e2e). Logo, favicon, typography tokens not implemented. |
-| BR-006..BR-009 authoritative availability, explicit confirmation, no false success, recoverability | Done against the real engine | as FR-008 |
-| BR-011 accessibility | Automated checks pass | axe WCAG 2.0 to 2.2 A/AA on every screen, keyboard flow, 320 px and 200 % text reflow. Manual screen-reader and keyboard review still required; no formal target approved. |
-| §12 edge-state matrix | Mostly | no clinics, no providers, no slots, stale slot, timeout, integration outage, duplicate click, missing tenant, malformed tenant covered. "Clinic deactivated mid-flow" is handled by server revalidation but has no dedicated test. |
+| Tenant and clinic configuration | Tenant, clinic, visit type, provider, eligibility and brand configuration | Tenant isolation needs database-enforced controls and adversarial tests |
+| Patient access | Patient accounts, dependents, sessions, password reset, optional email MFA | Workforce MFA/SSO and recovery hardening remain |
+| Scheduling | Availability, time off, closures, resources, booking, cancellation, rescheduling | Scheduling is not a clinical encounter |
+| Practice operations | Staff console, waitlist, reminders/outbox, insights, CSV workflows | Revenue-cycle and claims workflows are incomplete |
+| Privacy | Patient export, activity history and account anonymisation | Retention/legal basis and erasure orchestration need policy and validation |
+| Audit | Tenant-scoped audit event table and service | Audit durability and immutability controls require production hardening |
+| Interoperability | Limited FHIR R4 Appointment export | Not a FHIR server, US Core implementation or certification |
+| Deployment | Vercel + Neon configuration | AWS target architecture and production controls are not implemented |
+| UI | Server-rendered pages and responsive CSS | Needs ongoing WCAG 2.2 AA validation and task-based usability testing |
 
-| Persistence | Done (validate on Neon) | db-catalog/db-scheduling tests (transactions, partial unique index prevents double booking; PGlite) |
-| Accounts, login-required booking | Done | accounts, accounts-api, my-appointments-api tests; e2e sign up, login, reset, my appointments |
-| Cancel and reschedule (account) | Done | db-manage.test, my-appointments-api.test, e2e my appointments |
-| Rate limiting and hardening | Done | ratelimit.test, manage-api.test (429, headers, body limit); e2e strict-CSP check |
-| Web deployment (Vercel + Neon) | Built, not deployed | deploy.test (handler, health, mailer); build:vercel; CI workflow |
-| Admin configuration | API done, no UI | admin-keys.test, db-admin.test, admin-api.test |
+## Release evidence rules
+- CI is the source of truth for test execution. Do not copy historical test counts from old harness reports into current release claims.
+- Tests must cover SQLite and PostgreSQL paths, including migrations and concurrency.
+- Accessibility evidence must name the tested commit, browser/assistive technology, WCAG criteria and known exceptions.
+- No HIPAA compliance, certification, ONC certification, FHIR conformance or clinical safety claim is permitted without relevant independent evidence and accountable review.
+- Until a production security and privacy programme is approved, use synthetic data only.
 
-## Not built yet (deliberately, or blocked on decisions)
-- Optional patient login (ADR-003): design only; needs your approval and an email provider.
-- Confirmation emails/SMS and calendar invites by delivery (link and .ics download exist).
-- Admin UI; creating providers and visit types through the API; admin audit log.
-- AI assistant features: excluded by owner decision.
-- Real EHR adapter (the `SchedulingSource` seam exists); email provider for reset and confirmation mail.
-- Encryption at rest, retention policy, HIPAA/legal review, formal accessibility target: human decisions. Appointments store patient name and contact; use synthetic data only until these are settled.
-- Trusted-proxy handling for client IPs behind a load balancer (rate limiting uses the socket address).
-- Multilingual UI, Figma deliverables, cross-browser matrix (Chromium only).
+## Required capability backlog
+### P0 — security and data integrity
+- Make required audit persistence failures visible and prevent silent success.
+- Make account closure recoverable; do not anonymise an account while future confirmed appointments remain active.
+- Enforce tenant boundaries through database constraints/RLS where supported, plus negative cross-tenant tests.
+- Remove demo seed credentials and routes from production deployments; isolate demo data and secrets.
+- Replace per-instance rate limits with a shared store for multi-instance production and validate trusted proxy configuration.
+- Require MFA for workforce/admin access; implement session/device revocation and privileged-access controls.
+- Establish security logging, incident response, backup/restore and key rotation evidence.
 
-## Run it
-- `npm install`, `npm run test`, `npm run harness:test`, `npm run test:e2e` (needs `npx playwright install chromium`)
-- Dev: `CAREX_SEED_SYNTHETIC=1 npm start` (synthetic tenants, ephemeral token secret). Production: set `CAREX_TOKEN_SECRET` (32+ chars) and `CAREX_DB`.
-- Admin key: `npm run admin:key -- <tenant-slug> "<label>"`
+### P1 — clinical record foundation
+- Patient identity and duplicate reconciliation.
+- Encounter lifecycle, provider attribution, signed/amended notes and provenance.
+- Problem list, conditions, allergies and medication reconciliation.
+- Orders, results, acknowledgement and escalation tracking.
+- Clinical document storage with access policy and retention.
+- Clinical safety review, hazard log and usability validation before enabling clinical decision workflows.
 
-## Clinical intake, notifications and staff (ADR-008)
-| Capability | Code | Tests |
-|---|---|---|
-| Engine rules (closures, buffers, rooms, lead time, age, new/established) | `db-scheduling.ts` | `engine-rules.test.ts` |
-| Dependents, screening, consent, referral, telehealth, coverage | `intake.ts`, `triage.ts` | `intake-api.test.ts` |
-| Outbox notifications, reminders, waitlist, cancel reasons | `notify.ts`, `waitlist.ts` | `notifications.test.ts` |
-| Sessions, MFA, audit | `accounts.ts`, `audit.ts` | `security.test.ts` |
-| Staff console, CSV, FHIR | `staff.ts` | `staff-api.test.ts` |
-| Patient screens (details step, any provider, waitlist, MFA step, manage page) and staff screen | `apps/web/src/*` | `apps/web/e2e/booking.spec.ts` |
+### P2 — practice operations and revenue cycle
+- Provider/clinic administration UI, referrals and patient communications.
+- Eligibility checks, estimates, statements, payment reconciliation and claims workflow.
+- Operational dashboards with privacy-safe aggregation and auditable exports.
+
+### P3 — interoperability
+- FHIR R4/US Core resources and conformance testing.
+- SMART on FHIR/OAuth2 authorization and consent-aware access.
+- HL7 v2, X12 and NCPDP adapters behind vendor-neutral interfaces.
+- Matching, reconciliation, provenance, retries and dead-letter operations.
+
+### P4 — infrastructure and operations
+- AWS deployment design: WAF, ALB, ECS Fargate, RDS PostgreSQL, S3, KMS, Secrets Manager, CloudWatch and Terraform.
+- Separate production and synthetic Test Lab accounts, networks, databases, keys, credentials and pipelines.
+- Tested restore, disaster recovery, availability, performance and incident runbooks.
+
+## Superseded material
+- ADR-009 (Python-only) is the authoritative stack decision. Earlier ADRs retain product decisions where relevant but Node/TypeScript-specific implementation instructions are historical.
+- Historical harness assessments and acceptance reports describe prior work and must not be used as evidence for the current Python build.
+- Update older documents in place only when the historical record would otherwise mislead; prefer adding a superseding note to preserve decision history.

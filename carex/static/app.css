@@ -796,13 +796,17 @@ table.grid { width: 100%; }
 @media (max-width: 52rem) { .evt { grid-template-columns: minmax(0, 1fr); } }
 @media (min-width: 70rem) { main:has(.tix) { } .tix-list { } }
 .filters select, .filters input { width: auto; min-width: 14rem; }
+.filters input[type="date"] { min-height: 2.75rem; padding: .55rem .7rem; border: 1px solid var(--line, #d7deea); border-radius: 10px; color: var(--ink, #172033); background: #fff; }
+.filters .filter-reset { color: var(--cx-primary, #1b6fb5); font-weight: 650; text-decoration: underline; text-underline-offset: .15em; }
+.clinic-practice-tags { margin: -.35rem 0 1rem; }
+
 form.filters { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; }
 
 /* =====================================================================================================================
    CareX theme: white background, flat colourful icons, deep-blue actions. Palette: blue, teal, orange, red, peach, navy.
    ===================================================================================================================== */
 :root {
-  color-scheme: light;
+  color-scheme: normal;
   --c-blue: #1b6fb5; --c-navy: #0e4a86; --c-teal: #18a999; --c-orange: #f7941d; --c-red: #e3262e; --c-peach: #fcc27a;
   --bg: #ffffff; --card: #ffffff; --ink: #111827; --muted: #4b5563; --line: #8a94a3; --sep: #e3e8ef; --fill: #f1f5f9;
   --accent: #1565ad; --accent-dark: #0e4a86; --brand-ink-alt: var(--accent);
@@ -810,7 +814,7 @@ form.filters { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center;
   --r: 14px; --r-sm: 10px; --r-lg: 18px;
   --tint: var(--accent);
 }
-html, body { background: #fff !important; color: var(--ink); }
+html, body { color: var(--ink); }
 body, input, select, textarea, button { font-family: "Helvetica Neue", Helvetica, Arial, system-ui, sans-serif; }
 /* Headings are bold sans; descriptive text is set in a serif, as on the reference site */
 h1, h2, h3, .largetitle, main > h1, .regbar, .section, .tierhead { font-family: "Helvetica Neue", Helvetica, Arial, system-ui, sans-serif; font-weight: 700; letter-spacing: -.01em; color: var(--ink); }
@@ -828,7 +832,7 @@ header.site .brand { font-weight: 800; color: var(--accent-dark); }
 /* buttons */
 button.primary, a.button.primary, .cta, .quickbook, .navcta { background: var(--accent); border-color: var(--accent); color: #fff !important; }
 button.primary:hover, a.button.primary:hover, .cta:hover, .quickbook:hover { background: var(--accent-dark); border-color: var(--accent-dark); }
-button, a.button { background: #fff; color: var(--accent); border: 2px solid var(--accent); border-radius: 999px; }
+button, a.button { border-radius: var(--r, .5rem); }
 button:hover, a.button:hover { background: #e8f2fb; }
 button.danger, .danger { border-color: var(--c-red); color: #b3141c; background: #fff; }
 .cta.ghost { background: #fff; color: var(--accent) !important; border-color: var(--accent); }
@@ -1154,3 +1158,244 @@ h2.section::after { content: ""; position: absolute; left: 0; bottom: 0; width: 
 .btnrow { display: flex; gap: .75rem; flex-wrap: wrap; }
 #csv { font-family: ui-monospace, Menlo, monospace; font-size: .875rem; }
 .cover-mark svg { width: 1em; height: 1em; display: block; } @media (max-width: 51.99rem) { .cover-mark svg { width: 3.25rem; height: 3.25rem; } }
+
+/* CareX 2026 experience layer. Server-rendered and usable without JavaScript. */
+:root {
+  color-scheme: normal;
+  --cx-canvas: #f5f7fb;
+  --cx-ink: #172033;
+  --cx-muted: #596579;
+  --cx-border: #e1e6ef;
+  --cx-radius-sm: 10px;
+  --cx-radius-md: 16px;
+  --cx-radius-lg: 22px;
+  --cx-shadow-card: 0 8px 28px rgb(20 32 55 / 6%);
+}
+html { scroll-behavior: smooth; }
+body {
+  color: var(--cx-ink);
+  background: var(--cx-canvas);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  line-height: 1.6;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+header.site {
+  position: relative;
+  z-index: 2;
+  padding: .875rem clamp(1rem, 3vw, 2.5rem);
+  border-bottom: 1px solid var(--cx-border);
+  background: rgb(255 255 255 / 96%);
+}
+header.site .brand { letter-spacing: -.025em; }
+.topnav { gap: .35rem .6rem; }
+.topnav a, .topnav button.linkish {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  padding: .55rem .8rem;
+  border-radius: 999px;
+  text-decoration: none;
+}
+.topnav a:hover, .topnav button.linkish:hover {
+  background: color-mix(in srgb, var(--accent, #2563eb) 8%, white);
+}
+.topnav a[aria-current="page"] {
+  background: color-mix(in srgb, var(--accent, #2563eb) 11%, white);
+  text-decoration: none;
+}
+main { width: min(100%, 78rem); max-width: 78rem; padding: clamp(1.25rem, 3vw, 2.5rem) 1rem; }
+h1, h2, h3 { letter-spacing: -.035em; line-height: 1.2; text-wrap: balance; }
+h1 { font-size: clamp(1.8rem, 3vw, 2.65rem); margin-block: .35rem 1rem; }
+p, li { max-width: 72ch; }
+.card, .panel, .rail, .clin, .emptystate, .stat, .filters, .summary, .formcard {
+  border-color: var(--cx-border);
+  border-radius: var(--cx-radius-md);
+  box-shadow: var(--cx-shadow-card);
+}
+.card, .panel, .rail, .formcard { background: #fff; }
+input:not([type=checkbox]):not([type=radio]), select, textarea {
+  min-height: 48px;
+  padding: .7rem .85rem;
+  border: 1px solid #cbd4e1;
+  border-radius: var(--cx-radius-sm);
+  background: #fff;
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+textarea { min-height: 7rem; }
+input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-visible, a:focus-visible {
+  outline: 2px solid var(--accent, #2563eb);
+  outline-offset: 2px;
+}
+button, a.button {
+  min-height: 46px;
+  border-radius: var(--r, .5rem);
+  font-weight: 650;
+  letter-spacing: -.01em;
+  transition: transform .15s ease, box-shadow .15s ease, background-color .15s ease;
+}
+button.primary, a.button.primary {
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--accent, #2563eb) 22%, transparent);
+}
+button:not(:disabled):active, a.button:active { transform: translateY(1px); }
+.banner { border-width: 1px; border-radius: var(--cx-radius-sm); padding: .9rem 1rem; }
+dl.summary { border-width: 1px; border-radius: var(--cx-radius-md); }
+footer.site {
+  border-top: 1px solid var(--cx-border);
+  background: #fff;
+  padding: 2rem max(1rem, calc((100vw - 74rem) / 2));
+}
+.skip { z-index: 10; }
+@media (max-width: 48rem) {
+  header.site { align-items: flex-start; }
+  .topnav { width: 100%; overflow-x: auto; flex-wrap: nowrap; padding-block: .25rem .5rem; scrollbar-width: thin; }
+  .topnav > * { flex: 0 0 auto; }
+  main { width: 100%; padding: 1.25rem 1rem 2rem; }
+  .actions { position: sticky; bottom: 0; z-index: 1; padding: .75rem; margin-inline: -.75rem; background: rgb(245 247 251 / 96%); border-top: 1px solid var(--cx-border); backdrop-filter: blur(12px); }
+  .actions button { min-height: 48px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+}
+@media (prefers-contrast: more) {
+  :root { --cx-border: #8994a5; }
+  .hint, .lead, .muted, small { color: #354052; }
+}
+
+
+/* CareX brand system — shared tokens for tenant and platform surfaces */
+:root {
+  --carex-blue: #1b6fb5;
+  --carex-blue-deep: #15578f;
+  --carex-blue-soft: #eaf3fb;
+  --carex-orange: #f7941d;
+  --carex-orange-deep: #9a4d00;
+  --carex-orange-soft: #fff2df;
+  --carex-teal: #087e78;
+  --carex-teal-soft: #e2f5f2;
+  --carex-green: #237a45;
+  --carex-green-soft: #e7f4eb;
+  --carex-red: #b4232d;
+  --carex-red-soft: #fdebed;
+  --carex-gray: #667085;
+  --carex-gray-soft: #eef1f5;
+  --cx-primary: var(--accent, var(--brand, var(--carex-blue)));
+  --cx-primary-hover: var(--accent-dark, color-mix(in srgb, var(--cx-primary) 82%, #000));
+  --cx-focus: var(--cx-primary);
+  --cx-progress-track: #e5eaf1;
+  accent-color: var(--cx-primary);
+}
+
+/* Consistent action hierarchy: one primary action, neutral secondary, semantic destructive */
+ .button, .btn, button.primary, button.danger, a.button { border-radius: 12px; }
+button.primary, a.button.primary, .btn.primary, .navcta {
+  background: var(--cx-primary);
+  border-color: var(--cx-primary);
+  color: #fff;
+}
+button.primary:hover:not(:disabled), a.button.primary:hover, .btn.primary:hover, .navcta:hover {
+  background: var(--cx-primary-hover);
+  border-color: var(--cx-primary-hover);
+}
+ .button:not(.primary):not(.danger), .btn:not(.primary):not(.danger), button.secondary {
+  border-color: var(--cx-primary);
+  color: var(--cx-primary);
+  background: #fff;
+}
+ .button:not(.primary):not(.danger):hover, .btn:not(.primary):not(.danger):hover, button.secondary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--cx-primary) 8%, #fff);
+}
+button.danger, a.button.danger { color: var(--carex-red); border-color: var(--carex-red); background: #fff; }
+button.danger:hover:not(:disabled), a.button.danger:hover { background: var(--carex-red-soft); }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline-color: var(--cx-focus);
+}
+input[type=checkbox], input[type=radio], input[type=date], input[type=datetime-local], input[type=time], progress {
+  accent-color: var(--cx-primary);
+}
+
+/* Branded booking progress: blue is the active/completed journey, orange is a highlight only */
+.progress { background: var(--cx-progress-track); }
+.progress .bar { background: var(--cx-primary); border-radius: inherit; }
+ol.steps li[aria-current="step"] { border-color: var(--cx-primary); color: var(--cx-primary); }
+ol.steps li.done { border-color: var(--carex-green); color: var(--carex-green); }
+.stepper .step.active, .stepper [aria-current="step"] { color: var(--cx-primary); }
+
+/* Appointment status palette — consistent in calendar blocks, tables and status chips */
+.status-confirmed, .calblk.st-confirmed {
+  --status-fg: #15578f; --status-bg: #eaf3fb; --status-border: #1b6fb5;
+}
+.status-arrived, .calblk.st-arrived {
+  --status-fg: #08665f; --status-bg: #e2f5f2; --status-border: #087e78;
+}
+.status-completed, .calblk.st-completed {
+  --status-fg: #216b3d; --status-bg: #e7f4eb; --status-border: #237a45;
+}
+.status-cancelled, .calblk.st-cancelled {
+  --status-fg: #596273; --status-bg: #eef1f5; --status-border: #7b8493;
+}
+.status-no_show, .calblk.st-no_show {
+  --status-fg: #a51f2a; --status-bg: #fdebed; --status-border: #b4232d;
+}
+.status-pending, .calblk.st-pending {
+  --status-fg: #874600; --status-bg: #fff2df; --status-border: #c66a0a;
+}
+.tag[class*="status-"], .statuschip[class*="status-"] {
+  color: var(--status-fg);
+  background: var(--status-bg);
+  border: 1px solid color-mix(in srgb, var(--status-border) 35%, transparent);
+}
+.calblk[class*="st-"] {
+  color: var(--status-fg, #172033);
+  background: var(--status-bg, var(--carex-blue-soft));
+  border-left: 4px solid var(--status-border, var(--carex-blue));
+}
+.calblk[class*="st-"] strong { color: var(--status-fg, #172033); }
+.calblk[class*="st-"] small { color: var(--status-fg, #172033); opacity: .9; }
+.row-confirmed { box-shadow: inset 3px 0 var(--carex-blue); }
+.row-arrived { box-shadow: inset 3px 0 var(--carex-teal); }
+.row-completed { box-shadow: inset 3px 0 var(--carex-green); }
+.row-cancelled { box-shadow: inset 3px 0 var(--carex-gray); }
+.row-no_show { box-shadow: inset 3px 0 var(--carex-red); }
+.status-legend { display: flex; flex-wrap: wrap; gap: .5rem 1rem; margin: .75rem 0 1rem; }
+.status-legend .legend-item { display: inline-flex; align-items: center; gap: .4rem; color: var(--muted); font-size: .875rem; }
+.status-legend .swatch { width: .7rem; height: .7rem; border-radius: 3px; background: var(--status-bg); border: 2px solid var(--status-border); }
+.status-legend .confirmed { --status-bg: var(--carex-blue-soft); --status-border: var(--carex-blue); }
+.status-legend .arrived { --status-bg: var(--carex-teal-soft); --status-border: var(--carex-teal); }
+.status-legend .completed { --status-bg: var(--carex-green-soft); --status-border: var(--carex-green); }
+.status-legend .no-show { --status-bg: var(--carex-red-soft); --status-border: var(--carex-red); }
+.badge-s.status-confirmed, .tag.status-confirmed { color: #15578f; background: #eaf3fb; }
+.badge-s.status-arrived, .tag.status-arrived { color: #08665f; background: #e2f5f2; }
+.badge-s.status-completed, .tag.status-completed { color: #216b3d; background: #e7f4eb; }
+.badge-s.status-cancelled, .tag.status-cancelled { color: #596273; background: #eef1f5; }
+.badge-s.status-no_show, .tag.status-no_show { color: #a51f2a; background: #fdebed; }
+
+/* Multi-practice setup and discovery */
+.practice-chips { display: flex; flex-wrap: wrap; gap: .35rem; margin-top: .5rem; }
+.practice-chip {
+  display: inline-flex; align-items: center; width: fit-content;
+  padding: .2rem .55rem; border: 1px solid #c9dced; border-radius: 999px;
+  background: #edf5fc; color: #174f7e; font-size: .75rem; font-weight: 650;
+}
+.practice-tiles .starttile { min-height: 6rem; }
+.practice-tiles .st-text small { line-height: 1.35; }
+.practice-config { margin-block: 1rem 1.25rem; padding: 1rem; border: 1px solid var(--cx-border, #e1e6ef); border-radius: 14px; background: #f9fbfe; }
+.practice-config fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
+.practice-config legend { margin-bottom: .25rem; }
+.practice-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .6rem; margin-block: .75rem; }
+.practice-option {
+  display: flex; align-items: flex-start; gap: .65rem; min-width: 0;
+  padding: .75rem; border: 1px solid #d8e0eb; border-radius: 10px;
+  background: #fff; cursor: pointer;
+}
+.practice-option input { flex: 0 0 auto; width: 1.1rem; height: 1.1rem; margin: .15rem 0 0; }
+.practice-option span { display: grid; gap: .2rem; min-width: 0; }
+.practice-option strong { color: var(--cx-ink, #172033); }
+.practice-option small { color: var(--cx-muted, #596579); line-height: 1.4; }
+.practice-option:has(input:checked) { border-color: var(--cx-primary, #1b6fb5); background: #edf5fc; }
+.practice-option:focus-within { outline: 2px solid var(--cx-primary, #1b6fb5); outline-offset: 2px; }
+@media (max-width: 38rem) {
+  .practice-options { grid-template-columns: minmax(0, 1fr); }
+  .practice-chip { font-size: .7rem; }
+}

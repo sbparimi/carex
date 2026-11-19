@@ -13,8 +13,8 @@ def _pct(a: int, b: int) -> int:
 
 
 class Insights:
-    def __init__(self, db, sched, clock: Callable[[], datetime] = _now):
-        self.db, self.sched, self.now = db, sched, clock
+    def __init__(self, db, sched, clock: Callable[[], datetime] = _now, audit=None):
+        self.db, self.sched, self.now, self.audit = db, sched, clock, audit
 
     def summary(self, tenant_id: str, days: int = 30, clinic_id: str | None = None) -> dict:
         end = self.now()
@@ -55,5 +55,9 @@ class Insights:
                                  JOIN users u ON u.id = w.user_id
                                 WHERE w.tenant_id = ? AND w.status IN ('active','notified'){cl} ORDER BY w.created_at, w.id LIMIT ?""", tenant_id, *cp, limit)
 
-    def remove_waitlist(self, tenant_id: str, wid: int) -> bool:
-        return self.db.run("UPDATE waitlist SET status = 'cancelled' WHERE tenant_id = ? AND id = ? AND status IN ('active','notified')", tenant_id, wid) > 0
+    def remove_waitlist(self, tenant_id: str, wid: int, actor_id: str | None = None) -> bool:
+        with self.db.tx() as tx:
+            changed = tx.run("UPDATE waitlist SET status = 'cancelled' WHERE tenant_id = ? AND id = ? AND status IN ('active','notified')", tenant_id, wid) > 0
+            if changed and self.audit and actor_id:
+                self.audit.record(tenant_id, "staff", "waitlist.remove", actor_id=actor_id, target_type="waitlist", target_id=str(wid), db=tx)
+            return changed

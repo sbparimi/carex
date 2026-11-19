@@ -102,8 +102,8 @@ def _dob_problem(dob, at: datetime) -> str | None:
 
 
 class Accounts:
-    def __init__(self, db, clock: Callable[[], datetime] = _now, mailer: Mailer | None = None):
-        self.db, self.now, self.mailer = db, clock, mailer
+    def __init__(self, db, clock: Callable[[], datetime] = _now, mailer: Mailer | None = None, audit=None):
+        self.db, self.now, self.mailer, self.audit = db, clock, mailer, audit
 
     def employers(self, tenant_id: str, q: str) -> list[dict]:
         term = re.sub(r"[\\%_]", "", q.strip().lower())
@@ -156,14 +156,16 @@ class Accounts:
             raise AccountError("invalid_input", "Please check the highlighted fields", f)
         uid = str(uuid.uuid4())
         try:
-            self.db.run("""INSERT INTO users (id, tenant_id, email, password_hash, first_name, last_name, date_of_birth, phone, access_type, employer_id, insurer_id, created_at)
+            with self.db.tx() as tx:
+                tx.run("""INSERT INTO users (id, tenant_id, email, password_hash, first_name, last_name, date_of_birth, phone, access_type, employer_id, insurer_id, created_at)
                            VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""", uid, tenant_id, em, hash_password(password), first_name.strip(), last_name.strip(), date_of_birth, phone.strip(),
                         "employer" if employer_id else "insurer", employer_id, insurer_id, iso(self.now()))
+                token = self._new_session(tenant_id, uid, db=tx, action="user.signup")
         except Exception as e:
             if self.db.is_unique(e):
                 raise AccountError("email_taken", "An account with this email already exists. Try logging in.", {"email": "An account with this email already exists"})
             raise
-        return self.profile_by_id(tenant_id, uid), self._new_session(tenant_id, uid)
+        return self.profile_by_id(tenant_id, uid), token
 
     def login(self, tenant_id: str, email: str, password: str) -> tuple[dict, str]:
         r = self.begin_login(tenant_id, email, password)
@@ -175,7 +177,7 @@ class Accounts:
         em = normalize_email(email_raw) if isinstance(email_raw, str) else ""
         u = None
         if isinstance(password, str) and len(password) <= 128:
-            u = self.db.get("SELECT id, password_hash, failed_logins, locked_until FROM users WHERE tenant_id = ? AND email = ?", tenant_id, em)
+            u = self.db.get("SELECT id, password_hash, failed_logins, locked_until FROM users WHERE tenant_id = ? AND email = ? AND closure_status = 'active'", tenant_id, em)
         if not u:
             verify_password(str(password)[:128], _dummy())      # same work and same answer for unknown emails
             raise AccountError("invalid_credentials", "Invalid email or password")
@@ -199,13 +201,17 @@ class Accounts:
 
     def logout(self, tenant_id: str, token: str | None) -> None:
         if token:
-            self.db.run("DELETE FROM sessions WHERE token_hash = ? AND tenant_id = ?", sha256(token), tenant_id)
+            with self.db.tx() as tx:
+                row = tx.get(f"SELECT user_id FROM sessions WHERE token_hash = ? AND tenant_id = ?{tx.for_update}", sha256(token), tenant_id)
+                tx.run("DELETE FROM sessions WHERE token_hash = ? AND tenant_id = ?", sha256(token), tenant_id)
+                if row and self.audit:
+                    self.audit.record(tenant_id, "user", "user.logout", actor_id=row["user_id"], db=tx)
 
     def authenticate(self, tenant_id: str, token: str | None) -> dict | None:
         """The signed-in profile for a session cookie value, or None (missing, unknown, expired, other tenant)."""
         if not token or not _TOKEN.match(token):
             return None
-        s = self.db.get("SELECT s.user_id, s.expires_at, s.last_seen_at, s.created_at, t.session_idle_minutes AS idle FROM sessions s JOIN tenants t ON t.id = s.tenant_id WHERE s.token_hash = ? AND s.tenant_id = ?",
+        s = self.db.get("SELECT s.user_id, s.expires_at, s.last_seen_at, s.created_at, t.session_idle_minutes AS idle FROM sessions s JOIN tenants t ON t.id = s.tenant_id JOIN users u ON u.id = s.user_id AND u.tenant_id = s.tenant_id WHERE s.token_hash = ? AND s.tenant_id = ? AND u.closure_status = 'active'",
                         sha256(token), tenant_id)
         if not s:
             return None
@@ -274,11 +280,17 @@ class Accounts:
         if isinstance(sms, bool):
             self.db.run("UPDATE users SET notify_sms = ? WHERE tenant_id = ? AND id = ?", 1 if sms else 0, tenant_id, user_id)
 
-    def _new_session(self, tenant_id: str, user_id: str) -> str:
+    def _new_session(self, tenant_id: str, user_id: str, db=None, action: str = "user.login") -> str:
+        if db is None:
+            with self.db.tx() as tx:
+                return self._new_session(tenant_id, user_id, db=tx, action=action)
         tok = new_token()
         t = self.now()
-        self.db.run("INSERT INTO sessions (token_hash, user_id, tenant_id, created_at, expires_at, last_seen_at) VALUES (?,?,?,?,?,?)",
-                    sha256(tok), user_id, tenant_id, iso(t), iso(t + timedelta(milliseconds=SESSION_MS)), iso(t))
+        target_db = db
+        target_db.run("INSERT INTO sessions (token_hash, user_id, tenant_id, created_at, expires_at, last_seen_at) VALUES (?,?,?,?,?,?)",
+                      sha256(tok), user_id, tenant_id, iso(t), iso(t + timedelta(milliseconds=SESSION_MS)), iso(t))
+        if self.audit:
+            self.audit.record(tenant_id, "user", action, actor_id=user_id, db=target_db if getattr(target_db, "in_tx", False) else None)
         return tok
 
     def profile_by_id(self, tenant_id: str, uid: str) -> dict | None:

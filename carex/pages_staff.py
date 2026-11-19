@@ -69,9 +69,8 @@ def register(app: FastAPI, W: Web) -> None:
         try:
             st, token = c.staff_accounts.login(t["id"], email, f.get("password") or "")
         except StaffError as e:
-            W.audit(request, t, "anonymous", "staff.login_failed", detail={"email": hashlib.sha256(email.encode()).hexdigest()[:12]})
+            W.audit(request, t, "anonymous", "staff.login_failed", detail={"identifier_hash": hashlib.sha256(email.encode()).hexdigest()[:12]})
             return W.render(request, "staff_login.html", STATUS.get(e.code, 401), t=t, error=str(e), email=email)
-        W.audit(request, t, "staff", "staff.login", actor_id=st["id"])
         r = W.redirect(f"/t/{slug}/staff")
         W.set_cookie(r, STAFF_COOKIE, token, slug, STAFF_SECONDS, samesite="strict")
         return r
@@ -82,7 +81,6 @@ def register(app: FastAPI, W: Web) -> None:
         st = W.staff(request, t)
         c.staff_accounts.logout(t["id"], request.cookies.get(STAFF_COOKIE))
         if st:
-            W.audit(request, t, "staff", "staff.logout", actor_id=st["id"])
         r = W.redirect(f"/t/{slug}/staff/login")
         W.set_cookie(r, STAFF_COOKIE, None, slug, 0, samesite="strict")
         return r
@@ -123,7 +121,6 @@ def register(app: FastAPI, W: Web) -> None:
             row = c.desk.set_status(t["id"], st, aid, status)
         except StaffError as e:
             fail(e)
-        W.audit(request, t, "staff", "appointment.status", actor_id=st["id"], target_type="appointment", target_id=aid, detail={"status": row["status"]})
         return W.redirect(back_to(slug, f))
 
     @app.post(P + "/appointments/{aid}/cancel")
@@ -135,7 +132,6 @@ def register(app: FastAPI, W: Web) -> None:
             c.desk.cancel(t["id"], st, aid, s(f, "reason", 200))
         except StaffError as e:
             fail(e)
-        W.audit(request, t, "staff", "staff.booking_cancel", actor_id=st["id"], target_type="appointment", target_id=aid)
         W.notify_now(aid)
         return W.redirect(back_to(slug, f))
 
@@ -167,7 +163,6 @@ def register(app: FastAPI, W: Web) -> None:
             if e.code == "conflict":
                 return W.render(request, "staff_reschedule.html", 409, **resched_ctx(t, st, aid, str(e)))
             fail(e)
-        W.audit(request, t, "staff", "staff.booking_reschedule", actor_id=st["id"], target_type="appointment", target_id=aid)
         W.notify_now(aid)
         return W.redirect(f"/t/{slug}/staff?n=moved")
 
@@ -225,7 +220,6 @@ def register(app: FastAPI, W: Web) -> None:
             if e.code == "forbidden":
                 raise HTTPException(403, str(e))
             return W.render(request, "staff_book.html", status, **book_ctx(t, st, q, v, error=str(e)))
-        W.audit(request, t, "staff", "staff.booking_create", actor_id=st["id"], target_type="appointment", target_id=row["id"])
         W.notify_now(row["id"])
         l = local_parts(parse(row["starts_at"]), row["time_zone"])
         return W.redirect(f"/t/{slug}/staff?date={l['year']:04d}-{l['month']:02d}-{l['day']:02d}&n=booked")
@@ -273,12 +267,11 @@ def register(app: FastAPI, W: Web) -> None:
         try:
             rules = c.admin.get_availability(t["id"], provider, clinic)
             rules.append({"weekday": int(s(f, "weekday", 2)), "start_minute": minute(s(f, "start", 5)), "end_minute": minute(s(f, "end", 5))})
-            c.admin.set_availability(t["id"], provider, clinic, rules)
+            c.admin.set_availability(t["id"], provider, clinic, rules, actor_id=st["id"])
         except (AdminValidationError, ValueError):
             return hours_redirect(slug, f, "bad")
         except AdminNotFoundError:
             raise HTTPException(404, "Not found")
-        W.audit(request, t, "staff", "schedule.hours_change", actor_id=st["id"], target_type="provider", target_id=provider)
         return hours_redirect(slug, f, "saved")
 
     @app.post(P + "/hours/remove")
@@ -292,12 +285,11 @@ def register(app: FastAPI, W: Web) -> None:
             i = int(s(f, "index", 4))
             if 0 <= i < len(rules):
                 del rules[i]
-            c.admin.set_availability(t["id"], provider, clinic, rules)
+            c.admin.set_availability(t["id"], provider, clinic, rules, actor_id=st["id"])
         except (AdminValidationError, ValueError):
             return hours_redirect(slug, f, "bad")
         except AdminNotFoundError:
             raise HTTPException(404, "Not found")
-        W.audit(request, t, "staff", "schedule.hours_change", actor_id=st["id"], target_type="provider", target_id=provider)
         return hours_redirect(slug, f, "saved")
 
     def clinic_tz(t, clinic):
@@ -315,12 +307,11 @@ def register(app: FastAPI, W: Web) -> None:
         own(st, provider)
         try:
             tz = clinic_tz(t, clinic)
-            c.admin.add_time_off(t["id"], provider, local_to_utc(s(f, "starts", 16), tz), local_to_utc(s(f, "ends", 16), tz))
+            c.admin.add_time_off(t["id"], provider, local_to_utc(s(f, "starts", 16), tz), local_to_utc(s(f, "ends", 16), tz), actor_id=st["id"])
         except AdminValidationError:
             return hours_redirect(slug, f, "bad")
         except AdminNotFoundError:
             raise HTTPException(404, "Not found")
-        W.audit(request, t, "staff", "schedule.time_off_add", actor_id=st["id"], target_type="provider", target_id=provider)
         return hours_redirect(slug, f, "saved")
 
     @app.post(P + "/time-off/{tid}/remove")
@@ -328,10 +319,9 @@ def register(app: FastAPI, W: Web) -> None:
         t = W.tenant(slug)
         st = W.need_staff(request, t, "front_desk", "admin")
         try:
-            c.admin.remove_time_off(t["id"], tid)
+            c.admin.remove_time_off(t["id"], tid, actor_id=st["id"])
         except AdminNotFoundError:
             raise HTTPException(404, "Not found")
-        W.audit(request, t, "staff", "schedule.time_off_remove", actor_id=st["id"])
         return W.redirect(back_to(slug, f, f"/t/{slug}/staff/hours"))
 
     @app.post(P + "/closures/add")
@@ -342,12 +332,11 @@ def register(app: FastAPI, W: Web) -> None:
         bad_id(clinic)
         try:
             tz = clinic_tz(t, clinic)
-            r = c.admin.add_closure(t["id"], clinic, local_to_utc(s(f, "starts", 16), tz), local_to_utc(s(f, "ends", 16), tz), s(f, "reason", 120))
+            r = c.admin.add_closure(t["id"], clinic, local_to_utc(s(f, "starts", 16), tz), local_to_utc(s(f, "ends", 16), tz), s(f, "reason", 120), actor_id=st["id"])
         except AdminValidationError:
             return hours_redirect(slug, f, "bad")
         except AdminNotFoundError:
             raise HTTPException(404, "Not found")
-        W.audit(request, t, "staff", "schedule.closure_add", actor_id=st["id"], target_type="clinic", target_id=clinic, detail={"affected": r["affected_appointments"]})
         return hours_redirect(slug, f, f"closed:{r['affected_appointments']}")
 
     @app.post(P + "/closures/{zid}/remove")
@@ -355,10 +344,9 @@ def register(app: FastAPI, W: Web) -> None:
         t = W.tenant(slug)
         st = W.need_staff(request, t, "front_desk", "admin")
         try:
-            c.admin.remove_closure(t["id"], zid)
+            c.admin.remove_closure(t["id"], zid, actor_id=st["id"])
         except AdminNotFoundError:
             raise HTTPException(404, "Not found")
-        W.audit(request, t, "staff", "schedule.closure_remove", actor_id=st["id"])
         return W.redirect(back_to(slug, f, f"/t/{slug}/staff/hours"))
 
     # ------------------------------------------------------------------ export

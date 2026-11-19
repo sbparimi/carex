@@ -2,7 +2,7 @@
 {% from "_macros.html" import banner, pagehead %}
 {% block title %}Setup · {{ brand.display_name }}{% endblock %}
 {% block content %}
-{{ pagehead("Practice setup", "Clinics, visit types and providers.", "clinic") }}
+{{ pagehead("Practice setup", "Clinics, practice categories, visit types and providers.", "clinic") }}
 {% if notice %}{{ banner('success', notice, 'status') }}{% endif %}
 {% if error %}{{ banner('error', error, 'alert') }}{% endif %}
 <section class="sheet" aria-labelledby="b-h"><h2 id="b-h" class="section">Branding and contact</h2>
@@ -21,6 +21,22 @@
 {% for cl in clinics %}
 <details class="setupclinic"><summary><strong>{{ cl.name }}</strong> <span class="tag {{ 'ok' if cl.status == 'active' and cl.bookable else 'warn' }}">{{ 'Visible to patients' if cl.status == 'active' and cl.bookable else 'Hidden' }}</span></summary>
   <form method="post" action="/t/{{ slug }}/staff/setup/clinic/{{ cl.id }}" class="statusrow"><input type="hidden" name="state" value="{{ state }}"><input type="hidden" name="op" value="{{ 'off' if cl.status == 'active' and cl.bookable else 'on' }}"><button class="small" type="submit">{{ 'Hide from patients' if cl.status == 'active' and cl.bookable else 'Show to patients' }}</button></form>
+  <form method="post" action="/t/{{ slug }}/staff/setup/clinic/{{ cl.id }}/practices" class="stack practice-config">
+    <input type="hidden" name="state" value="{{ state }}">
+    <fieldset>
+      <legend class="field">Practice categories at this clinic</legend>
+      <p class="hint">Select every type of care this location provides. Only selected categories appear in patient clinic discovery.</p>
+      <div class="practice-options">
+      {% for pt in practice_types %}
+        <label class="practice-option">
+          <input type="checkbox" name="practice_type" value="{{ pt.code }}"{% if pt.code in cl.practice_type_codes %} checked{% endif %}>
+          <span><strong>{{ pt.label }}</strong><small>{{ pt.description }}</small></span>
+        </label>
+      {% endfor %}
+      </div>
+    </fieldset>
+    <button class="small primary" type="submit">Save practice categories</button>
+  </form>
   <form method="post" action="/t/{{ slug }}/staff/setup/clinic/{{ cl.id }}" class="stack">
     <input type="hidden" name="state" value="{{ state }}"><input type="hidden" name="op" value="details">
     <label class="field" for="ph-{{ cl.id }}">Phone</label><input id="ph-{{ cl.id }}" name="phone" value="{{ cl.phone or '' }}" maxlength="30">

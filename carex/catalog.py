@@ -11,6 +11,15 @@ CLINIC_COLS = "c.id, c.name, c.city, c.address, c.state_code, c.time_zone, c.tie
 VISIT_COLS = "v.id, v.canonical_type, v.label, v.description, v.duration_min, v.modality, v.requires_referral, v.min_age, v.max_age"
 PROV_COLS = "p.id, p.display_name, p.specialty, p.languages, p.accepting_new, p.bio, p.photo_url"
 
+PRACTICE_TYPE_DEFAULTS = (
+    ("physiotherapy", "Physiotherapy", "Movement, recovery and physical rehabilitation", 10),
+    ("dental", "Dental care", "Preventive and general oral healthcare", 20),
+    ("fitness", "Fitness", "Fitness assessments, coaching and exercise programmes", 30),
+    ("primary_care", "Primary care", "Everyday healthcare, prevention and ongoing care", 40),
+    ("womens_wellness", "Women’s wellness & health", "Women’s health and wellbeing services", 50),
+    ("general_health", "General health", "General health and wellbeing services", 60),
+)
+
 
 def _clinic(r: dict) -> dict:
     return {"id": r["id"], "name": r["name"], "city": r["city"], "address": r["address"], "state_code": r["state_code"], "time_zone": r["time_zone"], "tier": r["tier"], "phone": r["phone"] or "", "hours_text": r["hours_text"] or "",
@@ -38,23 +47,67 @@ class Catalog:
         return {"id": r["id"], "slug": r["slug"], "brand": {"display_name": r["display_name"], "primary_color": r["primary_color"], "logo_url": r["logo_url"],
                                                            "support_email": r["support_email"], "support_phone": r["support_phone"]}}
 
+    def _attach_practice_types(self, tenant_id: str, clinics: list[dict]) -> list[dict]:
+        if not clinics:
+            return clinics
+        ids = [x["id"] for x in clinics]
+        marks = ",".join("?" for _ in ids)
+        rows = self.db.all(
+            f"""SELECT cpt.clinic_id, pt.code, pt.label
+                  FROM clinic_practice_types cpt
+                  JOIN practice_types pt ON pt.code = cpt.practice_type_code
+                 WHERE cpt.tenant_id = ? AND cpt.active = 1 AND cpt.clinic_id IN ({marks})
+                 ORDER BY pt.sort_order, pt.label""", tenant_id, *ids)
+        by_clinic = {clinic_id: [] for clinic_id in ids}
+        for row in rows:
+            by_clinic[row["clinic_id"]].append({"code": row["code"], "label": row["label"]})
+        for clinic in clinics:
+            clinic["practice_types"] = by_clinic[clinic["id"]]
+        return clinics
+
+    def practice_types(self, tenant_id: str) -> list[dict]:
+        """Practice categories offered by at least one active, bookable clinic."""
+        return self.db.all(
+            """SELECT DISTINCT pt.code, pt.label, pt.description, pt.sort_order
+                 FROM practice_types pt
+                 JOIN clinic_practice_types cpt ON cpt.practice_type_code = pt.code AND cpt.active = 1
+                 JOIN clinics c ON c.id = cpt.clinic_id AND c.tenant_id = cpt.tenant_id
+                WHERE cpt.tenant_id = ? AND c.status = 'active' AND c.bookable = 1
+                ORDER BY pt.sort_order, pt.label""", tenant_id)
+
+    def clinics_for_practice(self, tenant_id: str, practice_type: str, limit: int = 100) -> list[dict]:
+        rows = self.db.all(
+            f"""SELECT {CLINIC_COLS} FROM clinics c
+                 WHERE {ACTIVE_CLINIC}
+                   AND EXISTS (SELECT 1 FROM clinic_practice_types cpt
+                                WHERE cpt.tenant_id = c.tenant_id AND cpt.clinic_id = c.id
+                                  AND cpt.practice_type_code = ? AND cpt.active = 1)
+                 ORDER BY c.sort_order, c.name, c.id LIMIT ?""", tenant_id, practice_type, min(max(limit, 1), 200))
+        return self._attach_practice_types(tenant_id, [_clinic(r) for r in rows])
+
     def states(self, tenant_id: str) -> list[str]:
         return [r["state_code"] for r in self.db.all(f"SELECT DISTINCT c.state_code FROM clinics c WHERE {ACTIVE_CLINIC} ORDER BY c.state_code", tenant_id)]
 
     def clinics(self, tenant_id: str, state_code: str) -> list[dict]:
-        return [_clinic(r) for r in self.db.all(f"SELECT {CLINIC_COLS} FROM clinics c WHERE {ACTIVE_CLINIC} AND c.state_code = ? ORDER BY c.sort_order, c.name, c.id", tenant_id, state_code)]
+        rows = self.db.all(f"SELECT {CLINIC_COLS} FROM clinics c WHERE {ACTIVE_CLINIC} AND c.state_code = ? ORDER BY c.sort_order, c.name, c.id", tenant_id, state_code)
+        return self._attach_practice_types(tenant_id, [_clinic(r) for r in rows])
 
-    def search_clinics(self, tenant_id: str, q: str = "", state_code: str = "", limit: int = 40) -> list[dict]:
+    def search_clinics(self, tenant_id: str, q: str = "", state_code: str = "", limit: int = 40, practice_type: str = "") -> list[dict]:
         """Clinics matching a name or city (and optionally a state), headquarters and prominent locations first."""
         where, args = [ACTIVE_CLINIC], [tenant_id]
         if state_code:
             where.append("c.state_code = ?"); args.append(state_code)
+        if practice_type:
+            where.append("""EXISTS (SELECT 1 FROM clinic_practice_types cpt
+                                     WHERE cpt.tenant_id = c.tenant_id AND cpt.clinic_id = c.id
+                                       AND cpt.practice_type_code = ? AND cpt.active = 1)""")
+            args.append(practice_type)
         q = (q or "").strip()[:60]
         if q:
             like = "%" + q.lower().replace("%", "").replace("_", "") + "%"
             where.append("(LOWER(c.name) LIKE ? OR LOWER(c.city) LIKE ? OR LOWER(c.address) LIKE ?)"); args += [like, like, like]
         rows = self.db.all(f"SELECT {CLINIC_COLS} FROM clinics c WHERE {' AND '.join(where)} ORDER BY c.sort_order, c.name, c.id LIMIT ?", *args, limit)
-        return [_clinic(r) for r in rows]
+        return self._attach_practice_types(tenant_id, [_clinic(r) for r in rows])
 
     def visit_kinds(self, tenant_id: str) -> list[dict]:
         """Visit types patients can look for across clinics: one entry per kind of visit, e.g. Primary care."""
@@ -63,7 +116,7 @@ class Catalog:
 
     def clinic(self, tenant_id: str, clinic_id: str) -> dict | None:
         r = self.db.get(f"SELECT {CLINIC_COLS} FROM clinics c WHERE {ACTIVE_CLINIC} AND c.id = ?", tenant_id, clinic_id)
-        return _clinic(r) if r else None
+        return self._attach_practice_types(tenant_id, [_clinic(r)])[0] if r else None
 
     def visit_types(self, tenant_id: str, clinic_id: str) -> list[dict]:
         rows = self.db.all(
@@ -140,6 +193,9 @@ def seed_db(db, d: dict) -> None:
     """Load catalog data (the synthetic seed, the demo seed, or an admin import). `d` uses snake_case keys; every list is optional."""
     with db.tx() as raw:
         t = _Batcher(raw)
+        # Static reference rows are restored after test databases are truncated between Postgres tests.
+        for practice_type in PRACTICE_TYPE_DEFAULTS:
+            t.run("INSERT INTO practice_types (code, label, description, sort_order) VALUES (?,?,?,?) ON CONFLICT(code) DO NOTHING", *practice_type)
         for x in d.get("tenants", []):
             t.run("INSERT INTO tenants (id, slug, status, display_name, primary_color, logo_url, support_email, support_phone, analytics_enabled) VALUES (?,?,?,?,?,?,?,?,?)",
                   x["id"], x["slug"], x.get("status", "active"), x["display_name"], x["primary_color"], x.get("logo_url"), x.get("support_email"), x.get("support_phone"), _b(x.get("analytics_enabled", True)))
@@ -150,6 +206,9 @@ def seed_db(db, d: dict) -> None:
         for s in d.get("services", []):
             t.run("INSERT INTO visit_types (id, tenant_id, canonical_type, label, description, duration_min, status) VALUES (?,?,?,?,?,?,?)",
                   s["id"], s["tenant_id"], s["canonical_type"], s["label"], s.get("description", f"{s['label']} visit"), s.get("duration_min", 30), s.get("status", "active"))
+        for x in d.get("clinic_practice_types", []):
+            t.run("INSERT INTO clinic_practice_types (tenant_id, clinic_id, practice_type_code, active) VALUES (?,?,?,?)",
+                  x["tenant_id"], x["clinic_id"], x["practice_type_code"], _b(x.get("active", True)))
         for x in d.get("clinic_services", []):
             t.run("INSERT INTO clinic_visit_types (tenant_id, clinic_id, visit_type_id, active) VALUES (?,?,?,?)", x["tenant_id"], x["clinic_id"], x["service_id"], _b(x.get("active", True)))
         for p in d.get("providers", []):

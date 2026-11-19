@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import zlib
+from datetime import date
 
 import secrets
 
@@ -31,6 +32,11 @@ def group_days(slots: list[dict], limit: int = 200) -> list[dict]:
 def local_hour(iso_ts: str, tz: str) -> int:
     from .util import parse, zone
     return parse(iso_ts).astimezone(zone(tz)).hour
+
+
+def local_day(iso_ts: str, tz: str) -> str:
+    from .util import parse, zone
+    return parse(iso_ts).astimezone(zone(tz)).date().isoformat()
 
 
 def peek_days(slots: list[dict], full: bool = False, days: int = 3, per_day: int = 8) -> dict:
@@ -78,17 +84,25 @@ def register(app: FastAPI, W: Web) -> None:
         c.events.log(t["id"], name, ref)
 
     @app.get(P + "/book")
-    def book(slug: str, request: Request, state: str = "", q: str = "", notice: str = ""):
+    def book(slug: str, request: Request, state: str = "", q: str = "", practice: str = "", notice: str = ""):
         t = W.tenant(slug)
         u = W.user(request, t)                                  # browsing needs no account
         state = state.upper()[:2]
         known = dict(STATES56)
         q = q.strip()[:60]
+        practice_types = c.catalog.practice_types(t["id"])
+        practice = practice if any(x["code"] == practice for x in practice_types) else ""
+        practice_label = next((x["label"] for x in practice_types if x["code"] == practice), "")
         if q:
             log_event(t, "search")
-        clinics = c.catalog.clinics(t["id"], state) if state in known and not q else (c.catalog.search_clinics(t["id"], q, state if state in known else "", 30) if q else [])
+        if practice:
+            clinics = (c.catalog.search_clinics(t["id"], q, state if state in known else "", 100, practice)
+                       if q or state in known else c.catalog.clinics_for_practice(t["id"], practice))
+        else:
+            clinics = c.catalog.clinics(t["id"], state) if state in known and not q else (c.catalog.search_clinics(t["id"], q, state if state in known else "", 30) if q else [])
         return W.render(request, "book_state.html", t=t, user=u, nav="book", states=STATES56, state=state if state in known else "", state_name=known.get(state, ""), q=q,
-                        clinics=clinics, notice=notice[:120] if notice else "", kinds=c.catalog.visit_kinds(t["id"]))
+                        practice=practice, practice_label=practice_label, practice_types=practice_types, clinics=clinics,
+                        notice=notice[:120] if notice else "", kinds=c.catalog.visit_kinds(t["id"]))
 
     @app.get(P + "/book/find")
     def book_find(slug: str, request: Request, kind: str = "", state: str = "", q: str = ""):
@@ -113,7 +127,7 @@ def register(app: FastAPI, W: Web) -> None:
     PARTS = {"morning": (0, 12), "afternoon": (12, 17), "evening": (17, 24)}
 
     @app.get(P + "/book/provider")
-    def book_provider(slug: str, request: Request, clinic: str = "", service: str = "", provider: str = "", joined: str = "", notice: str = "", part: str = "", lang: str = ""):
+    def book_provider(slug: str, request: Request, clinic: str = "", service: str = "", provider: str = "", joined: str = "", notice: str = "", part: str = "", lang: str = "", on_date: str = ""):
         t = W.tenant(slug)
         u = W.user(request, t)
         uid = u["id"] if u else None
@@ -121,6 +135,11 @@ def register(app: FastAPI, W: Web) -> None:
         cl = c.catalog.clinic(t["id"], clinic)
         if not cl:
             raise HTTPException(404, "Not found")
+        if on_date:
+            try:
+                on_date = date.fromisoformat(on_date).isoformat()
+            except ValueError:
+                raise HTTPException(400, "Choose a valid date")
         visits = c.catalog.visit_types(t["id"], clinic)
         # Soonest opening first: visit types are ordered by their earliest open time.
         soonest = {v["id"]: n for v in visits if (n := c.discover.soonest(t["id"], clinic, v["id"], uid))}
@@ -158,6 +177,8 @@ def register(app: FastAPI, W: Web) -> None:
                 if lang and lang not in p["languages"]:
                     continue
                 slots = c.booking.slots(t["id"], clinic, visit["id"], p["id"], uid)
+                if on_date:
+                    slots = [x for x in slots if local_day(x["starts_at"], x["time_zone"]) == on_date]
                 if part:
                     lo, hi = PARTS[part]
                     slots = [x for x in slots if lo <= local_hour(x["starts_at"], x["time_zone"]) < hi]
@@ -170,7 +191,7 @@ def register(app: FastAPI, W: Web) -> None:
             nxt = {**f, "provider": p}
         return W.render(request, "book_provider.html", t=t, user=u, nav="book", clinic=cl, visits=visits, visit=visit, cards=cards, only=provider, joined=bool(joined), notice=notice[:120],
                         any_open=any(x["days"] for x in cards), nxt=nxt, soonest=soonest, overall=min(soonest.values(), key=lambda z: z["starts_at"], default=None), n_providers=len(providers),
-                        tint=W.env.globals["tint_of"](cl["id"]), part=part, lang=lang, langs=langs, coverage=coverage, team=team, plans=plans, in_network=in_network, maps_q=f"{cl['address']}, {cl['city']}, {cl['state_code']}")
+                        tint=W.env.globals["tint_of"](cl["id"]), part=part, lang=lang, on_date=on_date, langs=langs, coverage=coverage, team=team, plans=plans, in_network=in_network, maps_q=f"{cl['address']}, {cl['city']}, {cl['state_code']}")
 
     def details_ctx(t, u, clinic, service, provider, slot_id, v, **extra):
         elig = c.catalog.eligible(t["id"], clinic, service, provider)
@@ -246,7 +267,6 @@ def register(app: FastAPI, W: Web) -> None:
         try:
             if any(s(f, k) for k in ("dep_relationship", "dep_first_name", "dep_last_name", "dep_date_of_birth")):
                 pt = c.intake.add_dependent(t["id"], u["id"], s(f, "dep_relationship", 20), s(f, "dep_first_name", 80), s(f, "dep_last_name", 80), s(f, "dep_date_of_birth", 10))
-                W.audit(request, t, "user", "patient.add", actor_id=u["id"], target_type="patient", target_id=pt["id"])
                 v["patient_id"] = pt["id"]
             req = build_req(f, v)
             dec = c.intake.prepare(t["id"], u["id"], req)
@@ -273,7 +293,6 @@ def register(app: FastAPI, W: Web) -> None:
         except DomainError as e:
             raise HTTPException({"not_found": 404, "idempotency_conflict": 422}.get(e.code, 400), str(e))
         if o["status"] == "confirmed":
-            W.audit(request, t, "user", "booking.create", actor_id=u["id"], target_type="appointment", target_id=o["booking_id"])
             W.notify_now(o["booking_id"])
             log_event(t, "booked", req["clinic_id"])
         status = {"confirmed": 201, "slot_unavailable": 409}.get(o["status"], 503 if o.get("retryable") else 409)
@@ -342,12 +361,11 @@ def register(app: FastAPI, W: Web) -> None:
         W.allow("auth", W.client(request))
         m = by_token(t, token)
         try:
-            c.sched.cancel(t["id"], m["booking_id"], "", "patient")
+            c.sched.cancel(t["id"], m["booking_id"], "", "link")
         except Exception as e:                       # noqa: BLE001
             if "ChangeWindow" in type(e).__name__:
                 return W.redirect(f"/t/{slug}/m/{token}?n=late")
             raise
-        W.audit(request, t, "patient", "booking.cancel_by_link", target_type="appointment", target_id=m["booking_id"])
         W.notify_now(m["booking_id"])
         return W.redirect(f"/t/{slug}/m/{token}?n=cancelled")
 
@@ -405,7 +423,6 @@ def register(app: FastAPI, W: Web) -> None:
             if e.code == "change_window_closed":
                 return W.redirect(f"/t/{slug}/appointments?n=late")
             raise HTTPException(404, "Not found")
-        W.audit(request, t, "user", "booking.cancel", actor_id=u["id"], target_type="appointment", target_id=bid)
         log_event(t, "cancelled")
         W.notify_now(bid)
         return W.redirect(f"/t/{slug}/appointments?n=cancelled")
@@ -441,7 +458,6 @@ def register(app: FastAPI, W: Web) -> None:
             raise HTTPException(404, "Not found")
         if o["status"] == "slot_unavailable":
             return W.redirect(f"/t/{slug}/appointments/{bid}/reschedule?error=That time is no longer available. Your appointment is unchanged; please pick another.")
-        W.audit(request, t, "user", "booking.reschedule", actor_id=u["id"], target_type="appointment", target_id=bid)
         W.notify_now(bid)
         return W.redirect(f"/t/{slug}/appointments?n=moved")
 
@@ -461,7 +477,6 @@ def register(app: FastAPI, W: Web) -> None:
             pt = c.intake.add_dependent(t["id"], u["id"], s(f, "relationship", 20), s(f, "first_name", 80), s(f, "last_name", 80), s(f, "date_of_birth", 10))
         except IntakeError as e:
             return W.redirect(f"/t/{slug}/appointments?n=bad")
-        W.audit(request, t, "user", "patient.add", actor_id=u["id"], target_type="patient", target_id=pt["id"])
         return W.redirect(f"/t/{slug}/appointments?n=added")
 
     @app.post(P + "/patients/{pid}/remove")
@@ -475,5 +490,4 @@ def register(app: FastAPI, W: Web) -> None:
             return W.redirect(f"/t/{slug}/appointments?n=inuse")
         if not ok:
             raise HTTPException(404, "Not found")
-        W.audit(request, t, "user", "patient.remove", actor_id=u["id"], target_type="patient", target_id=pid)
         return W.redirect(f"/t/{slug}/appointments?n=removed")

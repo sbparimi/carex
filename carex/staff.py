@@ -31,10 +31,11 @@ def _principal(r: dict) -> dict:
 
 
 class StaffAccounts:
-    def __init__(self, db, clock: Callable[[], datetime] = _now):
-        self.db, self.now = db, clock
+    def __init__(self, db, clock: Callable[[], datetime] = _now, audit=None):
+        self.db, self.now, self.audit = db, clock, audit
 
-    def create(self, tenant_id: str, *, email, name, role, password, provider_id=None) -> dict:
+    def create(self, tenant_id: str, *, email, name, role, password, provider_id=None, db=None) -> dict:
+        db = db or self.db
         f: dict[str, str] = {}
         em = normalize_email(email) if isinstance(email, str) else ""
         if not _EMAIL.fullmatch(em):
@@ -49,7 +50,7 @@ class StaffAccounts:
             f["password"] = pw
         pid = None
         if role == "provider":
-            if not provider_id or not self.db.get("SELECT 1 AS ok FROM providers WHERE tenant_id = ? AND id = ?", tenant_id, provider_id):
+            if not provider_id or not db.get("SELECT 1 AS ok FROM providers WHERE tenant_id = ? AND id = ?", tenant_id, provider_id):
                 f["provider_id"] = "Choose the provider this login belongs to"
             else:
                 pid = provider_id
@@ -57,7 +58,7 @@ class StaffAccounts:
             raise StaffError("invalid_input", "Please check the highlighted fields", f)
         sid = f"st_{uuid.uuid4()}"
         try:
-            self.db.run("INSERT INTO staff_users (id, tenant_id, email, password_hash, name, role, provider_id, created_at) VALUES (?,?,?,?,?,?,?,?)",
+            db.run("INSERT INTO staff_users (id, tenant_id, email, password_hash, name, role, provider_id, created_at) VALUES (?,?,?,?,?,?,?,?)",
                         sid, tenant_id, em, hash_password(password), nm, role, pid, iso(self.now()))
         except Exception as e:
             if self.db.is_unique(e):
@@ -68,19 +69,21 @@ class StaffAccounts:
     def list(self, tenant_id: str) -> list[dict]:
         return [{**_principal(r), "active": r["active"] == 1} for r in self.db.all("SELECT id, email, name, role, provider_id, active FROM staff_users WHERE tenant_id = ? ORDER BY name, id", tenant_id)]
 
-    def set_active(self, tenant_id: str, sid: str, active: bool) -> None:
-        if self.db.run("UPDATE staff_users SET active = ? WHERE tenant_id = ? AND id = ?", 1 if active else 0, tenant_id, sid) == 0:
+    def set_active(self, tenant_id: str, sid: str, active: bool, db=None) -> None:
+        db = db or self.db
+        if db.run("UPDATE staff_users SET active = ? WHERE tenant_id = ? AND id = ?", 1 if active else 0, tenant_id, sid) == 0:
             raise StaffError("not_found", "Not found")
         if not active:
-            self.db.run("DELETE FROM staff_sessions WHERE staff_id = ?", sid)
+            db.run("DELETE FROM staff_sessions WHERE staff_id = ?", sid)
 
-    def set_password(self, tenant_id: str, sid: str, password: str) -> None:
+    def set_password(self, tenant_id: str, sid: str, password: str, db=None) -> None:
+        db = db or self.db
         p = password_problem(password)
         if p:
             raise StaffError("invalid_input", p, {"password": p})
-        if self.db.run("UPDATE staff_users SET password_hash = ?, failed_logins = 0, locked_until = NULL WHERE tenant_id = ? AND id = ?", hash_password(password), tenant_id, sid) == 0:
+        if db.run("UPDATE staff_users SET password_hash = ?, failed_logins = 0, locked_until = NULL WHERE tenant_id = ? AND id = ?", hash_password(password), tenant_id, sid) == 0:
             raise StaffError("not_found", "Not found")
-        self.db.run("DELETE FROM staff_sessions WHERE staff_id = ?", sid)
+        db.run("DELETE FROM staff_sessions WHERE staff_id = ?", sid)
 
     def login(self, tenant_id: str, email_raw: str, password: str) -> tuple[dict, str]:
         em = normalize_email(email_raw) if isinstance(email_raw, str) else ""
@@ -97,15 +100,22 @@ class StaffAccounts:
             n = u["failed_logins"] + 1
             self.db.run("UPDATE staff_users SET failed_logins = ?, locked_until = ? WHERE id = ?", 0 if n >= MAX_FAILED else n, iso(self.now() + timedelta(milliseconds=LOCK_MS)) if n >= MAX_FAILED else None, u["id"])
             raise bad
-        self.db.run("UPDATE staff_users SET failed_logins = 0, locked_until = NULL WHERE id = ?", u["id"])
         tok, t = new_token(), self.now()
-        self.db.run("INSERT INTO staff_sessions (token_hash, staff_id, tenant_id, created_at, expires_at, last_seen_at) VALUES (?,?,?,?,?,?)",
-                    sha256(tok), u["id"], tenant_id, iso(t), iso(t + timedelta(milliseconds=ABSOLUTE_MS)), iso(t))
+        with self.db.tx() as tx:
+            tx.run("UPDATE staff_users SET failed_logins = 0, locked_until = NULL WHERE id = ?", u["id"])
+            tx.run("INSERT INTO staff_sessions (token_hash, staff_id, tenant_id, created_at, expires_at, last_seen_at) VALUES (?,?,?,?,?,?)",
+                   sha256(tok), u["id"], tenant_id, iso(t), iso(t + timedelta(milliseconds=ABSOLUTE_MS)), iso(t))
+            if self.audit:
+                self.audit.record(tenant_id, "staff", "staff.login", actor_id=u["id"], db=tx)
         return _principal({**u, "email": em}), tok
 
     def logout(self, tenant_id: str, token: str | None) -> None:
         if token:
-            self.db.run("DELETE FROM staff_sessions WHERE token_hash = ? AND tenant_id = ?", sha256(token), tenant_id)
+            with self.db.tx() as tx:
+                row = tx.get(f"SELECT staff_id FROM staff_sessions WHERE token_hash = ? AND tenant_id = ?{tx.for_update}", sha256(token), tenant_id)
+                tx.run("DELETE FROM staff_sessions WHERE token_hash = ? AND tenant_id = ?", sha256(token), tenant_id)
+                if row and self.audit:
+                    self.audit.record(tenant_id, "staff", "staff.logout", actor_id=row["staff_id"], db=tx)
 
     def authenticate(self, tenant_id: str, token: str | None) -> dict | None:
         if not token or not re.fullmatch(r"[A-Za-z0-9_-]{43}", token):
@@ -154,8 +164,8 @@ def _valid_date(s: str) -> bool:
 
 
 class StaffDesk:
-    def __init__(self, db, sched: Scheduling, intake: Intake, clock: Callable[[], datetime] = _now):
-        self.db, self.sched, self.intake, self.now = db, sched, intake, clock
+    def __init__(self, db, sched: Scheduling, intake: Intake, clock: Callable[[], datetime] = _now, audit=None):
+        self.db, self.sched, self.intake, self.now, self.audit = db, sched, intake, clock, audit
 
     @staticmethod
     def _scope(staff: dict) -> tuple[str, list]:
@@ -211,6 +221,8 @@ class StaffDesk:
                 raise StaffError("conflict", "An appointment can only be marked no-show after its start time")
             ts = iso(self.now())
             tx.run("UPDATE appointments SET status = ?, status_changed_at = ?, updated_at = ? WHERE tenant_id = ? AND id = ?", status, ts, ts, tenant_id, aid)
+            if self.audit:
+                self.audit.record(tenant_id, "staff", "appointment.status", actor_id=staff["id"], target_type="appointment", target_id=aid, detail={"status": status}, db=tx)
             return to_row({**r, "status": status})
 
     def cancel(self, tenant_id: str, staff: dict, aid: str, reason: str = "") -> dict:
@@ -218,7 +230,7 @@ class StaffDesk:
         if r["status"] not in ("confirmed", "cancelled"):
             raise StaffError("conflict", "Only an upcoming appointment can be cancelled")
         try:
-            self.sched.cancel(tenant_id, aid, (reason or "")[:200], "staff")
+            self.sched.cancel(tenant_id, aid, (reason or "")[:200], "staff", actor_id=staff["id"])
         except BookingNotFoundError:
             raise StaffError("not_found", "Not found")
         return self.get(tenant_id, staff, aid)
@@ -226,7 +238,7 @@ class StaffDesk:
     def reschedule(self, tenant_id: str, staff: dict, aid: str, slot_id: str) -> dict:
         self._load(tenant_id, staff, aid)
         try:
-            self.sched.reschedule(tenant_id, aid, slot_id, "staff")
+            self.sched.reschedule(tenant_id, aid, slot_id, "staff", actor_id=staff["id"])
         except SlotTakenError:
             raise StaffError("conflict", "That time is no longer available")
         except BookingNotFoundError:

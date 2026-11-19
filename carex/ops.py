@@ -1,6 +1,6 @@
 """Operator commands. Run from the project folder:
 
-    python -m carex.ops serve [--port 8000] [--reload]        start the web app (SQLite file ./carex.db unless DATABASE_URL is set)
+    python -m carex.ops serve [--port 8000] [--reload]        start the web app (requires DATABASE_URL from Neon)
     python -m carex.ops migrate                                create or update the tables
     python -m carex.ops create-tenant <slug> "<Display name>" "#0b5fff" [support-email]
     python -m carex.ops admin-key <slug> "<label>"            print a new admin API key (shown once)
@@ -10,7 +10,7 @@
     python -m carex.ops email-log                              what Resend says happened to the latest emails
     python -m carex.ops dispatch                               send due reminders and notifications
 
-DATABASE_URL (a postgresql:// connection string, e.g. from Neon) selects Postgres; otherwise SQLite at CAREX_DB (default ./carex.db).
+DATABASE_URL must be the pooled Neon connection string. CareX has no SQLite or local-file database mode.
 A `.env` file in the current folder is read for convenience (never commit it)."""
 from __future__ import annotations
 

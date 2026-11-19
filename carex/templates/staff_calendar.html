@@ -25,6 +25,12 @@
   {% endfor %}
 </div>
 </div>
+<div class="status-legend" aria-label="Appointment status legend">
+  <span class="legend-item confirmed"><i class="swatch" aria-hidden="true"></i>Confirmed</span>
+  <span class="legend-item arrived"><i class="swatch" aria-hidden="true"></i>Arrived</span>
+  <span class="legend-item completed"><i class="swatch" aria-hidden="true"></i>Completed</span>
+  <span class="legend-item no-show"><i class="swatch" aria-hidden="true"></i>No-show</span>
+</div>
 <p class="hint">Cancelled visits are hidden. Select a visit to open that provider's day list and change its status.</p>
 {% else %}<div class="sheet empty"><strong>No providers at this clinic yet.</strong></div>{% endif %}
 {% endblock %}

@@ -54,7 +54,7 @@
 {% macro vicon(kind, size=44) %}
 {% set k = (kind or '')|lower %}
 <svg class="vicon" viewBox="0 0 64 64" width="{{ size }}" height="{{ size }}" aria-hidden="true" focusable="false">
-{% if 'prim' in k or 'general' in k or 'doctor' in k %}
+{% if 'prim' in k or 'doctor' in k %}
   <path d="M10 60c0-14 9-22 22-22s22 8 22 22z" fill="#1b6fb5"/><circle cx="32" cy="22" r="12" fill="#fcc27a"/><path d="M20 17c1-9 7-12 13-12s11 4 11 11c-4-3-9-5-14-5s-8 2-10 6z" fill="#e3262e"/>
   <path d="M22 42v8a6 6 0 0 0 12 0v-8" fill="none" stroke="#18a999" stroke-width="3.5" stroke-linecap="round"/><circle cx="40" cy="52" r="3.5" fill="#f7941d"/>
 {% elif 'physio' in k or 'therap' in k or 'rehab' in k %}
@@ -68,6 +68,14 @@
   <rect x="4" y="22" width="9" height="20" rx="3" fill="#e3262e"/><rect x="13" y="26" width="7" height="12" rx="2" fill="#f7941d"/><rect x="20" y="29" width="24" height="6" rx="3" fill="#1b6fb5"/><rect x="44" y="26" width="7" height="12" rx="2" fill="#f7941d"/><rect x="51" y="22" width="9" height="20" rx="3" fill="#e3262e"/>
 {% elif 'dent' in k or 'oral' in k %}
   <path d="M14 14c4-5 12-3 18 0 6-3 14-5 18 0 4 6 0 16-3 26-2 8-4 18-8 18-5 0-4-14-7-14s-2 14-7 14c-4 0-6-10-8-18-3-10-7-20-3-26z" fill="#1b6fb5"/><path d="M32 14c6-3 14-5 18 0 4 6 0 16-3 26-2 8-4 18-8 18-3 0-4-5-5-9z" fill="#0e4a86"/>
+{% elif 'womens' in k or 'women' in k or 'gyn' in k %}
+  <path d="M32 7c-8 0-14 6-14 14 0 7 5 12 11 14v7h-8v6h8v8h6v-8h8v-6h-8v-7c6-2 11-7 11-14 0-8-6-14-14-14z" fill="#1b6fb5"/>
+  <circle cx="32" cy="21" r="8" fill="#fcc27a"/><path d="M32 4c3 7 8 10 15 10-6 4-9 9-9 16-4-5-8-8-15-8 5-4 8-10 9-18z" fill="#e85d75"/>
+  <path d="M32 30v11m-9-5h18" stroke="#ffffff" stroke-width="3" stroke-linecap="round"/>
+{% elif 'general' in k or 'health' in k %}
+  <path d="M32 4l22 8v17c0 14-9 25-22 31C19 54 10 43 10 29V12z" fill="#e2f5f2" stroke="#087e78" stroke-width="3"/>
+  <path d="M29 16h6v10h10v6H35v10h-6V32H19v-6h10z" fill="#1b6fb5"/>
+  <path d="M16 47l8-7 6 4 8-10 10 4" fill="none" stroke="#f7941d" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
 {% elif k == 'calendar' %}
   <rect x="5" y="10" width="54" height="48" rx="7" fill="#ffffff" stroke="#0e4a86" stroke-width="3"/><path d="M5 17a7 7 0 0 1 7-7h40a7 7 0 0 1 7 7v8H5z" fill="#1b6fb5"/><rect x="17" y="3" width="5" height="14" rx="2.5" fill="#0e4a86"/><rect x="42" y="3" width="5" height="14" rx="2.5" fill="#0e4a86"/>
   <g fill="#fcc27a"><rect x="13" y="32" width="8" height="7" rx="2"/><rect x="28" y="32" width="8" height="7" rx="2"/><rect x="43" y="32" width="8" height="7" rx="2"/><rect x="13" y="45" width="8" height="7" rx="2"/></g><rect x="28" y="45" width="8" height="7" rx="2" fill="#f7941d"/><path d="M44 48l3 3 5-6" fill="none" stroke="#18a999" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
@@ -94,7 +102,7 @@
 </svg>
 {% endmacro %}
 
-{% macro vblurb(kind) %}{% set k = (kind or '')|lower %}{% if 'prim' in k %}Check-ups and everyday health.{% elif 'physio' in k %}Recovery, movement and pain relief.{% elif 'vision' in k %}Streamlined eye exams and optometry.{% elif 'coach' in k %}Personalized wellness support.{% elif 'fit' in k %}Training for strength and wellbeing.{% else %}Quality care, close to home.{% endif %}{% endmacro %}
+{% macro vblurb(kind) %}{% set k = (kind or '')|lower %}{% if 'prim' in k %}Check-ups and everyday health.{% elif 'physio' in k %}Recovery, movement and pain relief.{% elif 'dent' in k or 'oral' in k %}Preventive dentistry, oral health and dental treatment.{% elif 'womens' in k or 'women' in k or 'gyn' in k %}Reproductive, hormonal and preventive women’s health services.{% elif 'general' in k or 'health' in k %}Everyday health support, prevention and coordinated care.{% elif 'vision' in k %}Streamlined eye exams and optometry.{% elif 'coach' in k %}Personalized wellness support.{% elif 'fit' in k %}Training for strength and wellbeing.{% else %}Quality care, close to home.{% endif %}{% endmacro %}
 
 {% macro heroart() %}
 <svg class="heroart" viewBox="0 0 520 440" role="img" aria-label="A calendar, a clinician and a phone showing a video visit">

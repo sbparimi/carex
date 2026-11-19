@@ -1,6 +1,8 @@
 """Health check, scheduled dispatch, operator API and the command-line tool."""
 from __future__ import annotations
 
+import os
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -25,10 +27,20 @@ def web(cx):
     return TestClient(create_app(cx), base_url="http://testserver", follow_redirects=False)
 
 
+def test_database_requires_a_neon_connection_url():
+    from carex.db import open_db
+
+    with pytest.raises(RuntimeError, match="Neon"):
+        open_db()
+    with pytest.raises(RuntimeError, match="Neon"):
+        open_db("sqlite:///carex.db")
+    with pytest.raises(RuntimeError, match="Neon"):
+        open_db("postgresql://user:password@localhost/carex")
+
+
 def test_healthz_ok_and_503_when_the_database_is_down(cx):
     c = TestClient(create_app(cx), base_url="http://testserver")
     assert c.get("/healthz").json() == {"status": "ok"}
-    cx.db.close() if cx.db.__class__.__name__ == "SqliteConn" and False else None
 
     class Broken:
         def get(self, *a, **k):
@@ -60,10 +72,9 @@ def test_seed_demo_endpoint_is_protected_and_only_fills_an_empty_database(web, c
     assert r.status_code == 409 and r.json()["status"] == "refused"      # the test database already has tenants
 
 
-def test_seed_demo_endpoint_seeds_an_empty_database(monkeypatch):
+def test_seed_demo_endpoint_seeds_an_empty_database(db, monkeypatch):
     from carex.context import build
-    from carex.db import open_db
-    c = build(db=open_db(path=":memory:"), env={"CRON_SECRET": SECRET})
+    c = build(db=db, env={"CRON_SECRET": SECRET})
     w = TestClient(create_app(c), base_url="http://testserver")
     r = w.post("/internal/seed-demo", headers={"authorization": f"Bearer {SECRET}"})
     assert r.status_code == 200 and r.json()["status"] == "seeded" and r.json()["clinics"] > 1000
@@ -109,16 +120,131 @@ def test_errors_are_json_for_api_and_html_for_pages(web):
     assert r.headers["content-type"].startswith("text/html") and "Traceback" not in r.text
 
 
-def test_cli_creates_tenant_and_seeds_demo(tmp_path, monkeypatch, capsys):
-    monkeypatch.setenv("CAREX_DB", str(tmp_path / "t.db"))
-    monkeypatch.delenv("DATABASE_URL", raising=False)
-    monkeypatch.chdir(tmp_path)
+def test_cli_creates_tenant_and_seeds_demo(db, monkeypatch, capsys):
+    monkeypatch.setenv("DATABASE_URL", os.environ.get("CAREX_TEST_DATABASE_URL") or os.environ["DATABASE_URL"])
     assert ops.main(["create-tenant", "acme-care", "Acme Care", "#336699"]) == 0
     assert ops.main(["create-tenant", "Bad Slug", "x", "#336699"]) == 1
     assert ops.main(["admin-key", "acme-care", "ci"]) == 0
     assert "cxa_" in capsys.readouterr().out
     assert ops.main(["seed-demo", "--yes"]) == 1                      # refuses: already has tenants
-    monkeypatch.setenv("CAREX_DB", str(tmp_path / "fresh.db"))
+    tables = [r["tablename"] for r in db.all("SELECT tablename FROM pg_tables WHERE schemaname = current_schema() AND tablename <> 'carex_migrations'")]
+    if tables:
+        db.run("TRUNCATE " + ", ".join(tables) + " RESTART IDENTITY CASCADE")
     assert ops.main(["seed-demo"]) == 1                               # needs --yes
     assert ops.main(["seed-demo", "--yes"]) == 0
     assert ops.main(["dispatch"]) == 0
+
+
+def test_production_context_hides_demo_access_and_seed_route(cx):
+    production = build(db=cx.db, env={"CRON_SECRET": SECRET}, clock=Clock(), mailer=Outbox(), production=True)
+    assert production.hide_demo is True
+    client = TestClient(create_app(production), base_url="http://testserver", follow_redirects=False)
+    response = client.post("/internal/seed-demo", headers={"authorization": f"Bearer {SECRET}"})
+    assert response.status_code == 404
+
+
+def test_staff_admin_mutation_rolls_back_when_required_audit_fails(cx, monkeypatch):
+    from carex.audit import AuditWriteError
+
+    client = TestClient(create_app(cx), base_url="http://testserver", raise_server_exceptions=False)
+    headers = {"authorization": f"Bearer {cx.admin_keys.create('tn-north', 'audit-failure-test')}"}
+    before = cx.db.get("SELECT COUNT(*) AS n FROM staff_users WHERE tenant_id = ?", "tn-north")["n"]
+
+    def fail_audit(*args, **kwargs):
+        raise AuditWriteError("audit store unavailable")
+
+    monkeypatch.setattr(cx.audit, "record", fail_audit)
+    response = client.post(S + "/api/admin/staff", headers=headers,
+                           json={"email": "atomic@example.com", "name": "Atomic User", "role": "front_desk", "password": "a long enough pass"})
+    after = cx.db.get("SELECT COUNT(*) AS n FROM staff_users WHERE tenant_id = ?", "tn-north")["n"]
+    assert response.status_code == 500
+    assert after == before
+
+
+def test_pending_account_cannot_reuse_an_existing_session(cx):
+    profile, token = cx.accounts.signup(
+        "tn-north", email="closure@example.com", password="a long enough pass",
+        first_name="Closure", last_name="Test", date_of_birth="1990-01-01",
+        phone="555-123-4567", access_type="employer", access_id="em-n-1",
+    )
+    assert profile and cx.accounts.authenticate("tn-north", token)
+    cx.db.run("UPDATE users SET closure_status = 'pending' WHERE tenant_id = ? AND id = ?", "tn-north", profile["id"])
+    assert cx.accounts.authenticate("tn-north", token) is None
+
+
+def test_signup_rolls_back_user_and_session_when_audit_fails(cx, monkeypatch):
+    from carex.audit import AuditWriteError
+
+    def fail_audit(*args, **kwargs):
+        raise AuditWriteError("audit store unavailable")
+
+    monkeypatch.setattr(cx.audit, "record", fail_audit)
+    before = cx.db.get("SELECT COUNT(*) AS n FROM users WHERE tenant_id = ?", "tn-north")["n"]
+    with pytest.raises(AuditWriteError):
+        cx.accounts.signup(
+            "tn-north", email="signup-atomic@example.com", password="a long enough pass",
+            first_name="Atomic", last_name="Signup", date_of_birth="1990-01-01",
+            phone="555-123-4567", access_type="employer", access_id="em-n-1",
+        )
+    after = cx.db.get("SELECT COUNT(*) AS n FROM users WHERE tenant_id = ?", "tn-north")["n"]
+    assert after == before
+    assert cx.db.get("SELECT 1 AS ok FROM users WHERE tenant_id = ? AND email = ?", "tn-north", "signup-atomic@example.com") is None
+
+
+def test_practice_category_catalog_and_patient_discovery_are_tenant_scoped(cx):
+    categories = {row["code"]: row["label"] for row in cx.admin.practice_types()}
+    assert set(categories) == {
+        "physiotherapy", "dental", "fitness", "primary_care", "womens_wellness", "general_health"
+    }
+    north = {row["code"] for row in cx.catalog.practice_types("tn-north")}
+    assert north == {"physiotherapy", "fitness", "womens_wellness", "general_health", "primary_care"}
+    physio_clinics = cx.catalog.clinics_for_practice("tn-north", "physiotherapy")
+    assert [row["id"] for row in physio_clinics] == ["cl-sb"]
+    assert {row["code"] for row in physio_clinics[0]["practice_types"]} >= {"physiotherapy", "primary_care"}
+    assert cx.catalog.clinics_for_practice("tn-north", "dental") == []
+    assert [row["id"] for row in cx.catalog.clinics_for_practice("tn-bay", "dental")] == ["cl-oak"]
+
+
+def test_clinic_practice_category_changes_are_validated_and_audited_atomically(cx):
+    cx.admin.set_clinic_practice_types(
+        "tn-north", "cl-sb", ["dental", "womens_wellness"], actor_id="staff-test"
+    )
+    assert set(cx.admin.clinic_practice_types("tn-north", "cl-sb")) == {"dental", "womens_wellness"}
+    event = cx.db.get(
+        "SELECT action, target_type, target_id FROM audit_log WHERE tenant_id = ? ORDER BY id DESC LIMIT 1",
+        "tn-north",
+    )
+    assert event == {"action": "setup.clinic_update", "target_type": "clinic", "target_id": "cl-sb"}
+    from carex.admin import AdminNotFoundError, AdminValidationError
+    with pytest.raises(AdminValidationError):
+        cx.admin.set_clinic_practice_types("tn-north", "cl-sb", ["not-a-practice"], actor_id="staff-test")
+    assert set(cx.admin.clinic_practice_types("tn-north", "cl-sb")) == {"dental", "womens_wellness"}
+    with pytest.raises(AdminNotFoundError):
+        cx.admin.set_clinic_practice_types("tn-bay", "cl-sb", ["dental"], actor_id="staff-test")
+
+
+def test_patient_finder_renders_practice_categories_and_filters_clinics(web):
+    landing = web.get(S + "/book")
+    assert landing.status_code == 200
+    for label in ("Physiotherapy", "Fitness", "Primary care", "Women’s wellness &amp; health", "General health"):
+        assert label in landing.text
+    filtered = web.get(S + "/book?practice=physiotherapy")
+    assert filtered.status_code == 200 and "San Bernardo Clinic" in filtered.text
+    assert "Austin Clinic" not in filtered.text
+    assert "Physiotherapy" in filtered.text
+
+
+def test_practice_category_update_rolls_back_if_audit_write_fails(cx, monkeypatch):
+    from carex.audit import AuditWriteError
+
+    before = cx.admin.clinic_practice_types("tn-north", "cl-sb")
+
+    def fail_audit(*args, **kwargs):
+        raise AuditWriteError("audit store unavailable")
+
+    monkeypatch.setattr(cx.audit, "record", fail_audit)
+    with pytest.raises(AuditWriteError):
+        cx.admin.set_clinic_practice_types(
+            "tn-north", "cl-sb", ["dental", "womens_wellness"], actor_id="staff-test"
+        )
+    assert cx.admin.clinic_practice_types("tn-north", "cl-sb") == before

@@ -57,15 +57,16 @@ def build(db: Db | None = None, env: Mapping[str, str] | None = None, clock: Cal
           mailer=None, production: bool | None = None) -> Ctx:
     env = os.environ if env is None else env
     if db is None:
-        url = env.get("DATABASE_URL") or env.get("POSTGRES_URL") or env.get("DATABASE_URL_UNPOOLED") or ""
-        if env.get("VERCEL") and not url.startswith(("postgres://", "postgresql://")):
-            raise RuntimeError("DATABASE_URL is missing or is not a postgresql:// connection string. Set it in the Vercel project's Environment Variables (Production) and redeploy.")
-        db = open_db(url=url or None, path=env.get("CAREX_DB") or "carex.db")
+        url = env.get("DATABASE_URL") or ""
+        if not url.startswith(("postgres://", "postgresql://")):
+            raise RuntimeError("DATABASE_URL is missing or invalid. Set it to the Neon connection string in the runtime environment. CareX does not support SQLite or local database files.")
+        db = open_db(url=url)
     prod = bool(env.get("VERCEL") or env.get("CAREX_ENV") == "production") if production is None else production
     ch = channels or channels_from_env(env)
-    catalog, sched, intake = Catalog(db), Scheduling(db, clock), Intake(db, clock)
+    audit = Audit(db, clock)
+    catalog, sched, intake = Catalog(db), Scheduling(db, clock, audit=audit), Intake(db, clock, audit=audit)
     return Ctx(db=db, clock=clock, catalog=catalog, sched=sched, intake=intake, booking=BookingService(catalog, sched, intake, clock),
-               accounts=Accounts(db, clock, mailer or AccountMailer(ch, prod)), waitlist=Waitlist(db, clock), audit=Audit(db, clock), notifier=Notifier(db, ch, clock),
-               staff_accounts=StaffAccounts(db, clock), desk=StaffDesk(db, sched, intake, clock), admin=Admin(db, clock), admin_keys=AdminKeys(db, clock), channels=ch,
+               accounts=Accounts(db, clock, mailer or AccountMailer(ch, prod), audit=audit), waitlist=Waitlist(db, clock), audit=audit, notifier=Notifier(db, ch, clock),
+               staff_accounts=StaffAccounts(db, clock, audit=audit), desk=StaffDesk(db, sched, intake, clock, audit=audit), admin=Admin(db, clock, audit=audit), admin_keys=AdminKeys(db, clock), channels=ch,
                secure_cookies=prod, cron_secret=env.get("CRON_SECRET") or None, default_tenant=env.get("DEFAULT_TENANT") or None, trust_proxy=bool(env.get("VERCEL")) or env.get("CAREX_TRUST_PROXY") == "1",
-               discover=Discover(catalog, BookingService(catalog, sched, intake, clock), float(env.get("CAREX_SOONEST_TTL", "15") or 0)), events=Events(db, clock), insights=Insights(db, sched, clock), privacy=Privacy(db, sched, Audit(db, clock), clock), hide_demo=env.get("CAREX_HIDE_DEMO") == "1")
+               discover=Discover(catalog, BookingService(catalog, sched, intake, clock), float(env.get("CAREX_SOONEST_TTL", "15") or 0)), events=Events(db, clock), insights=Insights(db, sched, clock, audit=audit), privacy=Privacy(db, sched, audit, clock), hide_demo=prod or env.get("CAREX_HIDE_DEMO") == "1")

@@ -12,7 +12,7 @@
   <div class="tix-head">
     <span class="factbadge big" aria-hidden="true"><b>{{ dp.month }}</b><span>{{ dp.day }}</span></span>
     <div class="tix-body">
-      <p class="tix-when">{% if first %}<span class="tag nextchip">Next up</span> {% endif %}{{ dp.weekday }}, {{ dp.month }} {{ dp.day }} · {{ clock(sm.starts_at, sm.time_zone) }} {{ dp.tz }}{% if a.status == 'arrived' %} <span class="tag ok">Checked in</span>{% endif %}</p>
+      <p class="tix-when">{% if first %}<span class="tag nextchip">Next up</span> {% endif %}{{ dp.weekday }}, {{ dp.month }} {{ dp.day }} · {{ clock(sm.starts_at, sm.time_zone) }} {{ dp.tz }}{% if a.status == 'arrived' %} <span class="tag status-arrived">Checked in</span>{% endif %}</p>
       <h3><span class="tix-ic" aria-hidden="true">{{ vicon(sm.visit_type.canonical_type or sm.visit_type.label, 28) }}</span>{{ sm.visit_type.label }} with {{ sm.provider.display_name }}</h3>
       <p class="tix-sub">{% if sm.modality == 'telehealth' %}By video{% else %}{{ sm.clinic.name }}, {{ sm.clinic.address }}{% endif %}{% if sm.patient_name %} · {{ sm.patient_name }}{% endif %}</p>
       <p class="tix-sub">Ref <span class="reference">{{ a.booking_id }}</span></p>
