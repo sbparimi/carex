@@ -157,8 +157,8 @@ def _valid_date(s: str) -> bool:
 
 
 class StaffDesk:
-    def __init__(self, db, sched: Scheduling, intake: Intake, clock: Callable[[], datetime] = _now):
-        self.db, self.sched, self.intake, self.now = db, sched, intake, clock
+    def __init__(self, db, sched: Scheduling, intake: Intake, clock: Callable[[], datetime] = _now, audit=None):
+        self.db, self.sched, self.intake, self.now, self.audit = db, sched, intake, clock, audit
 
     @staticmethod
     def _scope(staff: dict) -> tuple[str, list]:
@@ -214,6 +214,8 @@ class StaffDesk:
                 raise StaffError("conflict", "An appointment can only be marked no-show after its start time")
             ts = iso(self.now())
             tx.run("UPDATE appointments SET status = ?, status_changed_at = ?, updated_at = ? WHERE tenant_id = ? AND id = ?", status, ts, ts, tenant_id, aid)
+            if self.audit:
+                self.audit.record(tenant_id, "staff", "appointment.status", actor_id=staff["id"], target_type="appointment", target_id=aid, detail={"status": status}, db=tx)
             return to_row({**r, "status": status})
 
     def cancel(self, tenant_id: str, staff: dict, aid: str, reason: str = "") -> dict:
@@ -221,7 +223,7 @@ class StaffDesk:
         if r["status"] not in ("confirmed", "cancelled"):
             raise StaffError("conflict", "Only an upcoming appointment can be cancelled")
         try:
-            self.sched.cancel(tenant_id, aid, (reason or "")[:200], "staff")
+            self.sched.cancel(tenant_id, aid, (reason or "")[:200], "staff", actor_id=staff["id"])
         except BookingNotFoundError:
             raise StaffError("not_found", "Not found")
         return self.get(tenant_id, staff, aid)
@@ -229,7 +231,7 @@ class StaffDesk:
     def reschedule(self, tenant_id: str, staff: dict, aid: str, slot_id: str) -> dict:
         self._load(tenant_id, staff, aid)
         try:
-            self.sched.reschedule(tenant_id, aid, slot_id, "staff")
+            self.sched.reschedule(tenant_id, aid, slot_id, "staff", actor_id=staff["id"])
         except SlotTakenError:
             raise StaffError("conflict", "That time is no longer available")
         except BookingNotFoundError:
