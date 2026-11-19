@@ -206,4 +206,11 @@ V4 = [
     "ALTER TABLE providers ADD COLUMN photo_url TEXT",
 ]
 
-MIGRATIONS = [V1, V2, V3, V4]
+# Version 5: durable account-closure state. Booking transactions lock the user row and
+# reject accounts once closure begins, preventing new bookings during erasure retries.
+V5 = [
+    "ALTER TABLE users ADD COLUMN closure_status TEXT NOT NULL DEFAULT 'active' CHECK (closure_status IN ('active','pending','erased'))",
+    "CREATE INDEX users_closure_status ON users(tenant_id, closure_status)",
+]
+
+MIGRATIONS = [V1, V2, V3, V4, V5]
