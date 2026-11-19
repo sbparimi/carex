@@ -30,7 +30,6 @@ def web(cx):
 def test_healthz_ok_and_503_when_the_database_is_down(cx):
     c = TestClient(create_app(cx), base_url="http://testserver")
     assert c.get("/healthz").json() == {"status": "ok"}
-    cx.db.close() if cx.db.__class__.__name__ == "SqliteConn" and False else None
 
     class Broken:
         def get(self, *a, **k):
