@@ -175,7 +175,7 @@ class Accounts:
         em = normalize_email(email_raw) if isinstance(email_raw, str) else ""
         u = None
         if isinstance(password, str) and len(password) <= 128:
-            u = self.db.get("SELECT id, password_hash, failed_logins, locked_until FROM users WHERE tenant_id = ? AND email = ?", tenant_id, em)
+            u = self.db.get("SELECT id, password_hash, failed_logins, locked_until FROM users WHERE tenant_id = ? AND email = ? AND closure_status = 'active'", tenant_id, em)
         if not u:
             verify_password(str(password)[:128], _dummy())      # same work and same answer for unknown emails
             raise AccountError("invalid_credentials", "Invalid email or password")
@@ -205,7 +205,7 @@ class Accounts:
         """The signed-in profile for a session cookie value, or None (missing, unknown, expired, other tenant)."""
         if not token or not _TOKEN.match(token):
             return None
-        s = self.db.get("SELECT s.user_id, s.expires_at, s.last_seen_at, s.created_at, t.session_idle_minutes AS idle FROM sessions s JOIN tenants t ON t.id = s.tenant_id WHERE s.token_hash = ? AND s.tenant_id = ?",
+        s = self.db.get("SELECT s.user_id, s.expires_at, s.last_seen_at, s.created_at, t.session_idle_minutes AS idle FROM sessions s JOIN tenants t ON t.id = s.tenant_id JOIN users u ON u.id = s.user_id AND u.tenant_id = s.tenant_id WHERE s.token_hash = ? AND s.tenant_id = ? AND u.closure_status = 'active'",
                         sha256(token), tenant_id)
         if not s:
             return None
