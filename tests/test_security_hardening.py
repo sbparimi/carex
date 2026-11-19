@@ -124,8 +124,8 @@ def test_reservation_rejects_accounts_with_pending_closure():
     from carex.scheduling import BookingNotFoundError, ReserveInput, Scheduling
 
     class ClosedAccountTx:
-        kind = "sqlite"
-        for_update = ""
+        kind = "pg"
+        for_update = " FOR UPDATE"
         def get(self, sql, *params):
             if "idempotency_key" in sql:
                 return None
