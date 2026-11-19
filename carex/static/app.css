@@ -1154,3 +1154,107 @@ h2.section::after { content: ""; position: absolute; left: 0; bottom: 0; width: 
 .btnrow { display: flex; gap: .75rem; flex-wrap: wrap; }
 #csv { font-family: ui-monospace, Menlo, monospace; font-size: .875rem; }
 .cover-mark svg { width: 1em; height: 1em; display: block; } @media (max-width: 51.99rem) { .cover-mark svg { width: 3.25rem; height: 3.25rem; } }
+
+/* CareX 2026 experience layer. Server-rendered and usable without JavaScript. */
+:root {
+  color-scheme: light;
+  --cx-canvas: #f5f7fb;
+  --cx-ink: #172033;
+  --cx-muted: #596579;
+  --cx-border: #e1e6ef;
+  --cx-radius-sm: 10px;
+  --cx-radius-md: 16px;
+  --cx-radius-lg: 22px;
+  --cx-shadow-card: 0 8px 28px rgb(20 32 55 / 6%);
+}
+html { scroll-behavior: smooth; }
+body {
+  color: var(--cx-ink);
+  background: var(--cx-canvas);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  line-height: 1.6;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+header.site {
+  position: relative;
+  z-index: 2;
+  padding: .875rem clamp(1rem, 3vw, 2.5rem);
+  border-bottom: 1px solid var(--cx-border);
+  background: rgb(255 255 255 / 96%);
+}
+header.site .brand { letter-spacing: -.025em; }
+.topnav { gap: .35rem .6rem; }
+.topnav a, .topnav button.linkish {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  padding: .55rem .8rem;
+  border-radius: 999px;
+  text-decoration: none;
+}
+.topnav a:hover, .topnav button.linkish:hover {
+  background: color-mix(in srgb, var(--accent, #2563eb) 8%, white);
+}
+.topnav a[aria-current="page"] {
+  background: color-mix(in srgb, var(--accent, #2563eb) 11%, white);
+  text-decoration: none;
+}
+main { width: min(100%, 78rem); max-width: 78rem; padding: clamp(1.25rem, 3vw, 2.5rem) 1rem; }
+h1, h2, h3 { letter-spacing: -.035em; line-height: 1.2; text-wrap: balance; }
+h1 { font-size: clamp(1.8rem, 3vw, 2.65rem); margin-block: .35rem 1rem; }
+p, li { max-width: 72ch; }
+.card, .panel, .rail, .clin, .emptystate, .stat, .filters, .summary, .formcard {
+  border-color: var(--cx-border);
+  border-radius: var(--cx-radius-md);
+  box-shadow: var(--cx-shadow-card);
+}
+.card, .panel, .rail, .formcard { background: #fff; }
+input:not([type=checkbox]):not([type=radio]), select, textarea {
+  min-height: 48px;
+  padding: .7rem .85rem;
+  border: 1px solid #cbd4e1;
+  border-radius: var(--cx-radius-sm);
+  background: #fff;
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+textarea { min-height: 7rem; }
+input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-visible, a:focus-visible {
+  outline: 2px solid var(--accent, #2563eb);
+  outline-offset: 2px;
+}
+button, a.button {
+  min-height: 46px;
+  border-radius: 999px;
+  font-weight: 650;
+  letter-spacing: -.01em;
+  transition: transform .15s ease, box-shadow .15s ease, background-color .15s ease;
+}
+button.primary, a.button.primary {
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--accent, #2563eb) 22%, transparent);
+}
+button:not(:disabled):active, a.button:active { transform: translateY(1px); }
+.banner { border-width: 1px; border-radius: var(--cx-radius-sm); padding: .9rem 1rem; }
+dl.summary { border-width: 1px; border-radius: var(--cx-radius-md); }
+footer.site {
+  border-top: 1px solid var(--cx-border);
+  background: #fff;
+  padding: 2rem max(1rem, calc((100vw - 74rem) / 2));
+}
+.skip { z-index: 10; }
+@media (max-width: 48rem) {
+  header.site { align-items: flex-start; }
+  .topnav { width: 100%; overflow-x: auto; flex-wrap: nowrap; padding-block: .25rem .5rem; scrollbar-width: thin; }
+  .topnav > * { flex: 0 0 auto; }
+  main { width: 100%; padding: 1.25rem 1rem 2rem; }
+  .actions { position: sticky; bottom: 0; z-index: 1; padding: .75rem; margin-inline: -.75rem; background: rgb(245 247 251 / 96%); border-top: 1px solid var(--cx-border); backdrop-filter: blur(12px); }
+  .actions button { min-height: 48px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+}
+@media (prefers-contrast: more) {
+  :root { --cx-border: #8994a5; }
+  .hint, .lead, .muted, small { color: #354052; }
+}
