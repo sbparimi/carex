@@ -85,9 +85,8 @@ def register(app: FastAPI, W: Web) -> None:
         t = W.tenant(slug)
         st = W.need_staff(request, t, "front_desk", "admin")
         W.allow("write", W.client(request))
-        if not c.insights.remove_waitlist(t["id"], wid):
+        if not c.insights.remove_waitlist(t["id"], wid, actor_id=st["id"]):
             raise HTTPException(404, "Not found")
-        W.audit(request, t, "staff", "waitlist.remove", actor_id=st["id"], target_type="waitlist", target_id=str(wid))
         return W.redirect(f"/t/{slug}/staff/waitlist?n=removed")
 
     # ------------------------------------------------------------------ insights
