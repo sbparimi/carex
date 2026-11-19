@@ -194,6 +194,9 @@ def seed_db(db, d: dict) -> None:
         for s in d.get("services", []):
             t.run("INSERT INTO visit_types (id, tenant_id, canonical_type, label, description, duration_min, status) VALUES (?,?,?,?,?,?,?)",
                   s["id"], s["tenant_id"], s["canonical_type"], s["label"], s.get("description", f"{s['label']} visit"), s.get("duration_min", 30), s.get("status", "active"))
+        for x in d.get("clinic_practice_types", []):
+            t.run("INSERT INTO clinic_practice_types (tenant_id, clinic_id, practice_type_code, active) VALUES (?,?,?,?)",
+                  x["tenant_id"], x["clinic_id"], x["practice_type_code"], _b(x.get("active", True)))
         for x in d.get("clinic_services", []):
             t.run("INSERT INTO clinic_visit_types (tenant_id, clinic_id, visit_type_id, active) VALUES (?,?,?,?)", x["tenant_id"], x["clinic_id"], x["service_id"], _b(x.get("active", True)))
         for p in d.get("providers", []):
