@@ -176,11 +176,11 @@ def register(app: FastAPI, W: Web) -> None:
         state = s(f, "state", 2)
         try:
             if s(f, "op", 12) == "details":
-                c.admin.update_clinic_details(t["id"], cid, {k: s(f, k, 400) for k in ("phone", "hours_text", "about", "image_url")})
+                c.admin.update_clinic_details(t["id"], cid, {k: s(f, k, 400) for k in ("phone", "hours_text", "about", "image_url")}, actor_id=st["id"])
                 note = "details"
             else:
                 on = s(f, "op", 12) == "on"
-                c.admin.update_clinic(t["id"], cid, {"status": "active" if on else "inactive", "bookable": on})
+                c.admin.update_clinic(t["id"], cid, {"status": "active" if on else "inactive", "bookable": on}, actor_id=st["id"])
                 note = "toggled"
         except AdminNotFoundError:
             raise HTTPException(404, "Not found")
