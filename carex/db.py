@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 from typing import Any, Iterator
+from urllib.parse import urlparse
 
 from .schema import MIGRATIONS
 
@@ -90,6 +91,9 @@ def open_db(url: str | None = None) -> Db:
     """Open the configured Neon database. A Neon PostgreSQL connection URL is mandatory."""
     if not isinstance(url, str) or not url.startswith(("postgres://", "postgresql://")):
         raise RuntimeError("DATABASE_URL must be a Neon connection string. SQLite and local-file databases are not supported.")
+    host = urlparse(url).hostname or ""
+    if not host.endswith(".neon.tech"):
+        raise RuntimeError("DATABASE_URL must point to a Neon host ending in .neon.tech.")
     db = _open_pg(url)
     migrate(db)
     return db
