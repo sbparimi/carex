@@ -4,7 +4,7 @@ White-label, multi-tenant appointment booking for healthcare organizations. Care
 
 ## Run it on your computer
 
-You need Python 3.11 or newer. Run these in the project folder, one at a time:
+You need Python 3.11 or newer and a Neon project. Create a dedicated Neon branch for development, copy its pooled connection string, and set `DATABASE_URL` in `.env` before starting CareX. CareX has no SQLite or local-file database mode.
 
 ```
 python3 -m venv .venv
@@ -23,7 +23,7 @@ Open http://127.0.0.1:8000/ and use the demo accounts printed by `seed-demo`:
 | Provider | same | `dr.alex@northwind.example.test` |
 | Admin | same | `admin@northwind.example.test` |
 
-The demo password is `Demo-Passw0rd-2026` (invented data; never use `seed-demo` on a real database). Data is stored in a file called `carex.db` (SQLite). Delete it to start over.
+The demo password is `Demo-Passw0rd-2026` (invented data; never use `seed-demo` on a real database). All application data is stored in Neon. Use a separate Neon branch for demo or development data.
 
 ## Tests
 
@@ -32,7 +32,7 @@ pip install -r requirements-dev.txt
 python -m pytest -q
 ```
 
-To run the same tests on Postgres too, point `CAREX_TEST_PG` at an **empty** database, e.g. `CAREX_TEST_PG=postgresql://user:pw@localhost/carex_test python -m pytest -q`.
+Tests require a dedicated, empty Neon branch. Set `CAREX_TEST_DATABASE_URL` to that branch's pooled connection string, then run `python -m pytest -q`. The suite truncates tables between tests; never point it at production.
 
 ## Command-line tool
 
@@ -40,7 +40,7 @@ To run the same tests on Postgres too, point `CAREX_TEST_PG` at an **empty** dat
 
 ## Deploy to Vercel with Neon
 
-1. In Neon, create a new **empty** database (or a fresh branch) and copy the **pooled** connection string (host contains `-pooler`).
+1. In Neon, create a project and a dedicated **empty branch** for this CareX environment. Copy the **pooled** connection string (host contains `-pooler`).
 2. In Vercel, import the GitHub repo. Set environment variables: `DATABASE_URL` (the Neon string), `CRON_SECRET` (a long random string), and optionally `APP_BASE_URL`, `RESEND_API_KEY`, `EMAIL_FROM`, `TWILIO_*`.
 3. Deploy. Tables are created automatically on first request. Check `https://<your-app>/healthz` returns `{"status":"ok"}`.
 4. Create your first organization with `create-tenant` and `admin-key`, run from your computer with `DATABASE_URL` set to the same Neon string (put it in `.env`).
@@ -50,7 +50,7 @@ A database that still holds the old TypeScript version's tables is refused on pu
 
 ## Layout
 
-- `carex/` application: `db`, `schema` (SQLite and Postgres), `scheduling` (engine), `intake`, `accounts`, `staff`, `admin`, `notify`, `waitlist`, `pages_*` (HTML routes), `templates/`, `static/`.
+- `carex/` application: `db` (Neon via PostgreSQL protocol), `schema` (Neon/PostgreSQL), `scheduling` (engine), `intake`, `accounts`, `staff`, `admin`, `notify`, `waitlist`, `pages_*` (HTML routes), `templates/`, `static/`.
 - `tests/` pytest suite (engine, intake, accounts, notifications, pages, staff, operations).
 - `docs/` product decisions and requirement traceability.
 
