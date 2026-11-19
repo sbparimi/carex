@@ -221,20 +221,23 @@ def register_admin_api(app: FastAPI, W: Web) -> None:
             a.remove_time_off(tid, int(mm[1]))
             return reply(204)
         if M == "POST" and sub == "staff":
-            st = c.staff_accounts.create(tid, email=b.get("email"), name=b.get("name"), role=b.get("role"), password=b.get("password"), provider_id=b.get("provider_id"))
-            c.audit.record(tid, "admin", "admin.staff_create", target_type="staff", target_id=st["id"])
+            with c.db.tx() as tx:
+                st = c.staff_accounts.create(tid, email=b.get("email"), name=b.get("name"), role=b.get("role"), password=b.get("password"), provider_id=b.get("provider_id"), db=tx)
+                c.audit.record(tid, "admin", "admin.staff_create", target_type="staff", target_id=st["id"], db=tx)
             return reply(201, {"staff": st})
         if M == "GET" and sub == "staff":
             return reply(200, {"staff": c.staff_accounts.list(tid)})
         if M == "PATCH" and rx(f"staff/{idp}"):
             if not isinstance(b.get("active"), bool):
                 raise AdminValidationError("active must be true or false")
-            c.staff_accounts.set_active(tid, mm[1], b["active"])
-            c.audit.record(tid, "admin", "admin.staff_activate" if b["active"] else "admin.staff_deactivate", target_type="staff", target_id=mm[1])
+            with c.db.tx() as tx:
+                c.staff_accounts.set_active(tid, mm[1], b["active"], db=tx)
+                c.audit.record(tid, "admin", "admin.staff_activate" if b["active"] else "admin.staff_deactivate", target_type="staff", target_id=mm[1], db=tx)
             return reply(204)
         if M == "PUT" and rx(f"staff/{idp}/password"):
-            c.staff_accounts.set_password(tid, mm[1], str(b.get("password") or ""))
-            c.audit.record(tid, "admin", "admin.staff_password_set", target_type="staff", target_id=mm[1])
+            with c.db.tx() as tx:
+                c.staff_accounts.set_password(tid, mm[1], str(b.get("password") or ""), db=tx)
+                c.audit.record(tid, "admin", "admin.staff_password_set", target_type="staff", target_id=mm[1], db=tx)
             return reply(204)
         if M == "GET" and sub == "fhir/Appointment":
             rows = c.desk.range(tid, {"id": "admin", "name": "admin", "email": "", "role": "admin", "provider_id": None}, q.get("from", ""), q.get("to", ""))
