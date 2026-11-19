@@ -122,7 +122,9 @@ def create_app(ctx: Ctx | None = None) -> FastAPI:
 
     @app.post("/internal/seed-demo")
     def seed_demo_route(request: Request):
-        """One-off: load the invented demo data into an EMPTY database (used to set up a hosted demo). Needs the CRON_SECRET; refuses if tenants exist."""
+        """One-off synthetic-data bootstrap. Available only outside production."""
+        if ctx.secure_cookies:
+            raise HTTPException(404, "Not found")
         if not ctx.cron_secret:
             raise HTTPException(404, "Not found")
         given = request.headers.get("authorization", "")
