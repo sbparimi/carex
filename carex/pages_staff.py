@@ -123,7 +123,6 @@ def register(app: FastAPI, W: Web) -> None:
             row = c.desk.set_status(t["id"], st, aid, status)
         except StaffError as e:
             fail(e)
-        W.audit(request, t, "staff", "appointment.status", actor_id=st["id"], target_type="appointment", target_id=aid, detail={"status": row["status"]})
         return W.redirect(back_to(slug, f))
 
     @app.post(P + "/appointments/{aid}/cancel")
@@ -135,7 +134,6 @@ def register(app: FastAPI, W: Web) -> None:
             c.desk.cancel(t["id"], st, aid, s(f, "reason", 200))
         except StaffError as e:
             fail(e)
-        W.audit(request, t, "staff", "staff.booking_cancel", actor_id=st["id"], target_type="appointment", target_id=aid)
         W.notify_now(aid)
         return W.redirect(back_to(slug, f))
 
@@ -167,7 +165,6 @@ def register(app: FastAPI, W: Web) -> None:
             if e.code == "conflict":
                 return W.render(request, "staff_reschedule.html", 409, **resched_ctx(t, st, aid, str(e)))
             fail(e)
-        W.audit(request, t, "staff", "staff.booking_reschedule", actor_id=st["id"], target_type="appointment", target_id=aid)
         W.notify_now(aid)
         return W.redirect(f"/t/{slug}/staff?n=moved")
 
@@ -225,7 +222,6 @@ def register(app: FastAPI, W: Web) -> None:
             if e.code == "forbidden":
                 raise HTTPException(403, str(e))
             return W.render(request, "staff_book.html", status, **book_ctx(t, st, q, v, error=str(e)))
-        W.audit(request, t, "staff", "staff.booking_create", actor_id=st["id"], target_type="appointment", target_id=row["id"])
         W.notify_now(row["id"])
         l = local_parts(parse(row["starts_at"]), row["time_zone"])
         return W.redirect(f"/t/{slug}/staff?date={l['year']:04d}-{l['month']:02d}-{l['day']:02d}&n=booked")
