@@ -15,7 +15,6 @@ def register(app: FastAPI, W: Web) -> None:
     P = "/t/{slug}"
 
     def done(request, t, profile, token, nxt=""):
-        W.audit(request, t, "user", "user.login", actor_id=profile["id"])
         r = W.redirect(W.safe_next(t["slug"], nxt) or f"/t/{t['slug']}/book")
         W.set_cookie(r, COOKIE, token, t["slug"], SESSION_SECONDS)
         return r
@@ -60,7 +59,6 @@ def register(app: FastAPI, W: Web) -> None:
         u = W.user(request, t)
         c.accounts.logout(t["id"], request.cookies.get(COOKIE))
         if u:
-            W.audit(request, t, "user", "user.logout", actor_id=u["id"])
         r = W.redirect(f"/t/{slug}/login?notice=out")
         W.set_cookie(r, COOKIE, None, slug, 0)
         return r
@@ -91,7 +89,6 @@ def register(app: FastAPI, W: Web) -> None:
             v = {k: s(f, k, 254) for k in ("first_name", "last_name", "date_of_birth", "phone", "email", "access_id")}
             errors = dict(e.fields) or {"email": str(e)}
             return W.render(request, "signup.html", 400 if e.code == "invalid_input" else 409, t=t, nxt=W.safe_next(slug, s(f, "next", 600)), **_signup_ctx(t, door, v, errors))
-        W.audit(request, t, "user", "user.signup", actor_id=profile["id"])
         r = W.redirect(W.safe_next(slug, s(f, "next", 600)) or f"/t/{slug}/book")
         W.set_cookie(r, COOKIE, token, slug, SESSION_SECONDS)
         return r
