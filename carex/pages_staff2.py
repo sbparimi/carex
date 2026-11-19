@@ -129,10 +129,9 @@ def register(app: FastAPI, W: Web) -> None:
         patch = {"display_name": s(f, "display_name", 80), "primary_color": s(f, "primary_color", 7), "logo_url": s(f, "logo_url", 500) or None,
                  "support_email": s(f, "support_email", 254) or None, "support_phone": s(f, "support_phone", 30) or None}
         try:
-            c.admin.update_brand(t["id"], patch)
+            c.admin.update_brand(t["id"], patch, actor_id=st["id"])
         except AdminValidationError as e:
             return setup_back(slug, s(f, "state", 2), error=str(e))
-        W.audit(request, t, "staff", "setup.brand", actor_id=st["id"])
         return setup_back(slug, s(f, "state", 2), "brand")
 
     @app.post(P + "/setup/clinic")
@@ -141,10 +140,9 @@ def register(app: FastAPI, W: Web) -> None:
         st = W.need_staff(request, t, "admin")
         W.allow("write", W.client(request))
         try:
-            new = c.admin.create_clinic(t["id"], {"name": s(f, "name", 120), "city": s(f, "city", 120), "address": s(f, "address", 200), "state_code": s(f, "state_code", 2).upper(), "time_zone": s(f, "time_zone", 60)})
+            new = c.admin.create_clinic(t["id"], {"name": s(f, "name", 120), "city": s(f, "city", 120), "address": s(f, "address", 200), "state_code": s(f, "state_code", 2).upper(), "time_zone": s(f, "time_zone", 60)}, actor_id=st["id"])
         except AdminValidationError as e:
             return setup_back(slug, s(f, "state_code", 2).upper(), error=str(e))
-        W.audit(request, t, "staff", "setup.clinic_create", actor_id=st["id"], target_type="clinic", target_id=new["id"])
         return setup_back(slug, new["state_code"], "clinic")
 
     @app.post(P + "/setup/import")
@@ -154,10 +152,11 @@ def register(app: FastAPI, W: Web) -> None:
         W.allow("write", W.client(request))
         check = s(f, "op", 8) == "check"
         try:
-            res = c.admin.import_clinics(t["id"], str(f.get("csv") or "")[:290_000], commit=not check)
+            res = c.admin.import_clinics(t["id"], str(f.get("csv") or "")[:290_000], commit=not check, actor_id=st["id"])
         except AdminValidationError as e:
             return W.render(request, "staff_import.html", status=422, t=t, staff=st, nav="setup", csv=str(f.get("csv") or "")[:290_000], error=str(e), result=None)
-        W.audit(request, t, "staff", "setup.import_check" if check else "setup.import_clinics", actor_id=st["id"], detail={"created": res["created"], "skipped": res["skipped"], "errors": len(res["errors"])})
+        if check:
+            W.audit(request, t, "staff", "setup.import_check", actor_id=st["id"], detail={"created": res["created"], "skipped": res["skipped"], "errors": len(res["errors"])})
         if res["errors"] or check:
             return W.render(request, "staff_import.html", status=422 if res["errors"] else 200, t=t, staff=st, nav="setup", csv=str(f.get("csv") or "")[:290_000], error=None, result=res, checked=check)
         return setup_back(slug, "", "imported")
@@ -187,7 +186,6 @@ def register(app: FastAPI, W: Web) -> None:
             raise HTTPException(404, "Not found")
         except AdminValidationError as e:
             return setup_back(slug, state, error=str(e))
-        W.audit(request, t, "staff", "setup.clinic_update", actor_id=st["id"], target_type="clinic", target_id=cid)
         return setup_back(slug, state, note)
 
     # ------------------------------------------------------------------ share links and QR codes
