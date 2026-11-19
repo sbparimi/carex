@@ -1366,3 +1366,32 @@ ol.steps li.done { border-color: var(--carex-green); color: var(--carex-green); 
 .badge-s.status-completed, .tag.status-completed { color: #216b3d; background: #e7f4eb; }
 .badge-s.status-cancelled, .tag.status-cancelled { color: #596273; background: #eef1f5; }
 .badge-s.status-no_show, .tag.status-no_show { color: #a51f2a; background: #fdebed; }
+
+/* Multi-practice setup and discovery */
+.practice-chips { display: flex; flex-wrap: wrap; gap: .35rem; margin-top: .5rem; }
+.practice-chip {
+  display: inline-flex; align-items: center; width: fit-content;
+  padding: .2rem .55rem; border: 1px solid #c9dced; border-radius: 999px;
+  background: #edf5fc; color: #174f7e; font-size: .75rem; font-weight: 650;
+}
+.practice-tiles .starttile { min-height: 6rem; }
+.practice-tiles .st-text small { line-height: 1.35; }
+.practice-config { margin-block: 1rem 1.25rem; padding: 1rem; border: 1px solid var(--cx-border, #e1e6ef); border-radius: 14px; background: #f9fbfe; }
+.practice-config fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
+.practice-config legend { margin-bottom: .25rem; }
+.practice-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .6rem; margin-block: .75rem; }
+.practice-option {
+  display: flex; align-items: flex-start; gap: .65rem; min-width: 0;
+  padding: .75rem; border: 1px solid #d8e0eb; border-radius: 10px;
+  background: #fff; cursor: pointer;
+}
+.practice-option input { flex: 0 0 auto; width: 1.1rem; height: 1.1rem; margin: .15rem 0 0; }
+.practice-option span { display: grid; gap: .2rem; min-width: 0; }
+.practice-option strong { color: var(--cx-ink, #172033); }
+.practice-option small { color: var(--cx-muted, #596579); line-height: 1.4; }
+.practice-option:has(input:checked) { border-color: var(--cx-primary, #1b6fb5); background: #edf5fc; }
+.practice-option:focus-within { outline: 2px solid var(--cx-primary, #1b6fb5); outline-offset: 2px; }
+@media (max-width: 38rem) {
+  .practice-options { grid-template-columns: minmax(0, 1fr); }
+  .practice-chip { font-size: .7rem; }
+}
