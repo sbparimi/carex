@@ -796,6 +796,10 @@ table.grid { width: 100%; }
 @media (max-width: 52rem) { .evt { grid-template-columns: minmax(0, 1fr); } }
 @media (min-width: 70rem) { main:has(.tix) { } .tix-list { } }
 .filters select, .filters input { width: auto; min-width: 14rem; }
+.filters input[type="date"] { min-height: 2.75rem; padding: .55rem .7rem; border: 1px solid var(--line, #d7deea); border-radius: 10px; color: var(--ink, #172033); background: #fff; }
+.filters .filter-reset { color: var(--cx-primary, #1b6fb5); font-weight: 650; text-decoration: underline; text-underline-offset: .15em; }
+.clinic-practice-tags { margin: -.35rem 0 1rem; }
+
 form.filters { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; }
 
 /* =====================================================================================================================
