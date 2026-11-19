@@ -22,7 +22,19 @@ class Audit:
         self.db, self.now = db, clock
 
     # Detail is deliberately event-specific. Clinical/free text and arbitrary caller data are never accepted.
-    DETAIL_FIELDS = {"export.fhir": {"count": int}}
+    DETAIL_FIELDS = {
+        "export.fhir": {"count": int},
+        "user.login_failed": {"identifier_hash": str},
+        "staff.login_failed": {"identifier_hash": str},
+        "schedule.view": {"date": str, "count": int},
+        "appointment.status": {"status": str},
+        "schedule.closure_add": {"affected": int},
+        "export.csv": {"from": str, "to": str, "count": int},
+        "calendar.view": {"date": str, "count": int},
+        "waitlist.view": {"count": int},
+        "setup.import_check": {"created": int, "skipped": int, "errors": int},
+        "setup.import_clinics": {"created": int, "skipped": int, "errors": int},
+    }
 
     def record(self, tenant_id: str, actor_type: str, action: str, actor_id: str | None = None, target_type: str | None = None,
                target_id: str | None = None, ip: str | None = None, detail: dict | None = None, db=None) -> None:
@@ -37,6 +49,14 @@ class Audit:
                 value = detail[key]
                 if expected is int and (isinstance(value, bool) or not isinstance(value, int) or value < 0):
                     raise ValueError("Invalid audit detail value")
+                if expected is str and (not isinstance(value, str) or len(value) > 32 or any(ord(ch) < 32 for ch in value)):
+                    raise ValueError("Invalid audit detail value")
+            if "identifier_hash" in detail and (len(detail["identifier_hash"]) != 12 or any(ch not in "0123456789abcdef" for ch in detail["identifier_hash"])):
+                raise ValueError("Invalid audit identifier hash")
+            if "date" in detail and not __import__("re").fullmatch(r"\\d{4}-\\d{2}-\\d{2}", detail["date"]):
+                raise ValueError("Invalid audit date")
+            if "status" in detail and detail["status"] not in {"confirmed", "arrived", "completed", "no_show", "cancelled"}:
+                raise ValueError("Invalid appointment status")
             safe_detail = json.dumps(detail, separators=(",", ":"), allow_nan=False)
             if len(safe_detail.encode("utf-8")) > 256:
                 raise ValueError("Audit detail exceeds the event schema limit")
