@@ -27,6 +27,17 @@ def web(cx):
     return TestClient(create_app(cx), base_url="http://testserver", follow_redirects=False)
 
 
+def test_database_requires_a_neon_connection_url():
+    from carex.db import open_db
+
+    with pytest.raises(RuntimeError, match="Neon"):
+        open_db()
+    with pytest.raises(RuntimeError, match="Neon"):
+        open_db("sqlite:///carex.db")
+    with pytest.raises(RuntimeError, match="Neon"):
+        open_db("postgresql://user:password@localhost/carex")
+
+
 def test_healthz_ok_and_503_when_the_database_is_down(cx):
     c = TestClient(create_app(cx), base_url="http://testserver")
     assert c.get("/healthz").json() == {"status": "ok"}
