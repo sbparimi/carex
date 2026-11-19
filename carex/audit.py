@@ -12,18 +12,26 @@ from .util import iso, now as _now, sha256
 log = logging.getLogger("carex.audit")
 
 
+class AuditWriteError(RuntimeError):
+    """Raised when a required audit event cannot be persisted."""
+
+
+
 class Audit:
     def __init__(self, db, clock: Callable[[], datetime] = _now):
         self.db, self.now = db, clock
 
     def record(self, tenant_id: str, actor_type: str, action: str, actor_id: str | None = None, target_type: str | None = None,
                target_id: str | None = None, ip: str | None = None, detail: dict | None = None) -> None:
+        # Audit is a security control, not best-effort telemetry.
         try:
+            safe_detail = json.dumps(detail, separators=(",", ":"), default=str)[:1000] if detail else None
             self.db.run("INSERT INTO audit_log (tenant_id, at, actor_type, actor_id, action, target_type, target_id, ip_hash, detail) VALUES (?,?,?,?,?,?,?,?,?)",
                         tenant_id, iso(self.now()), actor_type, actor_id, action, target_type, target_id, sha256(ip)[:16] if ip else None,
-                        json.dumps(detail)[:1000] if detail else None)
-        except Exception as e:                      # an audit failure must be visible to operators; it must not leak into the patient's response
+                        safe_detail)
+        except Exception as e:
             log.error("audit_write_failed action=%s error=%s", action, type(e).__name__)
+            raise AuditWriteError("Required audit event could not be persisted") from e
 
     def list(self, tenant_id: str, limit: int = 100, before: int | None = None, actor_id: str | None = None, target_id: str | None = None, action: str | None = None) -> list[dict]:
         where, p = ["tenant_id = ?"], [tenant_id]
