@@ -27,3 +27,10 @@ Agents interpret and propose. Postman tests and CLI execute deterministic checks
 
 ## Capstone
 The CareX appointment-cancellation change is the end-to-end capstone. Use synthetic data and a dedicated non-production database branch. Never include credentials, secrets, instructor-only materials or production identifiers in student downloads.
+
+## Production handover
+The following documents govern the handover to Codex and Instinct:
+- [Master production handover](PRODUCTION-HANDOVER.md) — source of truth, responsibilities, safety boundaries and release gates.
+- [Instinct video-production prompt](INSTINCT-VIDEO-PRODUCTION-PROMPT.md) — copy-ready instructions for video production.
+- [Codex engineering handover](CODEX-ENGINEERING-HANDOVER.md) — repository, technical implementation and validation instructions.
+- [Course alignment audit](ALIGNMENT-AUDIT.md) — deviations corrected and outstanding release blockers.
