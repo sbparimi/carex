@@ -125,7 +125,31 @@ Every lesson must:
 
 A lesson is not complete merely because a script, slide deck, prompt or video exists.
 
-## 9. Required lesson asset package
+## 9. Bryan Lamb teaching format and methods — mandatory
+
+All lessons must use the practical teaching format and techniques established in the Bryan Lamb course review and defined in [UCF-INSTRUCTIONAL-QUALITY-RULES.md](UCF-INSTRUCTIONAL-QUALITY-RULES.md). These requirements apply to every course section and lesson, not only technical demonstrations.
+
+- **Outcome-first delivery:** state the skill the learner will perform and the artefact/result they will produce.
+- **Business context:** establish a realistic problem and explain why the capability matters.
+- **Progressive teaching:** introduce concepts in manageable steps and build the continuous CareX project incrementally.
+- **Instructor-led practical demonstration:** show the real application and explain decisions, trade-offs and reasoning while performing the task.
+- **Learner prediction:** ask learners to predict behaviour or choose an approach before showing the result.
+- **CRODF practice loop:** Change one small thing → Run → Observe actual output/failure → Diagnose the exact mismatch and root cause → Fix with the smallest justified change → Verify by rerunning. Never hide meaningful errors or skip evidence.
+- **Intentional troubleshooting:** demonstrate realistic mistakes, failure signals, diagnosis and recovery.
+- **Independent practice:** provide a related learner task that requires applying the method independently.
+- **Expected-result verification:** show the expected result, explain how to interpret it and provide a reproducible verification method.
+- **Completed reference checkpoints:** supply working examples, tested solutions and stable GitHub checkpoints.
+- **Continuous project:** keep lessons connected through the same CareX project, progressively extending its artefacts and capabilities.
+- **Recap and continuity:** reinforce the reusable method and connect the lesson to the next step in the project.
+- **Learner resources:** provide downloadable starters, exercises, examples, expected outputs, troubleshooting notes, quizzes, assignments and solutions as applicable.
+
+### Audio-visual delivery
+
+Narration and screen action must be synchronized throughout each video. Highlight the exact spoken keyword, code, UI control, request, response, error, correction or result as it appears. Use clear audio, readable cursor movement, zoom and callouts, and synchronized captions. Avoid unexplained silence, dead time, abrupt cuts, unrelated visuals and narration that describes a different screen state. Intentional learner pauses must be clearly signposted.
+
+The seven-part sequence remains mandatory: Opening → Concept → Why → Demo → Build → Verify → Recap. The CRODF loop is the practical execution method inside Demo, Build and Verify; it does not replace the seven-part lesson structure.
+
+## 10. Required lesson asset package
 
 For each of the 35 lessons, maintain as applicable:
 - Lesson README and measurable outcome.
@@ -144,7 +168,7 @@ For each of the 35 lessons, maintain as applicable:
 
 Conceptual lessons should use appropriate structured artefacts rather than adding unnecessary code. Technical lessons must contain real, runnable examples where the lesson promises execution.
 
-## 10. Student experience and access
+## 11. Student experience and access
 
 - Keep all learner instructions self-contained and in the order they are needed.
 - State setup prerequisites before the activity, not after it fails.
@@ -156,7 +180,7 @@ Conceptual lessons should use appropriate structured artefacts rather than addin
 - Ensure a clean checkout contains the materials needed to complete the course.
 - Do not expose instructor scripts, internal scorecards, private production notes or credentials in student downloads.
 
-## 11. Repository and collaboration rules
+## 12. Repository and collaboration rules
 
 - The GitHub repository and current course branch are the source of truth.
 - Current working branch: `course/agentic-sdlc-api-automation`.
@@ -168,7 +192,7 @@ Conceptual lessons should use appropriate structured artefacts rather than addin
 - Do not claim that a test, Postman workflow, CI run, recording or feature has been verified unless it was actually run and evidence is retained.
 - Record blockers, assumptions, source versions and decisions in the relevant audit/lesson files.
 
-## 12. Content integrity rules
+## 13. Content integrity rules
 
 Never fabricate:
 - Product UI or feature behaviour.
@@ -180,7 +204,7 @@ Never fabricate:
 
 Separate verified facts, synthetic scenarios, proposed changes, assumptions and illustrative examples. Label synthetic or illustrative content clearly.
 
-## 13. UCF quality gate and course release gate
+## 14. UCF quality gate and course release gate
 
 Apply the 13-criterion UCF scorecard to every lesson. Each criterion must score 10/10 with evidence; no averaging is permitted.
 
@@ -196,7 +220,7 @@ A lesson is releasable only after:
 
 The course is not recording-ready or complete while any mandatory lesson remains below the gate. Do not display or describe the course as finished until all mandatory UCF and course rules pass.
 
-## 14. Approval and account safety
+## 15. Approval and account safety
 
 No agent or collaborator may, without explicit user approval:
 - Sign in, connect an account, authorize OAuth or grant application/MCP permissions.
@@ -208,7 +232,7 @@ No agent or collaborator may, without explicit user approval:
 
 Do not ask the user to paste passwords, API keys or database credentials into chat. Use approved secret-management mechanisms.
 
-## 15. Status vocabulary
+## 16. Status vocabulary
 
 Use these statuses consistently:
 - **DRAFT:** content exists but has not passed technical and instructional review.
