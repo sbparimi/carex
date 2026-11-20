@@ -33,6 +33,7 @@ def register_api_v1(app: FastAPI, W) -> None:
         return request_body
 
     async def body(request: Request):
+        W.allow("write", W.client(request))
         try:
             raw = await request.body()
             if len(raw) > 20000:
@@ -169,6 +170,7 @@ def register_api_v1(app: FastAPI, W) -> None:
     @app.post(prefix + "/auth/login")
     async def login(slug: str, request: Request):
         _, tid = tenant(slug)
+        W.allow("auth", W.client(request))
         b = await body(request)
         try:
             result = c.accounts.begin_login(tid, b.get("email"), b.get("password"))
@@ -309,7 +311,7 @@ def register_api_v1(app: FastAPI, W) -> None:
     # Provider / front-desk workflow
     @app.post(prefix + "/staff/auth/login")
     async def staff_login(slug: str, request: Request):
-        _, tid = tenant(slug); b = await body(request)
+        _, tid = tenant(slug); W.allow("auth", W.client(request)); b = await body(request)
         try:
             profile, token = c.staff_accounts.login(tid, b.get("email"), b.get("password"))
             return {"profile": profile, "access_token": token, "token_type": "Bearer"}
