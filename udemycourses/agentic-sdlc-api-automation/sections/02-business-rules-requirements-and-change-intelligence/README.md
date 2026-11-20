@@ -1,18 +1,15 @@
 # Section 02 — Business Rules, Requirements and Change Intelligence
 
-**Planned section:** 02 of 08  
-**Lessons:** 4  
-**Status:** Production in progress
+**Outcome:** Convert a CareX business change into source-linked rules, testable acceptance criteria, verified API traceability and a risk-ranked test impact proposal.
 
-## Learning outcome
+## Lessons and learner packs
+- [2.1 — Start with a business change, not an endpoint](lessons/lesson-2-1-start-with-a-business-change-not-an-endpoint/assets/student-downloads/lesson-pack.md)
+- [2.2 — Extract rules, acceptance criteria and ambiguity](lessons/lesson-2-2-extract-rules-acceptance-criteria-and-ambiguity/assets/student-downloads/lesson-pack.md)
+- [2.3 — Map rules to API operations and journeys](lessons/lesson-2-3-map-rules-to-api-operations-and-journeys/assets/student-downloads/lesson-pack.md)
+- [2.4 — Change detection and impact analysis](lessons/lesson-2-4-change-detection-and-impact-analysis/assets/student-downloads/lesson-pack.md)
 
-Business Rules, Requirements and Change Intelligence: complete the section's practical deliverable and carry its evidence into the next section.
+## Section assessment
+- [Integrated knowledge check](assessment/section-02-knowledge-check.md)
+- [Integrated assignment](assessment/section-02-integrated-assignment.md)
 
-## Lessons
-
-- [ ] 2.1 — Start with a business change, not an endpoint
-- [ ] 2.2 — Extract rules, acceptance criteria and ambiguity
-- [ ] 2.3 — Map rules to API operations and journeys
-- [ ] 2.4 — Change detection and impact analysis
-
-Each lesson uses the required seven-part structure and has its own assets directory.
+**Production status:** Bespoke learner activities and reference reasoning authored. Live OpenAPI inspection, runnable diff tooling, API execution, timed rehearsal and 13-point quality scoring remain open.
