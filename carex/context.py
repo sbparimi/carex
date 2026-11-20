@@ -5,6 +5,7 @@ import os
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Callable, Mapping
+from urllib.parse import urlparse
 
 from .accounts import Accounts
 from .admin import Admin, AdminKeys
@@ -23,6 +24,29 @@ from .scheduling import Scheduling
 from .staff import StaffAccounts, StaffDesk
 from .util import now as _now
 from .waitlist import Waitlist
+
+
+def _neon_database_url(env: Mapping[str, str]) -> str:
+    """Select a configured Neon URL, preferring pooled endpoints from Vercel's Neon integration."""
+    keys = ("DATABASE_URL", "POSTGRES_URL", "POSTGRES_PRISMA_URL",
+            "DATABASE_URL_UNPOOLED", "POSTGRES_URL_NON_POOLING")
+    valid: list[tuple[str, str]] = []
+    for key in keys:
+        candidate = (env.get(key) or "").strip()
+        if not candidate.startswith(("postgres://", "postgresql://")):
+            continue
+        host = urlparse(candidate).hostname or ""
+        if host.endswith(".neon.tech"):
+            valid.append((host, candidate))
+    for host, candidate in valid:
+        if "-pooler" in host:
+            return candidate
+    if valid:
+        return valid[0][1]
+    raise RuntimeError(
+        "A Neon PostgreSQL connection URL is required. Set DATABASE_URL or a supported "
+        "Neon integration variable (POSTGRES_URL / POSTGRES_PRISMA_URL) in the runtime environment."
+    )
 
 
 @dataclass
@@ -57,10 +81,7 @@ def build(db: Db | None = None, env: Mapping[str, str] | None = None, clock: Cal
           mailer=None, production: bool | None = None) -> Ctx:
     env = os.environ if env is None else env
     if db is None:
-        url = env.get("DATABASE_URL") or ""
-        if not url.startswith(("postgres://", "postgresql://")):
-            raise RuntimeError("DATABASE_URL is missing or invalid. Set it to the Neon connection string in the runtime environment. CareX does not support SQLite or local database files.")
-        db = open_db(url=url)
+        db = open_db(url=_neon_database_url(env))
     prod = bool(env.get("VERCEL") or env.get("CAREX_ENV") == "production") if production is None else production
     ch = channels or channels_from_env(env)
     audit = Audit(db, clock)
