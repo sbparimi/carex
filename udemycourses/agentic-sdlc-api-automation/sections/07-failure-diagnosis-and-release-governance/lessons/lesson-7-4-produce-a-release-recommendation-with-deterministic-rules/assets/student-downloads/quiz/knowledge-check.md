@@ -1,28 +1,28 @@
-# Knowledge check — 7.4 Produce A Release Recommendation With Deterministic Rules
+# Knowledge check — Lesson 7.4: Produce a release recommendation with deterministic rules
 
-Answer before reading the explanations. Each question has one best answer.
+Choose the single best answer.
 
-1. What is the strongest evidence that **produce a release recommendation with deterministic rules** has been applied successfully?
-   - A. The team documented its intention.
-   - B. A reproducible artefact meets explicit acceptance criteria.
-   - C. An AI summary says it looks correct.
-   - D. A single run completed without retained evidence.
+1. **All mandatory tests pass but the required business-rule evidence is missing. What is the release state?**
+   - A. Approved
+   - B. Blocked or pending evidence according to policy
+   - C. Approved by Agent Mode
+   - D. Ignore the missing evidence
 
-2. A required input is missing or ambiguous. What should the workflow do?
-   - A. Guess silently.
-   - B. Treat the missing value as confirmed.
-   - C. Record uncertainty, assess impact and seek clarification or use an approved safe default.
-   - D. Hide uncertainty in the report.
+2. **What should the AI failure analyst contribute to a release assessment?**
+   - A. Final release approval
+   - B. Evidence-linked analysis and limitations
+   - C. Permission to bypass CI
+   - D. Secret values
 
-3. Which verification is strongest?
-   - A. Trust the agent's self-assessment.
-   - B. Independently check the result against acceptance criteria and retain evidence.
-   - C. Check only for HTTP 200.
-   - D. Assume one successful demo guarantees future runs.
+3. **Which release recommendation is defensible?**
+   - A. Ship because the model sounds confident
+   - B. A recommendation referencing required gates, run evidence, unresolved risks and human decision owner
+   - C. Ship because only one test failed
+   - D. Approve based on HTTP 200
 
-## Answers and explanations
-1. **B.** Reproducible evidence proves application; intention and unverified summaries do not.
-2. **C.** Uncertainty must be visible and resolved or bounded by an approved policy.
-3. **B.** Independent verification is stronger than self-assessment or superficial success.
+## Answer key and explanations
+1. **B.** Passing tests do not waive missing mandatory evidence.
 
-Record your score and one change you would make to the CareX workflow.
+2. **B.** The agent can summarise evidence but does not hold release authority.
+
+3. **B.** Release assessment must be traceable to explicit evidence and policy.

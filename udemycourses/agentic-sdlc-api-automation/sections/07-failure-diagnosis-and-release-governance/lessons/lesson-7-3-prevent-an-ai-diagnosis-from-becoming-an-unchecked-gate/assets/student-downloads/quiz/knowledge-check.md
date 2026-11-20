@@ -1,28 +1,28 @@
-# Knowledge check — 7.3 Prevent An Ai Diagnosis From Becoming An Unchecked Gate
+# Knowledge check — Lesson 7.3: Prevent an AI diagnosis from becoming an unchecked gate
 
-Answer before reading the explanations. Each question has one best answer.
+Choose the single best answer.
 
-1. What is the strongest evidence that **prevent an ai diagnosis from becoming an unchecked gate** has been applied successfully?
-   - A. The team documented its intention.
-   - B. A reproducible artefact meets explicit acceptance criteria.
-   - C. An AI summary says it looks correct.
-   - D. A single run completed without retained evidence.
+1. **Agent Mode labels a failed test as flaky and recommends rerun. What should the pipeline do?**
+   - A. Ignore the failure automatically
+   - B. Apply the documented retry policy and retain both original and retry evidence
+   - C. Mark release approved
+   - D. Delete the original run
 
-2. A required input is missing or ambiguous. What should the workflow do?
-   - A. Guess silently.
-   - B. Treat the missing value as confirmed.
-   - C. Record uncertainty, assess impact and seek clarification or use an approved safe default.
-   - D. Hide uncertainty in the report.
+2. **What is required before a failure can be waived?**
+   - A. Agent confidence above 90%
+   - B. A documented authorised human decision under release policy
+   - C. A green unrelated test
+   - D. A prompt rewrite
 
-3. Which verification is strongest?
-   - A. Trust the agent's self-assessment.
-   - B. Independently check the result against acceptance criteria and retain evidence.
-   - C. Check only for HTTP 200.
-   - D. Assume one successful demo guarantees future runs.
+3. **A failure classification conflicts with a mandatory deterministic gate. Which wins?**
+   - A. Agent diagnosis
+   - B. Model preference
+   - C. Mandatory deterministic gate
+   - D. Most recent chat message
 
-## Answers and explanations
-1. **B.** Reproducible evidence proves application; intention and unverified summaries do not.
-2. **C.** Uncertainty must be visible and resolved or bounded by an approved policy.
-3. **B.** Independent verification is stronger than self-assessment or superficial success.
+## Answer key and explanations
+1. **B.** AI diagnosis is a hypothesis; deterministic retry rules and evidence remain authoritative.
 
-Record your score and one change you would make to the CareX workflow.
+2. **B.** Only authorised human governance can approve exceptions where policy allows.
+
+3. **C.** Agents cannot override mandatory release controls.

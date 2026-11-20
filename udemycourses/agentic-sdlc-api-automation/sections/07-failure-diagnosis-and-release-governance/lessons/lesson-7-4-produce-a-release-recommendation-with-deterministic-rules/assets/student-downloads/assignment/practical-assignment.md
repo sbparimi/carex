@@ -1,25 +1,23 @@
-# Practical assignment — 7.4 Produce A Release Recommendation With Deterministic Rules
+# Practical assignment — Lesson 7.4: Produce a release recommendation with deterministic rules
 
 ## Business context
-You are extending the CareX appointment-booking quality workflow. Apply **produce a release recommendation with deterministic rules** to a realistic change in that workflow.
+The CareX appointment-booking workflow is executed through Postman and Postman CLI. AI-generated diagnosis may assist the team, but mandatory deterministic checks and authorised human decisions remain in control.
 
 ## Task
-Create a reviewable artefact that demonstrates the lesson's technique in the CareX project. Depending on the lesson, this may be a decision record, traceability map, JSON/YAML schema, Python module, Postman request/test, GitHub Actions workflow or execution report.
+Build a CareX release-assessment template that consumes required collection/CLI run evidence, test results, open questions, failure classifications and policy gates. Define deterministic pass/block conditions and an explicit human decision field. Use one all-green scenario and one scenario with missing mandatory evidence. Ask Agent Mode for commentary, but show that it cannot set the final approval field or override a failed gate.
 
-## Required submission
-1. Problem statement and business risk.
-2. The artefact created or changed.
-3. Verification evidence.
-4. One limitation, assumption or unresolved question.
-5. A note connecting this checkpoint to the previous and next lessons.
+## Submission
+1. Evidence or decision artefact.
+2. Agent Mode prompt and output where applicable.
+3. Independent evidence review.
+4. One failure or exception path and its handling.
+5. Clear statement of what remains unverified.
 
 ## Acceptance criteria
-- The artefact directly supports the lesson outcome.
-- Inputs, assumptions and outputs are explicit.
-- Work is reproducible from the linked repository checkpoint.
-- A positive case and a relevant negative, boundary or failure case are considered.
-- Verification is independent of the component that produced the result.
-- Only synthetic data and disposable development resources are used.
-- You can explain the result and diagnose one likely failure without copying the solution.
+- Evidence is traceable to the exact collection revision and run.
+- Secrets and personal data are redacted.
+- AI output is not treated as proof or release authority.
+- Mandatory deterministic gates cannot be bypassed by an agent.
+- Human exception/approval is explicit and auditable.
 
-Attempt the task before opening the completed reference solution.
+Attempt the task before opening the instructor reference solution.

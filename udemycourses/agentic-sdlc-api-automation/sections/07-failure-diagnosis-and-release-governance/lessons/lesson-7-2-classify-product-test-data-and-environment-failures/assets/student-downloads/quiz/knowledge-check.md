@@ -1,28 +1,28 @@
-# Knowledge check — 7.2 Classify Product Test Data And Environment Failures
+# Knowledge check — Lesson 7.2: Classify product, test, data and environment failures
 
-Answer before reading the explanations. Each question has one best answer.
+Choose the single best answer.
 
-1. What is the strongest evidence that **classify product test data and environment failures** has been applied successfully?
-   - A. The team documented its intention.
-   - B. A reproducible artefact meets explicit acceptance criteria.
-   - C. An AI summary says it looks correct.
-   - D. A single run completed without retained evidence.
+1. **A request returns 503 and the environment health check also fails. What is the most defensible initial classification?**
+   - A. Confirmed product defect
+   - B. Likely environment/service availability issue pending evidence
+   - C. Confirmed test-data defect
+   - D. Release approved
 
-2. A required input is missing or ambiguous. What should the workflow do?
-   - A. Guess silently.
-   - B. Treat the missing value as confirmed.
-   - C. Record uncertainty, assess impact and seek clarification or use an approved safe default.
-   - D. Hide uncertainty in the report.
+2. **An assertion expects a response field not present in the OpenAPI contract. What failure class is most likely?**
+   - A. Test-design/contract mismatch
+   - B. Environment outage
+   - C. Database capacity
+   - D. User permission
 
-3. Which verification is strongest?
-   - A. Trust the agent's self-assessment.
-   - B. Independently check the result against acceptance criteria and retain evidence.
-   - C. Check only for HTTP 200.
-   - D. Assume one successful demo guarantees future runs.
+3. **A booking test fails because its slot ID expired before execution. What class is this?**
+   - A. Product defect by default
+   - B. Test-data/state setup issue
+   - C. Agent hallucination
+   - D. Release policy failure
 
-## Answers and explanations
-1. **B.** Reproducible evidence proves application; intention and unverified summaries do not.
-2. **C.** Uncertainty must be visible and resolved or bounded by an approved policy.
-3. **B.** Independent verification is stronger than self-assessment or superficial success.
+## Answer key and explanations
+1. **B.** Correlated health evidence points toward environment/service availability, but diagnosis remains evidence-based.
 
-Record your score and one change you would make to the CareX workflow.
+2. **A.** The test expectation is unsupported by the contract and should be corrected or investigated.
+
+3. **B.** Stale or invalid test data is distinct from product behaviour.

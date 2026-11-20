@@ -1,30 +1,21 @@
 # Lesson 7.2 — Classify product, test, data and environment failures
 
 **Section:** 07 — Failure Diagnosis and Release Governance  
-**Production status:** Blueprint planned; lesson-specific assets not yet produced.
+**Learner outcome:** Use execution evidence to classify a CareX failure as product, test-design, test-data, environment or unknown, and state what evidence would confirm the diagnosis.
 
-## Required lesson sequence
+## Seven-part lesson
+1. **Opening:** Introduce a failed CareX API run and the risk of making a decision from incomplete evidence.
+2. **Concept:** Explain evidence capture, diagnosis or release governance for this lesson.
+3. **Why:** Connect reliable diagnosis to safe release decisions.
+4. **Demo:** Inspect actual Postman/CLI evidence and use Agent Mode only for bounded analysis.
+5. **Build:** Complete the practical assignment and retain the resulting artefact.
+6. **Verify:** Compare AI analysis with evidence and deterministic policy; demonstrate a failure path.
+7. **Recap:** Carry the evidence pack into the CareX capstone.
 
-1. Opening
-2. Concept
-3. Why
-4. Demo
-5. Build
-6. Verify
-7. Recap
+## Learner resources
+- [Knowledge check](assets/student-downloads/quiz/knowledge-check.md)
+- [Practical assignment](assets/student-downloads/assignment/practical-assignment.md)
+- [Resource index](assets/student-downloads/README.md)
 
-## Measurable learner outcome
-
-To be stated as an observable capability that the learner can independently demonstrate and verify.
-
-## Asset index
-
-- [Instructor assets](assets/instructor/README.md)
-- [Slide assets](assets/slides/README.md)
-- [Demo assets](assets/demo/README.md)
-- [Learner assets](assets/learner/README.md)
-- [Assessment assets](assets/assessment/README.md)
-
-## Acceptance evidence
-
-Do not mark this lesson complete until all 13 mandatory criteria score 10/10 and the evidence is retained. See the course production standard in the course design workspace.
+## Production gate
+Bespoke outcome and assessment authored. Seeded/reproducible failure, actual run evidence, tested reference solution and 13-point 10/10 rehearsal remain required.
