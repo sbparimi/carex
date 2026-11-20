@@ -1,3 +1,3 @@
-# Reference solution — 4.4 Review Hallucinations Omissions And Weak Assertions
+# Lesson 4.4 reference solution
 
-Provide the completed artefact, reasoning, verification evidence and acceptance-criteria mapping. Test from a clean checkout. Keep solution separate from starter and release only after technical review.
+See reference-defect-review.csv for the completed defect log. Each finding includes evidence, a correction and an independent verification method.

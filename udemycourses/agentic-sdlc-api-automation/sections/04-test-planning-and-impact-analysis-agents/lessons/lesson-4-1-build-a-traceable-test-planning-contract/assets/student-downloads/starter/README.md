@@ -1,3 +1,7 @@
-# Starter files — 4.1 Build A Traceable Test Planning Contract
+# Lesson 4.1 starter pack
 
-Record the exact repository checkpoint, tool versions, setup commands and files learners should copy. A README alone is not a starter. Add actual files and verify from a clean checkout before release.
+- carex-cancellation-change.json — synthetic proposed policy change and source conflicts.
+- evidence-register.csv — what each evidence source proves and does not prove.
+- test-plan-contract.schema.json — required structure for the Agent Mode output.
+
+Import the pinned OpenAPI document separately from the disposable CareX build. Do not substitute a guessed schema.

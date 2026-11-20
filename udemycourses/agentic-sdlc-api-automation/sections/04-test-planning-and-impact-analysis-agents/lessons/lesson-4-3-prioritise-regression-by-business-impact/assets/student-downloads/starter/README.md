@@ -1,3 +1,5 @@
-# Starter files — 4.3 Prioritise Regression By Business Impact
+# Lesson 4.3 starter pack
 
-Record the exact repository checkpoint, tool versions, setup commands and files learners should copy. A README alone is not a starter. Add actual files and verify from a clean checkout before release.
+- regression-candidates.csv — candidate CareX journeys, evidence states and initial scoring dimensions.
+
+Scores are learner judgements under the stated model, not measured production metrics.

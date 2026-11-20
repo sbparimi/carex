@@ -1,3 +1,3 @@
-# Reference solution — 4.2 Generate Positive Negative And Boundary Scenarios
+# Lesson 4.2 reference solution
 
-Provide the completed artefact, reasoning, verification evidence and acceptance-criteria mapping. Test from a clean checkout. Keep solution separate from starter and release only after technical review.
+See reference-scenario-matrix.csv for the completed planning matrix. HTTP expectations remain unverified until the pinned OpenAPI contract is reviewed.

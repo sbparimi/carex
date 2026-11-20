@@ -1,3 +1,3 @@
-# Expected results — 4.4 Review Hallucinations Omissions And Weak Assertions
+# Lesson 4.4 expected results
 
-Document observable outputs, important values, verification steps, interpretation, limits and one common failure. Include evidence from an actual run; never invent output.
+See defect-review-expected.md for the expected defect taxonomy, corrective actions and verification standard.

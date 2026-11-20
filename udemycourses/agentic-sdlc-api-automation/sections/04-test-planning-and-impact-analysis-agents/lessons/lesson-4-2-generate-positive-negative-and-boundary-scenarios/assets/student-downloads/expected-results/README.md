@@ -1,3 +1,3 @@
-# Expected results — 4.2 Generate Positive Negative And Boundary Scenarios
+# Lesson 4.2 expected results
 
-Document observable outputs, important values, verification steps, interpretation, limits and one common failure. Include evidence from an actual run; never invent output.
+See scenario-coverage-review.md for the minimum scenario classes, boundary expectations, DST clarification and evidence requirements.

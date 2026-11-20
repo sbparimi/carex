@@ -1,3 +1,3 @@
-# Reference solution — 4.3 Prioritise Regression By Business Impact
+# Lesson 4.3 reference solution
 
-Provide the completed artefact, reasoning, verification evidence and acceptance-criteria mapping. Test from a clean checkout. Keep solution separate from starter and release only after technical review.
+See reference-regression-priority.csv for the ranked regression plan. The weighted scores have been checked against the stated formula; tied scores are shown with tied ranks.

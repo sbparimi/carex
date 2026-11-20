@@ -1,3 +1,5 @@
-# Starter files — 4.4 Review Hallucinations Omissions And Weak Assertions
+# Lesson 4.4 starter pack
 
-Record the exact repository checkpoint, tool versions, setup commands and files learners should copy. A README alone is not a starter. Add actual files and verify from a clean checkout before release.
+- flawed-agent-proposal.json — intentionally defective proposal for review. Preserve the original unchanged.
+
+Use the CareX evidence register and pinned OpenAPI contract to assess each claim.
