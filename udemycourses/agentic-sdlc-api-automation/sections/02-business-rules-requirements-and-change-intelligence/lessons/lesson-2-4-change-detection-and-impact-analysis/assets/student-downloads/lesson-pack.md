@@ -35,8 +35,11 @@ A PR changes cancellation-window validation and its OpenAPI description. The cha
 2. Description-only change can matter? **Yes; semantic meaning can change without schema shape changes.**
 3. Test priority basis? **Business impact, likelihood, exposure and change reach with rationale.**
 
+## Postman Agent Mode demonstration
+Give Agent Mode the synthetic base/head change summary and the approved rule/traceability artefacts. Ask it to distinguish observed diff facts from inferred impact, map changed symbols to rules and journeys, and propose a risk-ranked regression set. Require evidence and a rationale for each priority. The diff is synthetic; do not claim it was extracted from a real PR.
+
 ## Practical assignment
-Create `impact-analysis.csv` and `test-selection.md`. Link changed files/symbols to rules, journeys and existing tests. Rank P0/P1/P2. Include boundary, timezone, ownership and staff regression. Explain excluded tests and inspect shared dependencies. Treat the starter diff as synthetic, not a real repo diff.
+Ask Agent Mode to draft the impact matrix, then create `impact-analysis.csv` and `test-selection.md`. Link changed files/symbols to rules, journeys and existing tests. Rank P0/P1/P2. Include boundary, timezone, ownership and staff regression. Explain excluded tests and inspect shared dependencies. Treat the starter diff as synthetic, not a real repo diff.
 
 ## Reference solution
 P0: >24h eligibility and exact boundary. P1: timezone conversion and ownership. Staff regression remains in scope until shared validation dependencies are inspected. A filename-only inference is insufficient. Each priority cites a changed symbol, contract diff or dependency.

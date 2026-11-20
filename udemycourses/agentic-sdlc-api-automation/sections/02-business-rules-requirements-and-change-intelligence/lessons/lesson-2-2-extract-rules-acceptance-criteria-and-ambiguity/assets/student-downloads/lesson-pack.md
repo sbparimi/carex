@@ -28,8 +28,11 @@ Patients may cancel their own appointments only when the appointment start is **
 2. At exactly 24h? **Reject.**
 3. Why include actor, condition and outcome? **To derive unambiguous executable scenarios.**
 
+## Postman Agent Mode demonstration
+Give Agent Mode the approved CareX cancellation policy and ask it to extract atomic rules and Given/When/Then acceptance criteria. Require the strict `>24 hours` boundary and clinic-local timezone to be explicit. Ask it to list response-contract details that remain unknown. Review every generated criterion against the approved policy; do not allow it to infer status codes or error schemas.
+
 ## Practical assignment
-Create `business-rules.csv` and `acceptance-criteria.md`. Include positive, exact-boundary, just-inside, ownership violation and staff-permission regression. Keep unknown HTTP status/error schema as a verification task.
+Ask Postman Agent Mode to draft the atomic rules and acceptance criteria, then create `business-rules.csv` and `acceptance-criteria.md`. Include positive, exact-boundary, just-inside, ownership violation and staff-permission regression. Keep unknown HTTP status/error schema as a verification task.
 
 ## Reference solution
 Allowed: patient owns appointment and >24h remains. Rejected: exactly 24h; less than 24h; another patient's appointment. Staff cancellation remains governed by existing roles. Use controlled clinic-local timestamps and verify API response contract from checked-in OpenAPI/implementation.

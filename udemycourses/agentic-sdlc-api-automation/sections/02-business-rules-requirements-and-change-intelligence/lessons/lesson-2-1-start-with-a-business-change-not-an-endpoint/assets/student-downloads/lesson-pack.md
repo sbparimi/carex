@@ -33,8 +33,11 @@ Product proposes patient self-service appointment cancellation before a cancella
 2. “Easy cancellation” has no cutoff. **Record ambiguity and ask for a decision**; do not invent 24 hours.
 3. Why pin source revision? **Reproducibility and provenance.**
 
+## Postman Agent Mode demonstration
+Open the CareX workspace in Postman Agent Mode and provide the supplied change fixture. Ask it to return confirmed facts, assumptions, unknowns, constraints and candidate journeys. Require source references for every confirmed fact. Compare its result with the starter fixture; reject any invented cutoff, timezone or staff scope.
+
 ## Practical assignment
-Produce `change-brief.md` and `open-questions.csv`. Separate facts, assumptions, unknowns and constraints. Cite source fields. Rank questions by whether they block test design. Identify patient and staff journeys as candidate impacts, with staff scope marked unconfirmed.
+Ask Postman Agent Mode to produce a draft change brief and open-question list, then independently review and complete `change-brief.md` and `open-questions.csv`. Separate facts, assumptions, unknowns and constraints. Cite source fields. Rank questions by whether they block test design. Identify patient and staff journeys as candidate impacts, with staff scope marked unconfirmed.
 
 ## Reference solution
 State the self-service capability; keep duration, boundary, timezone, appointment origin and inside-window behaviour unresolved. Do not invent 24 hours. Product must resolve blocking policy questions before final test design.
