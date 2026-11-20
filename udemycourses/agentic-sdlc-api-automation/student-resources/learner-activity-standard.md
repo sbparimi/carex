@@ -22,6 +22,9 @@ Every lesson must require an observable learner action. Every section integrates
 
 Do not force code into conceptual lessons. Do not let technical lessons end with only a quiz.
 
+## Postman AI-first authoring rule
+For Postman request/test-script work, learners should use Postman Agent Mode prompts or native Postman AI assistance to generate or update requests and scripts. Teach learners to specify the business rule, contract evidence, expected outcome and negative/boundary cases; then inspect the generated diff and verify it with Postman tests. Do not make hand-writing JavaScript test scripts the primary learning objective. Any supplied scripts are starter/reference artefacts, and learners must understand and independently verify their behaviour.
+
 ## Udemy implementation
 Use native Udemy quizzes for knowledge checks; coding exercises only where supported and meaningful; assignments for larger applied work. Attach lesson resource ZIPs to relevant lectures and link the versioned GitHub checkpoint. Provide downloadable ZIP alternatives for learners who do not use GitHub. Test all attachments and links as a learner.
 

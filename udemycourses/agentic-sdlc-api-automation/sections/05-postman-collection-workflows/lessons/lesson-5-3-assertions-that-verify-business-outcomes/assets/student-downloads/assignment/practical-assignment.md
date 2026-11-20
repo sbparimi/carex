@@ -4,7 +4,7 @@
 The CareX API supports patient discovery, authentication, appointment booking and cancellation. The course change requires patient cancellation only when appointment start is more than 24 hours away in clinic-local time; exactly 24 hours is not allowed.
 
 ## Task
-Add Postman assertions to the CareX cancellation journey. Verify response status and schema only where the OpenAPI contract defines them, and assert the business outcome for eligible and ineligible cancellation attempts. Include exactly 24 hours, just over and just under 24 hours, plus an ownership violation. Use controlled clinic-local timestamps. Do not invent error status or payload.
+Ask Postman Agent Mode to generate Postman assertions for the CareX cancellation journey. Supply the approved business rule and verified OpenAPI evidence. Review the generated scripts, then verify the expected outcomes for eligible and ineligible cancellation attempts. Verify response status and schema only where the OpenAPI contract defines them, and assert the business outcome for eligible and ineligible cancellation attempts. Include exactly 24 hours, just over and just under 24 hours, plus an ownership violation. Use controlled clinic-local timestamps. Do not invent error status or payload.
 
 ## Submission
 1. Updated Postman collection/environment artefact.

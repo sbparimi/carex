@@ -1,36 +1,36 @@
 lesson_id,lesson_title,quiz,assignment,code_or_structured_artifact,starter_checkpoint,expected_result,verified_solution,release_status
-1.1,"The Limits Of Conventional Api Automation",Authored,Authored,Required where applicable,Pending,Pending,Pending,Authored baseline only
-1.2,"What Makes An Sdlc Workflow Agentic",Authored,Authored,Required where applicable,Pending,Pending,Pending,Authored baseline only
-1.3,"The Reference Architecture Agents Tools Evidence And Gates",Authored,Authored,Required where applicable,Pending,Pending,Pending,Authored baseline only
-1.4,"Predict The Failure Where Autonomy Becomes Unsafe",Authored,Authored,Required where applicable,Pending,Pending,Pending,Authored baseline only
-2.1,"Start With A Business Change Not An Endpoint",Authored,Authored,Required where applicable,Pending,Pending,Pending,Authored baseline only
-2.2,"Extract Rules Acceptance Criteria And Ambiguity",Authored,Authored,Required where applicable,Pending,Pending,Pending,Authored baseline only
-2.3,"Map Rules To Api Operations And Journeys",Authored,Authored,Required where applicable,Pending,Pending,Pending,Authored baseline only
-2.4,"Change Detection And Impact Analysis",Authored,Authored,Required where applicable,Pending,Pending,Pending,Authored baseline only
-3.1,"Define The Workflow State And Hand Offs",Authored,Authored,Required where applicable,Pending,Pending,Pending,Authored baseline only
-3.2,"Design Specialist Agent Responsibilities",Authored,Authored,Required where applicable,Pending,Pending,Pending,Authored baseline only
-3.3,"Structured Outputs Schemas And Validation",Authored,Authored,Required where applicable,Pending,Pending,Pending,Authored baseline only
-3.4,"Retries Timeouts Idempotency And Audit Trail",Authored,Authored,Required where applicable,Pending,Pending,Pending,Authored baseline only
-3.5,"Human Review And Permission Boundaries",Authored,Authored,Required where applicable,Pending,Pending,Pending,Authored baseline only
-4.1,"Build A Traceable Test Planning Contract",Authored,Authored,Required where applicable,Pending,Pending,Pending,Authored baseline only
-4.2,"Generate Positive Negative And Boundary Scenarios",Authored,Authored,Required where applicable,Pending,Pending,Pending,Authored baseline only
-4.3,"Prioritise Regression By Business Impact",Authored,Authored,Required where applicable,Pending,Pending,Pending,Authored baseline only
-4.4,"Review Hallucinations Omissions And Weak Assertions",Authored,Authored,Required where applicable,Pending,Pending,Pending,Authored baseline only
-5.1,"Model A Business Journey As Api Interactions",Authored,Authored,Required where applicable,Pending,Pending,Pending,Authored baseline only
-5.2,"Variables Environments And Safe Test Data",Authored,Authored,Required where applicable,Pending,Pending,Pending,Authored baseline only
-5.3,"Assertions That Verify Business Outcomes",Authored,Authored,Required where applicable,Pending,Pending,Pending,Authored baseline only
-5.4,"Review And Maintain Generated Collection Changes",Authored,Authored,Required where applicable,Pending,Pending,Pending,Authored baseline only
-6.1,"Collection Execution Options And Tool Roles",Authored,Authored,Required where applicable,Pending,Pending,Pending,Authored baseline only
-6.2,"Run Postman Cli Locally And Interpret Reports",Authored,Authored,Required where applicable,Pending,Pending,Pending,Authored baseline only
-6.3,"Understand Newman And Migration Considerations",Authored,Authored,Required where applicable,Pending,Pending,Pending,Authored baseline only
-6.4,"Build A Github Actions Pipeline",Authored,Authored,Required where applicable,Pending,Pending,Pending,Authored baseline only
-6.5,"Protect Secrets Artefacts And Write Enabled Environments",Authored,Authored,Required where applicable,Pending,Pending,Pending,Authored baseline only
-7.1,"Capture Useful Execution Evidence",Authored,Authored,Required where applicable,Pending,Pending,Pending,Authored baseline only
-7.2,"Classify Product Test Data And Environment Failures",Authored,Authored,Required where applicable,Pending,Pending,Pending,Authored baseline only
-7.3,"Prevent An Ai Diagnosis From Becoming An Unchecked Gate",Authored,Authored,Required where applicable,Pending,Pending,Pending,Authored baseline only
-7.4,"Produce A Release Recommendation With Deterministic Rules",Authored,Authored,Required where applicable,Pending,Pending,Pending,Authored baseline only
-8.1,"Understand The Carex Appointment Booking Journey",Authored,Authored,Required where applicable,Pending,Pending,Pending,Authored baseline only
-8.2,"Introduce A Business Rule Change",Authored,Authored,Required where applicable,Pending,Pending,Pending,Authored baseline only
-8.3,"Run Requirement Impact And Test Planning Stages",Authored,Authored,Required where applicable,Pending,Pending,Pending,Authored baseline only
-8.4,"Review Collection Changes And Execute Ci",Authored,Authored,Required where applicable,Pending,Pending,Pending,Authored baseline only
-8.5,"Triage A Seeded Failure And Produce The Release Assessment",Authored,Authored,Required where applicable,Pending,Pending,Pending,Authored baseline only
+1.1,"The Limits Of Conventional Api Automation",Bespoke authored,Bespoke authored,Postman/structured artefact,Partial - verify,Partial - verify,Partial - verify,Not recording-ready
+1.2,"What Makes An Sdlc Workflow Agentic",Bespoke authored,Bespoke authored,Postman/structured artefact,Partial - verify,Partial - verify,Partial - verify,Not recording-ready
+1.3,"The Reference Architecture Agents Tools Evidence And Gates",Bespoke authored,Bespoke authored,Postman/structured artefact,Partial - verify,Partial - verify,Partial - verify,Not recording-ready
+1.4,"Predict The Failure Where Autonomy Becomes Unsafe",Bespoke authored,Bespoke authored,Postman/structured artefact,Partial - verify,Partial - verify,Partial - verify,Not recording-ready
+2.1,"Start With A Business Change Not An Endpoint",Bespoke authored,Bespoke authored,Postman/structured artefact,Partial - verify,Partial - verify,Partial - verify,Not recording-ready
+2.2,"Extract Rules Acceptance Criteria And Ambiguity",Bespoke authored,Bespoke authored,Postman/structured artefact,Partial - verify,Partial - verify,Partial - verify,Not recording-ready
+2.3,"Map Rules To Api Operations And Journeys",Bespoke authored,Bespoke authored,Postman/structured artefact,Partial - verify,Partial - verify,Partial - verify,Not recording-ready
+2.4,"Change Detection And Impact Analysis",Bespoke authored,Bespoke authored,Postman/structured artefact,Partial - verify,Partial - verify,Partial - verify,Not recording-ready
+3.1,"Define The Workflow State And Hand Offs",Bespoke authored,Bespoke authored,Postman/structured artefact,Partial - verify,Partial - verify,Partial - verify,Not recording-ready
+3.2,"Design Specialist Agent Responsibilities",Bespoke authored,Bespoke authored,Postman/structured artefact,Partial - verify,Partial - verify,Partial - verify,Not recording-ready
+3.3,"Structured Outputs Schemas And Validation",Bespoke authored,Bespoke authored,Postman/structured artefact,Partial - verify,Partial - verify,Partial - verify,Not recording-ready
+3.4,"Retries Timeouts Idempotency And Audit Trail",Bespoke authored,Bespoke authored,Postman/structured artefact,Partial - verify,Partial - verify,Partial - verify,Not recording-ready
+3.5,"Human Review And Permission Boundaries",Bespoke authored,Bespoke authored,Postman/structured artefact,Partial - verify,Partial - verify,Partial - verify,Not recording-ready
+4.1,"Build A Traceable Test Planning Contract",Bespoke authored,Bespoke authored,Postman/structured artefact,Partial - verify,Partial - verify,Partial - verify,Not recording-ready
+4.2,"Generate Positive Negative And Boundary Scenarios",Bespoke authored,Bespoke authored,Postman/structured artefact,Partial - verify,Partial - verify,Partial - verify,Not recording-ready
+4.3,"Prioritise Regression By Business Impact",Bespoke authored,Bespoke authored,Postman/structured artefact,Partial - verify,Partial - verify,Partial - verify,Not recording-ready
+4.4,"Review Hallucinations Omissions And Weak Assertions",Bespoke authored,Bespoke authored,Postman/structured artefact,Partial - verify,Partial - verify,Partial - verify,Not recording-ready
+5.1,"Model A Business Journey As Api Interactions",Bespoke authored,Bespoke authored,Postman/structured artefact,Partial - verify,Partial - verify,Partial - verify,Not recording-ready
+5.2,"Variables Environments And Safe Test Data",Bespoke authored,Bespoke authored,Postman/structured artefact,Partial - verify,Partial - verify,Partial - verify,Not recording-ready
+5.3,"Assertions That Verify Business Outcomes",Bespoke authored,Bespoke authored,Postman/structured artefact,Partial - verify,Partial - verify,Partial - verify,Not recording-ready
+5.4,"Review And Maintain Generated Collection Changes",Bespoke authored,Bespoke authored,Postman/structured artefact,Partial - verify,Partial - verify,Partial - verify,Not recording-ready
+6.1,"Collection Execution Options And Tool Roles",Bespoke authored,Bespoke authored,Postman/structured artefact,Partial - verify,Partial - verify,Partial - verify,Not recording-ready
+6.2,"Run Postman Cli Locally And Interpret Reports",Bespoke authored,Bespoke authored,Postman/structured artefact,Partial - verify,Partial - verify,Partial - verify,Not recording-ready
+6.3,"Understand Newman And Migration Considerations",Bespoke authored,Bespoke authored,Postman/structured artefact,Partial - verify,Partial - verify,Partial - verify,Not recording-ready
+6.4,"Build A Github Actions Pipeline",Bespoke authored,Bespoke authored,Postman/structured artefact,Partial - verify,Partial - verify,Partial - verify,Not recording-ready
+6.5,"Protect Secrets Artefacts And Write Enabled Environments",Bespoke authored,Bespoke authored,Postman/structured artefact,Partial - verify,Partial - verify,Partial - verify,Not recording-ready
+7.1,"Capture Useful Execution Evidence",Bespoke authored,Bespoke authored,Postman/structured artefact,Partial - verify,Partial - verify,Partial - verify,Not recording-ready
+7.2,"Classify Product Test Data And Environment Failures",Bespoke authored,Bespoke authored,Postman/structured artefact,Partial - verify,Partial - verify,Partial - verify,Not recording-ready
+7.3,"Prevent An Ai Diagnosis From Becoming An Unchecked Gate",Bespoke authored,Bespoke authored,Postman/structured artefact,Partial - verify,Partial - verify,Partial - verify,Not recording-ready
+7.4,"Produce A Release Recommendation With Deterministic Rules",Bespoke authored,Bespoke authored,Postman/structured artefact,Partial - verify,Partial - verify,Partial - verify,Not recording-ready
+8.1,"Understand The Carex Appointment Booking Journey",Bespoke authored,Bespoke authored,Postman/structured artefact,Partial - verify,Partial - verify,Partial - verify,Not recording-ready
+8.2,"Introduce A Business Rule Change",Bespoke authored,Bespoke authored,Postman/structured artefact,Partial - verify,Partial - verify,Partial - verify,Not recording-ready
+8.3,"Run Requirement Impact And Test Planning Stages",Bespoke authored,Bespoke authored,Postman/structured artefact,Partial - verify,Partial - verify,Partial - verify,Not recording-ready
+8.4,"Review Collection Changes And Execute Ci",Bespoke authored,Bespoke authored,Postman/structured artefact,Partial - verify,Partial - verify,Partial - verify,Not recording-ready
+8.5,"Triage A Seeded Failure And Produce The Release Assessment",Bespoke authored,Bespoke authored,Postman/structured artefact,Partial - verify,Partial - verify,Partial - verify,Not recording-ready

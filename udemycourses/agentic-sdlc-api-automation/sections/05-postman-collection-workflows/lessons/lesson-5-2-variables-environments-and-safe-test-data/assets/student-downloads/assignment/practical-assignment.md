@@ -4,7 +4,7 @@
 The CareX API supports patient discovery, authentication, appointment booking and cancellation. The course change requires patient cancellation only when appointment start is more than 24 hours away in clinic-local time; exactly 24 hours is not allowed.
 
 ## Task
-Refactor the CareX training collection to use environment variables for baseUrl, tenant and synthetic account credentials, and collection variables for runtime IDs such as clinicId, providerId, slotId and appointmentId. Export a safe environment template with secret values blank or placeholders. Add a pre-request guard that blocks unsafe writes unless an explicit local non-production flag is set. Verify the exported file contains no credentials.
+Refactor the CareX training collection to use environment variables for baseUrl, tenant and synthetic account credentials, and collection variables for runtime IDs such as clinicId, providerId, slotId and appointmentId. Export a safe environment template with secret values blank or placeholders. Use Postman Agent Mode to generate or configure a pre-request guard that blocks unsafe writes unless an explicit local non-production flag is set. Review the generated script and verify both the blocked and permitted cases; do not hand-write the script as the primary task. Verify the exported file contains no credentials.
 
 ## Submission
 1. Updated Postman collection/environment artefact.

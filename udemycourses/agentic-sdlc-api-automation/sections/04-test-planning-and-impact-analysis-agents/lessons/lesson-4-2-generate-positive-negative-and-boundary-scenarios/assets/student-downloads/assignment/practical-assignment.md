@@ -4,7 +4,7 @@
 CareX is changing patient appointment cancellation: a patient may cancel their own appointment only when the appointment start is more than 24 hours away in the clinic-local timezone. Exactly 24 hours is not allowed. Staff cancellation follows existing permissions.
 
 ## Task
-Prompt Postman Agent Mode to generate positive, negative, exact-boundary, just-over, just-under, ownership and staff-regression scenarios for the cancellation rule. Build a coverage matrix with one row per rule and columns for scenario class, actor, boundary, evidence and expected business outcome. Identify duplicate scenarios and at least one omission. Implement only contract-backed cases in the Postman collection.
+Prompt Postman Agent Mode to generate positive, negative, exact-boundary, just-over, just-under, ownership and staff-regression scenarios for the cancellation rule. Build a coverage matrix with one row per rule and columns for scenario class, actor, boundary, evidence and expected business outcome. Identify duplicate scenarios and at least one omission. Use Postman Agent Mode to add only contract-backed cases to the Postman collection. Review the generated requests and test scripts before running them.
 
 ## Submission
 1. Agent Mode prompt and unmodified output.
