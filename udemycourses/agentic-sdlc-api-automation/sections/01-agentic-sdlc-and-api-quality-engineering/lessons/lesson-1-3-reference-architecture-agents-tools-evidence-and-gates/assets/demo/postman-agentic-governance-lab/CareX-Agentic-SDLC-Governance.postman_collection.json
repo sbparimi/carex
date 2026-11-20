@@ -1,0 +1,93 @@
+{
+  "info": {
+    "name": "CareX — Agentic SDLC Governance Lab",
+    "description": "Postman-first demonstration of validating AI-agent test-plan proposals. Read-only CareX health request; no collection writes, database writes or release actions.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://127.0.0.1:8000"
+    },
+    {
+      "key": "tenant",
+      "value": "northwind-health"
+    }
+  ],
+  "item": [
+    {
+      "name": "01 — Accept a safe, evidence-backed agent proposal",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/t/{{tenant}}/api/v1/health",
+        "description": "Read-only health check. The pre-request script creates a synthetic agent proposal; the test script applies deterministic policy checks."
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const proposal = { change_id: 'CAREX-214', source_revision: 'story-v2', proposed_actions: [{ action: 'read_contract', evidence_ref: 'openapi:sha256:demo' }, { action: 'propose_test', evidence_ref: 'requirement:BR-03' }], release_decision: 'recommend_review' };",
+              "pm.variables.set('agentProposal', JSON.stringify(proposal));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const proposal = JSON.parse(pm.variables.get('agentProposal'));",
+              "const allowed = ['read_contract', 'propose_test', 'run_read_only_check'];",
+              "const errors = [];",
+              "pm.test('Proposal has change and revision traceability', function () { pm.expect(proposal.change_id).to.be.a('string').and.not.empty; pm.expect(proposal.source_revision).to.be.a('string').and.not.empty; });",
+              "pm.test('Every proposed action is allow-listed and evidence-backed', function () {",
+              "  pm.expect(proposal.proposed_actions).to.be.an('array').that.is.not.empty;",
+              "  proposal.proposed_actions.forEach((a, i) => { if (!allowed.includes(a.action)) errors.push('action[' + i + '] not allow-listed'); if (!a.evidence_ref) errors.push('action[' + i + '] missing evidence_ref'); });",
+              "  pm.expect(errors, errors.join('; ')).to.be.empty;",
+              "});",
+              "pm.test('Agent recommends review but does not approve release', function () { pm.expect(['not_assessed', 'recommend_hold', 'recommend_review']).to.include(proposal.release_decision); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 — Reject an unsafe agent proposal without performing writes",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/t/{{tenant}}/api/v1/health",
+        "description": "Read-only health check. The proposal contains a collection mutation and an agent release approval; tests assert that deterministic policy rejects both."
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const proposal = { change_id: 'CAREX-214', source_revision: 'story-v2', proposed_actions: [{ action: 'update_collection' }, { action: 'write_database' }, { action: 'send_customer_email' }], release_decision: 'approve_release' };",
+              "pm.variables.set('agentProposal', JSON.stringify(proposal));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const proposal = JSON.parse(pm.variables.get('agentProposal'));",
+              "const allowed = ['read_contract', 'propose_test', 'run_read_only_check'];",
+              "const blocked = proposal.proposed_actions.filter(a => !allowed.includes(a.action));",
+              "pm.test('Mutating and unknown actions are rejected by policy', function () { pm.expect(blocked.map(a => a.action)).to.include.members(['update_collection', 'write_database', 'send_customer_email']); });",
+              "pm.test('Agent cannot approve or execute a release', function () { pm.expect(['not_assessed', 'recommend_hold', 'recommend_review']).not.to.include(proposal.release_decision); });",
+              "pm.test('Unsafe proposal is classified as blocked for human review', function () { pm.expect(blocked.length).to.be.greaterThan(0); });"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
