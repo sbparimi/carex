@@ -20,6 +20,9 @@ def test_postman_fresh_run_authentication_order_and_token_lifecycle(filename):
     for name, token in [('Patient login', 'patientToken'), ('Staff login', 'staffToken')]:
         before = script(name, 'prerequest')
         assert f"pm.environment.unset('{token}')" in before
+        if name == 'Patient login':
+            assert "pm.environment.unset('mfaChallenge')" in before
+            assert "pm.collectionVariables.unset('mfaChallenge')" in before
         assert f"pm.collectionVariables.unset('{token}')" in before
         after = script(name, 'test')
         assert f"pm.environment.set('{token}'" in after

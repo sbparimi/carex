@@ -18,7 +18,7 @@ To execute signup too, use a new synthetic `patientEmail`, set a suitable `patie
 
 Run each collection from the beginning. Discovery obtains valid IDs and at least two future slots. Patient login saves its bearer token, then patient preflight checks it. Staff login and staff preflight do the same with a separate token. Negative requests intentionally expect 401 for missing, invalid, cross-tenant, wrong-role and revoked patient tokens.
 
-The training collection's MFA verification runs when patient login returns a challenge. Supply the delivered test `mfaCode` before sending verification. In a manual run, pause after login to enter it. No code or bearer token is committed. A successful verification saves the newly issued patient token to both the environment and collection.
+Use the Training collection for MFA-enabled tenants; the shorter REST collection has no MFA verification step. The training collection's MFA verification runs when patient login returns a challenge. Supply the delivered test `mfaCode` before sending verification. In a manual run, pause after login to enter it. No code or bearer token is committed. A successful verification saves the newly issued patient token to both the environment and collection.
 
 All generated IDs are saved to the environment and collection. Empty imported environment values no longer hide collection values. Logout happens after every protected operation. The staff lifecycle uses its own new booking instead of trying to change the cancelled patient appointment. A separate upcoming booking is used for the staff cancellation exercise.
 

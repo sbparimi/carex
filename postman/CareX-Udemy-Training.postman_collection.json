@@ -1,7 +1,7 @@
 {
   "info": {
     "_postman_id": "carex-rest-api-v1",
-    "name": "CareX — Udemy Training REST API",
+    "name": "CareX \u2014 Udemy Training REST API",
     "description": "Reusable training collection for CareX API v1. Import one environment (Dev or Test) and select it before running. Use synthetic training data only. Start with Public discovery, then Patient authentication, Patient appointment lifecycle, and Staff workflows. Patient bookings are immediately confirmed; there is no doctor-approval state.\n\nFresh-run workflow: patient and staff preflights follow their own login. All generated IDs are saved to the active environment and collection. Use the isolated synthetic Dev environment. Default login uses seeded demo accounts. Enable runSignup only with a fresh patientEmail. MFA verification runs only when login returns a challenge; supply mfaCode from the captured/test mailbox. Enable runAccountRecovery only for a disposable identity, supplying resetToken and newPassword. Logout follows all protected operations. Never export current bearer tokens or use this write-enabled workflow on production.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
@@ -81,7 +81,7 @@
   ],
   "item": [
     {
-      "name": "01 — Public discovery",
+      "name": "01 \u2014 Public discovery",
       "item": [
         {
           "name": "Health",
@@ -311,7 +311,7 @@
       ]
     },
     {
-      "name": "02 — Patient authentication",
+      "name": "02 \u2014 Patient authentication",
       "item": [
         {
           "name": "Access options",
@@ -445,6 +445,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.environment.unset('mfaChallenge');pm.collectionVariables.unset('mfaChallenge');",
                   "{",
                   "pm.environment.unset('patientToken');",
                   "pm.collectionVariables.unset('patientToken');",
@@ -609,7 +610,7 @@
           "name": "Reject cross-tenant patient bearer",
           "request": {
             "method": "GET",
-            "url": "{{baseUrl}}/t/bayview-care/api/v1/appointments",
+            "url": "{{baseUrl}}/t/{{otherTenant}}/api/v1/appointments",
             "header": [
               {
                 "key": "Authorization",
@@ -624,6 +625,15 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('Unauthorized request is rejected',()=>pm.response.to.have.status(401));"
+                ]
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.variables.set('otherTenant',pm.variables.get('tenant')==='bayview-care'?'northwind-health':'bayview-care');"
                 ]
               }
             }
@@ -719,7 +729,7 @@
       ]
     },
     {
-      "name": "03 — Patient appointment lifecycle",
+      "name": "03 \u2014 Patient appointment lifecycle",
       "item": [
         {
           "name": "Create appointment",
@@ -931,7 +941,7 @@
                   "{",
                   "const data = pm.response.json();",
                   "const value = data.id || data.patient_id || data.dependent_id;",
-                  "if (value) pm.environment.set('dependentId', value);",
+                  "if (value) {pm.environment.set('dependentId', value);pm.collectionVariables.set('dependentId', value);}",
                   "}"
                 ]
               }
@@ -978,7 +988,7 @@
       ]
     },
     {
-      "name": "04 — Provider and front desk",
+      "name": "04 \u2014 Provider and front desk",
       "item": [
         {
           "name": "Staff login",
@@ -1460,7 +1470,7 @@
       ]
     },
     {
-      "name": "05 — Patient support and preferences",
+      "name": "05 \u2014 Patient support and preferences",
       "item": [
         {
           "name": "Get intake config",
@@ -1571,7 +1581,7 @@
                   "{",
                   "const data = pm.response.json();",
                   "const value = data.id || data.entry_id;",
-                  "if (value) pm.environment.set('waitlistEntryId', value);",
+                  "if (value) {pm.environment.set('waitlistEntryId', value);pm.collectionVariables.set('waitlistEntryId', value);}",
                   "}"
                 ]
               }
