@@ -1,0 +1,19 @@
+{
+  "title": "Agentic SDLC for API Automation",
+  "subtitle": "Build Autonomous API Quality Engineering with Postman, Postman CLI and GitHub Actions",
+  "planned_duration_hours": 11,
+  "level": "Intermediate to advanced",
+  "modules": 8,
+  "lessons": 35,
+  "lesson_sequence": [
+    "Opening",
+    "Concept",
+    "Why",
+    "Demo",
+    "Build",
+    "Verify",
+    "Recap"
+  ],
+  "acceptance_gate": "All 13 criteria must score 10/10 with retained evidence; no averaging.",
+  "status": "production-in-progress"
+}
