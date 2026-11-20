@@ -13,6 +13,7 @@ Run a small Python policy gate and prove that an agent proposal cannot silently 
 - `examples/safe-proposal.json`: evidence-backed proposal
 - `examples/unsafe-proposal.json`: unsafe write and release approval
 - `test_policy_gate.py`: five standard-library unit tests
+- [Test execution record](test-execution-record.md)
 
 ## Run the tests
 ```bash
