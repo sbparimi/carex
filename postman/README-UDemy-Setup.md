@@ -33,3 +33,8 @@ The current product confirms patient bookings immediately. It does not implement
 - Swagger UI: `{{baseUrl}}/api/docs`
 - OpenAPI JSON: `{{baseUrl}}/api/openapi.json`
 - Tenant API prefix: `/t/{{tenant}}/api/v1`
+
+
+## HTTP 401 troubleshooting
+
+CareX API v1 uses opaque session tokens, not JWTs. First run **Patient login** (or **Patient signup**) and confirm the response contains `access_token` and `token_type: Bearer`. The collection saves the token into both the active environment and collection variables. Run **Patient token status** to verify `/auth/me` returns HTTP 200 before calling appointments. Staff routes require their own token from **Staff login**; do not reuse the patient token. The included Dev environment uses `http://127.0.0.1:8127` and tenant `northwind-health`. If the API listens on a different port, update `baseUrl` to the actual listener. Never commit or share access tokens.
