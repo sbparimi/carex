@@ -1,6 +1,6 @@
 # Learner resources — Lesson 1.3: Postman Agentic SDLC architecture
 
-- [Postman Agentic SDLC Governance lab](../../../../../../assets/demo/postman-agentic-governance-lab/README.md)
+- [Postman Agentic SDLC Governance lab](../demo/postman-agentic-governance-lab/README.md)
 - [Knowledge check](quiz/knowledge-check.md)
 - [Practical assignment](assignment/practical-assignment.md)
 - [Starter artefacts](starter/README.md)
