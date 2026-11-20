@@ -87,6 +87,30 @@
           }
         },
         {
+          "name": "List practice types",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/t/{{tenant}}/api/v1/practice-types"
+          }
+        },
+        {
+          "name": "Get clinic details",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/t/{{tenant}}/api/v1/clinics/{{clinicId}}"
+          }
+        },
+        {
+          "name": "Clinic accepted plans",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/t/{{tenant}}/api/v1/clinics/{{clinicId}}/plans"
+          }
+        },
+        {
           "name": "List clinics",
           "request": {
             "method": "GET",
@@ -273,6 +297,57 @@
             ],
             "url": "{{baseUrl}}/t/{{tenant}}/api/v1/patients"
           }
+        },
+        {
+          "name": "Verify MFA challenge",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"challenge\":\"{{mfaChallenge}}\",\"code\":\"{{mfaCode}}\"}"
+            },
+            "url": "{{baseUrl}}/t/{{tenant}}/api/v1/auth/mfa/verify"
+          }
+        },
+        {
+          "name": "Request password reset",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\":\"{{patientEmail}}\"}"
+            },
+            "url": "{{baseUrl}}/t/{{tenant}}/api/v1/auth/password-reset/request"
+          }
+        },
+        {
+          "name": "Confirm password reset",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"token\":\"{{resetToken}}\",\"new_password\":\"{{newPassword}}\"}"
+            },
+            "url": "{{baseUrl}}/t/{{tenant}}/api/v1/auth/password-reset/confirm"
+          }
         }
       ]
     },
@@ -384,6 +459,53 @@
           }
         },
         {
+          "name": "Add dependent patient",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{patientToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"relationship\":\"child\",\"first_name\":\"Course\",\"last_name\":\"Dependent\",\"date_of_birth\":\"2012-04-12\"}"
+            },
+            "url": "{{baseUrl}}/t/{{tenant}}/api/v1/patients"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const data = pm.response.json();",
+                  "const value = data.id || data.patient_id || data.dependent_id;",
+                  "if (value) pm.environment.set('dependentId', value);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Remove dependent patient",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{patientToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/t/{{tenant}}/api/v1/patients/{{dependentId}}"
+          }
+        },
+        {
           "name": "Logout patient",
           "request": {
             "method": "POST",
@@ -440,6 +562,108 @@
               }
             ],
             "url": "{{baseUrl}}/t/{{tenant}}/api/v1/staff/catalog"
+          }
+        },
+        {
+          "name": "Current staff profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staffToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/t/{{tenant}}/api/v1/staff/auth/me"
+          }
+        },
+        {
+          "name": "Staff availability",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staffToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/t/{{tenant}}/api/v1/staff/availability?clinic_id={{clinicId}}&visit_type_id={{visitTypeId}}&provider_id={{providerId}}"
+          }
+        },
+        {
+          "name": "Front-desk book appointment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staffToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"clinic_id\":\"{{clinicId}}\",\"service_id\":\"{{visitTypeId}}\",\"provider_id\":\"{{providerId}}\",\"slot_id\":\"{{slotId}}\",\"first_name\":\"Walk-in\",\"last_name\":\"Learner\",\"date_of_birth\":\"1988-05-10\",\"email\":\"walkin.learner@example.test\",\"reason\":\"Course front-desk booking\",\"modality\":\"in_person\",\"consent_attested\":true}"
+            },
+            "url": "{{baseUrl}}/t/{{tenant}}/api/v1/staff/appointments"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const data = pm.response.json();",
+                  "const value = data.id || data.appointment_id;",
+                  "if (value) pm.environment.set('appointmentId', value);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Staff cancel appointment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staffToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"reason\":\"Course cancellation exercise\"}"
+            },
+            "url": "{{baseUrl}}/t/{{tenant}}/api/v1/staff/appointments/{{appointmentId}}/cancel"
+          }
+        },
+        {
+          "name": "Staff reschedule appointment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staffToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"slot_id\":\"{{newSlotId}}\"}"
+            },
+            "url": "{{baseUrl}}/t/{{tenant}}/api/v1/staff/appointments/{{appointmentId}}/reschedule"
           }
         },
         {
@@ -588,6 +812,32 @@
               "raw": "{\"clinic_id\":\"{{clinicId}}\",\"visit_type_id\":\"{{visitTypeId}}\",\"provider_id\":\"{{providerId}}\"}"
             },
             "url": "{{baseUrl}}/t/{{tenant}}/api/v1/waitlist"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const data = pm.response.json();",
+                  "const value = data.id || data.entry_id;",
+                  "if (value) pm.environment.set('waitlistEntryId', value);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Leave waitlist",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{patientToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/t/{{tenant}}/api/v1/waitlist/{{waitlistEntryId}}"
           }
         }
       ]
