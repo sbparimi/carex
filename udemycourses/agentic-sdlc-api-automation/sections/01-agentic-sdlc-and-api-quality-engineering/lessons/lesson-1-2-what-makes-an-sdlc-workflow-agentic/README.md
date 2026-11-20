@@ -1,30 +1,24 @@
 # Lesson 1.2 — What makes an SDLC workflow agentic
 
 **Section:** 01 — Agentic SDLC and API Quality Engineering  
-**Production status:** Script, storyboard, learner worksheet and reference answer drafted; execution validation pending.
+**Learner outcome:** Distinguish an AI-assisted workflow from a genuinely agentic workflow by identifying goal, context, bounded tool use, state, evidence, feedback and human approval.
 
-## Required lesson sequence
+## Seven-part lesson
+1. **Opening:** Present a CareX change that crosses requirements, API tests, execution and release.
+2. **Concept:** Explain how Postman Agent Mode uses context and tools to perform multi-step API lifecycle tasks, rather than only generating text.
+3. **Why:** Connect bounded autonomy to faster change handling without surrendering quality controls.
+4. **Demo:** Give Agent Mode a bounded CareX task, inspect its plan/actions and compare the resulting artefact with the request.
+5. **Build:** Complete the responsibility matrix and release-conflict scenario.
+6. **Verify:** Identify which actions were proposed, which were actually performed, what evidence exists and what still needs human approval.
+7. **Recap:** Carry forward a clear division between Agent Mode, Postman tests, CLI/CI and human authority.
 
-1. Opening
-2. Concept
-3. Why
-4. Demo
-5. Build
-6. Verify
-7. Recap
+## Learner resources
+- [Knowledge check](assets/student-downloads/quiz/knowledge-check.md)
+- [Practical assignment](assets/student-downloads/assignment/practical-assignment.md)
+- [Responsibility matrix](assets/student-downloads/responsibility-matrix.csv)
+- [Release-conflict scenario](assets/student-downloads/scenario-release-conflict.json)
+- [Quick reference](assets/student-downloads/lesson-1.2-quick-reference.md)
+- [Instructor script and storyboard](assets/instructor/README.md)
 
-## Measurable learner outcome
-
-To be stated as an observable capability that the learner can independently demonstrate and verify.
-
-## Asset index
-
-- [Instructor assets](assets/instructor/README.md)
-- [Slide assets](assets/slides/README.md)
-- [Demo assets](assets/demo/README.md)
-- [Learner assets](assets/learner/README.md)
-- [Assessment assets](assets/assessment/README.md)
-
-## Acceptance evidence
-
-Do not mark this lesson complete until all 13 mandatory criteria score 10/10 and the evidence is retained. See the course production standard in the course design workspace.
+## Production gate
+Script, storyboard and learner worksheet are drafted. The live Postman Agent Mode demonstration, exact feature-access check, learner rehearsal and 13-point 10/10 evidence score remain required.
