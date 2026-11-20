@@ -36,7 +36,7 @@ Run public discovery first. The collection automatically stores the first clinic
 | GET | `/accounts/access-options?q=` | Employer and insurer signup choices | Public |
 | POST | `/auth/signup` | Create patient account | Public |
 | POST | `/auth/login` | Login; may return MFA challenge | Public |
-| POST | `/auth/mfa/verify` | Complete MFA | Public |
+| POST | `/auth/mfa/verify` | Complete MFA | Public |\n| POST | `/auth/password-reset/request` | Request reset instructions (non-enumerating response) | Public |\n| POST | `/auth/password-reset/confirm` | Set password using reset token | Public |
 | GET | `/auth/me` | Current patient profile | Patient |
 | POST | `/auth/logout` | Revoke patient session | Patient |
 | GET/POST | `/patients` | List/add dependents | Patient |
@@ -81,7 +81,7 @@ Booking uses the same intake, consent, coverage, eligibility, slot-locking and i
 | GET | `/staff/auth/me` | Current staff profile |
 | POST | `/staff/auth/logout` | Revoke staff session |
 | GET | `/staff/catalog` | Staff-scoped clinics, providers and visit types |
-| GET | `/staff/appointments?date=YYYY-MM-DD` | Day schedule (provider scope enforced) |
+| GET | `/staff/availability?...` | Provider-scoped slot lookup |\n| POST | `/staff/appointments` | Book a phone/walk-in patient (front desk/admin only; verbal consent attestation required) |\n| GET | `/staff/appointments?date=YYYY-MM-DD` | Day schedule (provider scope enforced) |
 | GET | `/staff/appointments/{appointment_id}` | Appointment detail (provider scope enforced) |
 | PATCH | `/staff/appointments/{appointment_id}/status` | Mark arrived/completed/no-show where permitted |
 | POST | `/staff/appointments/{appointment_id}/cancel` | Staff cancellation |
