@@ -50,7 +50,62 @@ Score each criterion independently from 0 to 10. A lesson passes only when **all
 
 A score of 10 means the criterion is fully demonstrated, not that the author intended to include it. Placeholders, plans, mock outputs and unexecuted scripts cannot earn full evidence credit.
 
-## 4. Demonstration and explanation rules
+## 4. Bryan Lamb-style hands-on teaching method — mandatory
+
+The course must apply the practical, demonstration-led teaching techniques identified in the Bryan Lamb course review. This is a required teaching method, not an optional stylistic influence.
+
+### 4.1 Continuous project and progressive construction
+
+- Teach through one continuous, realistic project: CareX.
+- Build capability progressively. Each lesson must use or extend a working artefact from an earlier checkpoint rather than presenting disconnected toy examples.
+- Make each change small enough for learners to understand its purpose and consequence.
+- Show the working starting point, the changed state and the resulting behaviour.
+- Provide completed, runnable checkpoints so learners can recover, compare and continue without hidden setup.
+- Keep the learner download, instructor demonstration and reference solution aligned to the same project state.
+
+### 4.2 The Change–Run–Observe–Diagnose–Fix–Verify (CRODF) loop
+
+For technical demonstrations and practical exercises, use this repeated cycle:
+
+1. **Change:** make one small, purposeful change and explain the hypothesis or expected effect.
+2. **Run:** execute the actual request, collection, command or workflow.
+3. **Observe:** inspect the real output, response, assertion, log or failure. Do not jump over the evidence.
+4. **Diagnose:** identify the exact mismatch between expected and actual behaviour. Trace it to the cause rather than guessing.
+5. **Fix:** apply the smallest justified correction. Explain why this correction addresses the root cause.
+6. **Verify:** rerun the same check and compare the new result with the expected outcome.
+
+Repeat the loop when useful to demonstrate progressive refinement. Do not batch several unexplained edits before execution. Do not hide meaningful failures, silently replace failed output, or present an unexecuted result as a successful run. If a live run is unavailable, mark the segment BLOCKED or SCRIPTED-NOT-RUN.
+
+### 4.3 Instructor reasoning and learner transfer
+
+- Narrate what is being changed, why it is being changed, what result is expected and what evidence will confirm it.
+- Make decision points visible: alternatives considered, evidence inspected and reason for the chosen action.
+- Before revealing important output, ask learners to predict what will happen and why.
+- After the instructor walkthrough, provide a related but not identical independent task so learners must transfer the method rather than repeat clicks.
+- Explain common mistakes, diagnostic clues and how to decide which layer is responsible.
+
+### 4.4 Completed examples and checkpoints
+
+- Provide a working example before asking learners to extend it.
+- Include the final expected artefact and a tested reference solution.
+- Mark stable checkpoints with clear lesson identifiers and repository references.
+- Explain how to compare the learner result with the reference solution.
+- A checkpoint is not complete until its instructions work from a clean checkout and its expected result has been verified.
+
+## 5. Audio-visual synchronization standard — mandatory
+
+Narration and visuals must function as one coordinated teaching experience throughout the lesson.
+
+- Keep narration continuously aligned with the action currently visible. Explain an action as it happens, not several screens later.
+- When a spoken term, code element, Postman control, request, response, error, correction or result is important, highlight the corresponding visual at the same time.
+- Use a clear cursor, deliberate pointer movement, readable zoom and restrained callouts to direct attention.
+- Keep audio clear and consistent; remove avoidable noise and level changes.
+- Captions must be synchronized with speech and use the correct technical terminology.
+- Do not leave unexplained silence, dead time, abrupt cuts, unrelated visuals or unsynchronized narration.
+- Allow deliberate pauses for learner prediction and practice; label or voice them as learner thinking time rather than leaving accidental gaps.
+- Do not use cursor movement, animation or visual effects that distract from the concept being taught.
+
+## 6. Demonstration and explanation rules
 
 - Start from the learner's likely starting state. State required setup and assumptions.
 - Show the actual application or environment for software demonstrations.
@@ -61,7 +116,7 @@ A score of 10 means the criterion is fully demonstrated, not that the author int
 - Do not fabricate screens, tool responses, API output, logs, test reports or successful executions.
 - If a demonstration cannot be executed, mark it BLOCKED or SCRIPTED-NOT-RUN. Never present it as verified.
 
-## 5. Prediction, failure and diagnosis
+## 7. Prediction, failure and diagnosis
 
 - Ask the learner to predict an outcome before revealing it. A pause or explicit decision prompt is acceptable.
 - Choose failures that teach a transferable diagnostic skill, not arbitrary errors added for drama.
@@ -70,7 +125,7 @@ A score of 10 means the criterion is fully demonstrated, not that the author int
 - Do not hide the failure or edit the recording to imply that the first attempt succeeded.
 - Where an intentional failure is unsafe or destructive, use a disposable fixture or a clearly labelled recorded example.
 
-## 6. Independent practice and assessment
+## 8. Independent practice and assessment
 
 Each practical lesson must provide:
 - A clearly identified starter asset or starting state.
@@ -83,7 +138,7 @@ Each practical lesson must provide:
 
 Assessment must test understanding and application, not recall of incidental UI labels. Distractors must be plausible and technically defensible. Practical tasks must be achievable with the supplied resources and must not require undisclosed paid access.
 
-## 7. Narration, visuals and pacing
+## 9. Narration, visuals and pacing
 
 - Narration must sound natural and explain the reasoning behind actions.
 - Do not read dense slide text word-for-word.
@@ -94,7 +149,7 @@ Assessment must test understanding and application, not recall of incidental UI 
 - Use diagrams to clarify architecture or relationships; do not use decorative motion that competes with the lesson.
 - Captions and transcript must match the final audio and technical terminology.
 
-## 8. Continuity and course project
+## 10. Continuity and course project
 
 - Use the shared CareX project consistently.
 - Reuse established terms, identities, API contracts and business rules.
@@ -103,7 +158,7 @@ Assessment must test understanding and application, not recall of incidental UI 
 - Do not silently change an earlier lesson's assumptions or expected result.
 - Keep a traceable link from lesson outcome to demo, learner task, assessment and reference solution.
 
-## 9. Evidence and review
+## 11. Evidence and review
 
 Each lesson must retain:
 - Script and seven-part storyboard.
@@ -118,7 +173,7 @@ Each lesson must retain:
 
 The reviewer must be able to follow the lesson using only the learner-facing materials. Any missing, inaccessible, contradictory or unverified evidence blocks the lesson.
 
-## 10. Release decision
+## 12. Release decision
 
 - **PASS:** all 13 criteria are 10/10 with evidence; technical rehearsal and independent learner rehearsal pass; no blockers remain.
 - **BLOCKED:** any criterion is below 10, evidence is missing, or a required capability/environment is unavailable.
