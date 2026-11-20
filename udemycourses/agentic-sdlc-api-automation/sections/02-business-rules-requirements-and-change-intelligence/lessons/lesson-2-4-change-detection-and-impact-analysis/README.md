@@ -1,9 +1,13 @@
 # Lesson 2.4 — Change detection and impact analysis
 
 **Section:** 02 — Business Rules, Requirements and Change Intelligence  
-**Production status:** Blueprint planned; lesson-specific assets not yet produced.
+**Production status:** Learner activities authored; instructor production and technical verification remain open.
 
-## Required lesson sequence
+## Measurable learner outcome
+
+Compare pinned revisions and produce an evidence-linked, risk-ranked test impact proposal.
+
+## Required seven-part lesson sequence
 
 1. Opening
 2. Concept
@@ -13,18 +17,10 @@
 6. Verify
 7. Recap
 
-## Measurable learner outcome
+## Student download
 
-To be stated as an observable capability that the learner can independently demonstrate and verify.
-
-## Asset index
-
-- [Instructor assets](assets/instructor/README.md)
-- [Slide assets](assets/slides/README.md)
-- [Demo assets](assets/demo/README.md)
-- [Learner assets](assets/learner/README.md)
-- [Assessment assets](assets/assessment/README.md)
+- [Lesson pack: activity, knowledge check, starter fixture, practical assignment and reference solution](assets/student-downloads/lesson-pack.md)
 
 ## Acceptance evidence
 
-Do not mark this lesson complete until all 13 mandatory criteria score 10/10 and the evidence is retained. See the course production standard in the course design workspace.
+Do not mark this lesson complete until all 13 mandatory criteria score 10/10 with retained evidence. Live API execution, timed rehearsal and independent learner reproduction are not yet verified.
