@@ -1,39 +1,29 @@
 # Agentic SDLC for API Automation
 
-**Subtitle:** Build Autonomous API Quality Engineering with Postman, Postman CLI and GitHub Actions  
+**Subtitle:** Use Postman Agent Mode, Postman CLI and GitHub Actions to build evidence-driven API quality workflows  
 **Planned duration:** Approximately 11 hours  
 **Level:** Intermediate to advanced  
-**Status:** Course production workspace — not yet recording-ready.
+**Status:** Course production workspace — not recording-ready.
 
-## Two distinct audiences
+## Course objective
+Teach learners to apply Postman Agent Mode to the API quality lifecycle: analyse a business change, derive traceable API test scenarios, propose and review Postman collection changes, verify API behaviour with deterministic assertions, execute collections through Postman CLI and GitHub Actions, diagnose failures and prepare an evidence-backed release recommendation.
 
-This repository separates **production-only materials** from **student-downloadable course assets**.
-
-- Production materials: `assets/instructor/`, `assets/slides/`, `assets/demo/`, and `assets/assessment/`.
-- Student-facing downloads: `assets/student-downloads/` inside each lesson.
-- Course-wide student resources: `student-resources/` for the workbook, setup guide, project starter, quick references and final capstone package.
-
-Never upload instructor scripts, recording notes, answer keys intended for release after an exercise, production checklists or internal scoring rubrics as student downloads.
+## Technology boundaries
+- **Postman Agent Mode:** primary AI-assisted workflow.
+- **Postman collections and scripts:** primary API automation artefact and deterministic functional verification.
+- **Postman CLI:** primary command-line runner for new workflows.
+- **GitHub Actions:** CI orchestration and evidence retention.
+- **Newman:** legacy compatibility/migration context only.
+- **Python:** not a core learner prerequisite and not a replacement for Postman in course demonstrations.
 
 ## Student experience standard
+The course uses one continuous CareX API project. Every practical lesson identifies the download, exact task, expected result, independent verification and checkpoint. Student downloads must be self-contained and separate from instructor production materials.
 
-The course uses an original, continuous CareX API project. Learners receive a usable starter project and downloadable exercise files, then progressively extend the same project across sections. Each practical lesson identifies:
-- what to download before starting;
-- the exact task to perform;
-- the expected result;
-- how to verify the result independently;
-- the checkpoint or completed solution released after the exercise.
-
-Each lesson has its own downloadable resource index. Student resources must be clean, self-contained, versioned and usable without access to this production repository's internal files.
-
-## Lesson sequence
-
-Every lesson follows this exact sequence: Opening → Concept → Why → Demo → Build → Verify → Recap.
+## Lesson structure
+Every lesson follows: Opening → Concept → Why → Demo → Build → Verify → Recap.
 
 ## Architecture principle
-
-Agents interpret and propose. Deterministic components validate, execute and enforce mandatory policy. Humans approve high-impact actions and risk exceptions.
+Agents interpret and propose. Postman tests and CLI execute deterministic checks. GitHub Actions automates reviewed execution. Humans approve high-impact changes and release decisions.
 
 ## Capstone
-
-The CareX appointment-booking API change is the end-to-end capstone. Use synthetic data and a dedicated non-production database branch. Never put credentials, secrets, instructor-only materials or production identifiers in student downloads.
+The CareX appointment-cancellation change is the end-to-end capstone. Use synthetic data and a dedicated non-production database branch. Never include credentials, secrets, instructor-only materials or production identifiers in student downloads.

@@ -1,27 +1,30 @@
-# Lesson 1.3 practical assignment — design the evidence-driven architecture
+# Lesson 1.3 practical assignment — map the Postman Agentic SDLC architecture
 
 ## Scenario
-Build the architecture for a CareX change workflow. It must accept a Jira-style change request, inspect an OpenAPI contract, propose test impact, request review, execute Postman tests and produce a release assessment.
+A CareX change request modifies patient appointment cancellation. The workflow must use Postman Agent Mode to analyse the change, propose test scenarios, update a Postman collection under review, execute the tests with Postman CLI and report evidence through GitHub Actions.
 
 ## Task
-Create a component diagram and one structured hand-off contract for the Test Planner agent.
+Create an architecture diagram and a responsibility/evidence matrix for the end-to-end workflow.
 
 ## Starter
-Use `workflow-components.csv` and `test-plan-output.example.json`.
+Use the supplied `workflow-components.csv` and `test-plan-output.example.json` as reference inputs. Use the Postman governance lab as the executable example.
 
 ## Deliverables
-1. Architecture diagram showing orchestrator, specialist agents, deterministic tools, evidence store and human approval.
-2. Completed component responsibility matrix.
-3. A JSON output contract for a proposed test plan.
-4. A short explanation of where schema validation, permission checks and release policy run.
-5. One failure path showing how invalid agent output is rejected and recorded.
+1. A workflow diagram showing business change intake, Postman Agent Mode, human review, Postman collection, Postman assertions, Postman CLI, GitHub Actions, evidence and release decision.
+2. A responsibility matrix stating what each component may read, propose, change, execute and approve.
+3. One structured Agent Mode test-plan proposal with source references and open questions.
+4. One failure path showing how an unsupported endpoint or unsafe proposed action is rejected.
+5. A short explanation of why a passing proposal-validation test is not proof that the API behaviour is correct.
 
 ## Acceptance criteria
-- Agents propose; deterministic components validate and execute.
-- Human approval is explicit for high-impact changes and risk exceptions.
-- Every hand-off has a defined input, output and evidence reference.
-- Invalid structured output cannot proceed to execution.
-- The release gate consumes raw test evidence and versioned policy, not agent confidence alone.
+- Postman Agent Mode is the primary learner-facing AI agent.
+- Postman collections remain the primary API automation artefact.
+- Postman assertions verify actual API behaviour.
+- Postman CLI executes reviewed collections; GitHub Actions coordinates CI.
+- Agent output is treated as a proposal, not an approval.
+- Human review is explicit for collection changes and release decisions.
+- No Python policy gate or separate test framework is required.
+- Every hand-off has an input, output and evidence reference.
 
 ## Verify
-Validate the JSON example against the schema included in the starter pack. Then inspect the diagram and confirm no agent has unrestricted production write access.
+Import and run the Postman Agentic SDLC Governance lab. Generate a proposal with Agent Mode, paste it into the `agentProposal` collection variable, and run the learner validation request. Explain what the collection validates and what it does not.

@@ -1,10 +1,10 @@
-# Learner resources — 1.3 The Reference Architecture Agents Tools Evidence And Gates
+# Learner resources — Lesson 1.3: Postman Agentic SDLC architecture
 
-- `quiz/knowledge-check.md`: scenario-based quiz with explanations.
-- `assignment/practical-assignment.md`: independent task and acceptance criteria.
-- `code-snippets/README.md`: applicable code/configuration examples.
-- `starter/README.md`: exact starter checkpoint and setup.
-- `expected-results/README.md`: observable results and interpretation.
-- `solution/README.md`: completed reference solution, to open after attempting.
+- [Postman Agentic SDLC Governance lab](../../../../../../assets/demo/postman-agentic-governance-lab/README.md)
+- [Knowledge check](quiz/knowledge-check.md)
+- [Practical assignment](assignment/practical-assignment.md)
+- [Starter artefacts](starter/README.md)
+- [Expected results](expected-results/architecture-checklist.md)
+- [Reference architecture notes](solution/reference-architecture-notes.md)
 
-**Release state:** Quiz and assignment baseline authored. Executable starter files, expected outputs, code examples and completed solutions still require implementation and technical verification. This index alone is not a complete downloadable lab.
+**Release state:** Learner activity and executable Postman collection are authored. The collection still requires import/run validation in the Postman app, a live Agent Mode rehearsal, a completed reference solution and the 13-point lesson-quality gate. This package is not recording-ready.
