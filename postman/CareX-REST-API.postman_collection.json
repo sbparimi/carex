@@ -53,6 +53,26 @@
     {
       "key": "patientPassword",
       "value": ""
+    },
+    {
+      "key": "newSlotId",
+      "value": ""
+    },
+    {
+      "key": "staffEmail",
+      "value": ""
+    },
+    {
+      "key": "staffPassword",
+      "value": ""
+    },
+    {
+      "key": "appointmentDate",
+      "value": "2026-11-25"
+    },
+    {
+      "key": "employerId",
+      "value": ""
     }
   ],
   "item": [
@@ -71,21 +91,54 @@
           "request": {
             "method": "GET",
             "url": "{{baseUrl}}/t/{{tenant}}/api/v1/clinics?limit=50"
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const d=pm.response.json(); if(d.clinics && d.clinics.length) pm.collectionVariables.set('clinicId',d.clinics[0].id);"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Clinic visit types",
           "request": {
             "method": "GET",
             "url": "{{baseUrl}}/t/{{tenant}}/api/v1/clinics/{{clinicId}}/visit-types"
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const d=pm.response.json(); if(d.visit_types && d.visit_types.length) pm.collectionVariables.set('visitTypeId',d.visit_types[0].id);"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Clinic providers",
           "request": {
             "method": "GET",
             "url": "{{baseUrl}}/t/{{tenant}}/api/v1/clinics/{{clinicId}}/providers?visit_type_id={{visitTypeId}}"
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const d=pm.response.json(); if(d.providers && d.providers.length) pm.collectionVariables.set('providerId',d.providers[0].id);"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Available slots",
@@ -116,7 +169,18 @@
           "request": {
             "method": "GET",
             "url": "{{baseUrl}}/t/{{tenant}}/api/v1/accounts/access-options"
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const d=pm.response.json(); if(d.employers && d.employers.length) pm.collectionVariables.set('employerId',d.employers[0].id);"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Patient signup",
@@ -130,7 +194,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\"email\":\"{{patientEmail}}\",\"password\":\"{{patientPassword}}\",\"first_name\":\"Course\",\"last_name\":\"Patient\",\"date_of_birth\":\"1990-02-03\",\"phone\":\"555-123-4567\",\"access_type\":\"employer\",\"access_id\":\"em-n-1\"}"
+              "raw": "{\"email\":\"{{patientEmail}}\",\"password\":\"{{patientPassword}}\",\"first_name\":\"Course\",\"last_name\":\"Patient\",\"date_of_birth\":\"1990-02-03\",\"phone\":\"555-123-4567\",\"access_type\":\"employer\",\"access_id\":\"{{employerId}}\"}"
             },
             "url": "{{baseUrl}}/t/{{tenant}}/api/v1/auth/signup"
           },
