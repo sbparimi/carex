@@ -1,8 +1,8 @@
 {
   "info": {
     "_postman_id": "carex-rest-api-v1",
-    "name": "CareX — End-to-End Healthcare REST API",
-    "description": "Versioned CareX REST API training collection. Uses synthetic tenant data. Run in order: public discovery, patient signup/login, availability, appointment lifecycle, then staff lifecycle. Appointment booking is confirmed immediately in the current CareX business model; there is no separate doctor-approval state.",
+    "name": "CareX \u2014 End-to-End Healthcare REST API",
+    "description": "Versioned CareX REST API training collection. Uses synthetic tenant data. Run in order: public discovery, patient signup/login, availability, appointment lifecycle, then staff lifecycle. Appointment booking is confirmed immediately in the current CareX business model; there is no separate doctor-approval state.\n\nFresh-run workflow: patient and staff preflights follow their own login. All generated IDs are saved to the active environment and collection. Use the isolated synthetic Dev environment. Default login uses seeded demo accounts. Enable runSignup only with a fresh patientEmail. MFA verification runs only when login returns a challenge; supply mfaCode from the captured/test mailbox. Enable runAccountRecovery only for a disposable identity, supplying resetToken and newPassword. Logout follows all protected operations. Never export current bearer tokens or use this write-enabled workflow on production.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -73,73 +73,35 @@
     {
       "key": "employerId",
       "value": ""
+    },
+    {
+      "key": "employerQuery",
+      "value": "Acme"
     }
   ],
   "item": [
     {
-      "name": "00 — Authentication preflight",
-      "item": [
-        {
-          "name": "Patient token status",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{patientToken}}"
-              }
-            ],
-            "url": "{{baseUrl}}/t/{{tenant}}/api/v1/auth/me"
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Patient token is set', function () { pm.expect(pm.environment.get('patientToken') || pm.collectionVariables.get('patientToken')).to.be.a('string').and.not.empty; });",
-                  "pm.test('Patient token is accepted', function () { pm.response.to.have.status(200); });"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Staff token status",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{staffToken}}"
-              }
-            ],
-            "url": "{{baseUrl}}/t/{{tenant}}/api/v1/staff/auth/me"
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Staff token is set', function () { pm.expect(pm.environment.get('staffToken') || pm.collectionVariables.get('staffToken')).to.be.a('string').and.not.empty; });",
-                  "pm.test('Staff token is accepted', function () { pm.response.to.have.status(200); });"
-                ]
-              }
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "name": "01 — Public discovery",
+      "name": "01 \u2014 Public discovery",
       "item": [
         {
           "name": "Health",
           "request": {
             "method": "GET",
             "url": "{{baseUrl}}/t/{{tenant}}/api/v1/health"
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "{",
+                  "pm.test('HTTP contract: Health',()=>pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "}"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "List clinics",
@@ -153,7 +115,25 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "const d=pm.response.json(); if(d.clinics && d.clinics.length) pm.collectionVariables.set('clinicId',d.clinics[0].id);"
+                  "{",
+                  "function saveDerived(key,value){pm.environment.set(key,value);pm.collectionVariables.set(key,value);}",
+                  "pm.test('Discovery succeeds',()=>pm.response.to.have.status(200));",
+                  "const responseBody=pm.response.json();",
+                  "const chosen=pm.environment.get('clinicId') || pm.collectionVariables.get('clinicId') || responseBody.clinics?.[0]?.id;",
+                  "if(!chosen || !responseBody.clinics?.some(x=>x.id===chosen)) throw new Error('Select a valid clinicId from discovery before continuing');",
+                  "pm.environment.set('clinicId',chosen);saveDerived('clinicId',chosen);",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "{",
+                  "pm.test('HTTP contract: List clinics',()=>pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "}"
                 ]
               }
             }
@@ -171,7 +151,25 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "const d=pm.response.json(); if(d.visit_types && d.visit_types.length) pm.collectionVariables.set('visitTypeId',d.visit_types[0].id);"
+                  "{",
+                  "function saveDerived(key,value){pm.environment.set(key,value);pm.collectionVariables.set(key,value);}",
+                  "pm.test('Discovery succeeds',()=>pm.response.to.have.status(200));",
+                  "const responseBody=pm.response.json();",
+                  "const chosen=pm.environment.get('visitTypeId') || pm.collectionVariables.get('visitTypeId') || responseBody.visit_types?.[0]?.id;",
+                  "if(!chosen || !responseBody.visit_types?.some(x=>x.id===chosen)) throw new Error('Select a valid visitTypeId from discovery before continuing');",
+                  "pm.environment.set('visitTypeId',chosen);saveDerived('visitTypeId',chosen);",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "{",
+                  "pm.test('HTTP contract: Clinic visit types',()=>pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "}"
                 ]
               }
             }
@@ -189,7 +187,25 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "const d=pm.response.json(); if(d.providers && d.providers.length) pm.collectionVariables.set('providerId',d.providers[0].id);"
+                  "{",
+                  "function saveDerived(key,value){pm.environment.set(key,value);pm.collectionVariables.set(key,value);}",
+                  "pm.test('Discovery succeeds',()=>pm.response.to.have.status(200));",
+                  "const responseBody=pm.response.json();",
+                  "const chosen=pm.environment.get('providerId') || pm.collectionVariables.get('providerId') || responseBody.providers?.[0]?.id;",
+                  "if(!chosen || !responseBody.providers?.some(x=>x.id===chosen)) throw new Error('Select a valid providerId from discovery before continuing');",
+                  "pm.environment.set('providerId',chosen);saveDerived('providerId',chosen);",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "{",
+                  "pm.test('HTTP contract: Clinic providers',()=>pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "}"
                 ]
               }
             }
@@ -207,8 +223,23 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "const data = pm.response.json();",
-                  "if (data.slots && data.slots.length) pm.collectionVariables.set('slotId', data.slots[0].id);"
+                  "{",
+                  "pm.test('Availability succeeds',()=>pm.response.to.have.status(200));",
+                  "const responseBody=pm.response.json();",
+                  "if(!responseBody.slots || responseBody.slots.length<2) throw new Error('At least two available slots are needed for the lifecycle demo');",
+                  "for(const [key,value] of Object.entries({slotId:responseBody.slots[0].id,newSlotId:responseBody.slots[1].id,appointmentDate:responseBody.slots[0].starts_at.slice(0,10)})){pm.environment.set(key,value);pm.collectionVariables.set(key,value);}",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "{",
+                  "pm.test('HTTP contract: Available slots',()=>pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "}"
                 ]
               }
             }
@@ -217,13 +248,13 @@
       ]
     },
     {
-      "name": "02 — Patient authentication",
+      "name": "02 \u2014 Patient authentication",
       "item": [
         {
           "name": "Access options",
           "request": {
             "method": "GET",
-            "url": "{{baseUrl}}/t/{{tenant}}/api/v1/accounts/access-options"
+            "url": "{{baseUrl}}/t/{{tenant}}/api/v1/accounts/access-options?q={{employerQuery}}"
           },
           "event": [
             {
@@ -231,7 +262,25 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "const d=pm.response.json(); if(d.employers && d.employers.length) pm.collectionVariables.set('employerId',d.employers[0].id);"
+                  "{",
+                  "function saveDerived(key,value){pm.environment.set(key,value);pm.collectionVariables.set(key,value);}",
+                  "pm.test('Discovery succeeds',()=>pm.response.to.have.status(200));",
+                  "const responseBody=pm.response.json();",
+                  "const chosen=pm.environment.get('employerId') || pm.collectionVariables.get('employerId') || responseBody.employers?.[0]?.id;",
+                  "if(!chosen || !responseBody.employers?.some(x=>x.id===chosen)) throw new Error('Select a valid employerId from discovery before continuing');",
+                  "pm.environment.set('employerId',chosen);saveDerived('employerId',chosen);",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "{",
+                  "pm.test('HTTP contract: Access options',()=>pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "}"
                 ]
               }
             }
@@ -259,10 +308,36 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "{",
                   "if (pm.response.code === 201 && pm.response.json().access_token) {",
                   "  pm.environment.set('patientToken', pm.response.json().access_token);",
                   "  pm.collectionVariables.set('patientToken', pm.response.json().access_token);",
-                  "} else { throw new Error('Signup did not return an access token.'); }"
+                  "} else { throw new Error('Signup did not return an access token.'); }",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (String(pm.environment.get('runSignup') || 'false') !== 'true') { pm.execution.skipRequest(); }",
+                  "{",
+                  "pm.environment.unset('patientToken');",
+                  "pm.collectionVariables.unset('patientToken');",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "{",
+                  "pm.test('HTTP contract: Patient signup',()=>pm.expect(pm.response.code).to.be.oneOf([201]));",
+                  "}"
                 ]
               }
             }
@@ -290,13 +365,176 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "{",
                   "if (pm.response.code === 200 && pm.response.json().access_token) {",
                   "  pm.environment.set('patientToken', pm.response.json().access_token);",
                   "  pm.collectionVariables.set('patientToken', pm.response.json().access_token);",
                   "} else if (pm.response.code === 202 && pm.response.json().mfa_required) {",
                   "  pm.environment.set('mfaChallenge', pm.response.json().challenge);",
                   "  pm.collectionVariables.set('mfaChallenge', pm.response.json().challenge);",
-                  "} else { throw new Error('Login did not return an access token. Check credentials or complete MFA.'); }"
+                  "} else { throw new Error('Login did not return an access token. Check credentials or complete MFA.'); }",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.environment.unset('mfaChallenge');pm.collectionVariables.unset('mfaChallenge');",
+                  "{",
+                  "pm.environment.unset('patientToken');",
+                  "pm.collectionVariables.unset('patientToken');",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "{",
+                  "pm.test('HTTP contract: Patient login',()=>pm.expect(pm.response.code).to.be.oneOf([200,202]));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Patient token status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{patientToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/t/{{tenant}}/api/v1/auth/me"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "{",
+                  "pm.test('Patient token is set', function () { pm.expect(pm.environment.get('patientToken') || pm.collectionVariables.get('patientToken')).to.be.a('string').and.not.empty; });",
+                  "pm.test('Patient token is accepted', function () { pm.response.to.have.status(200); });",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "{",
+                  "pm.test('HTTP contract: Patient token status',()=>pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reject missing patient bearer",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/t/{{tenant}}/api/v1/appointments"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Unauthorized request is rejected',()=>pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reject invalid patient bearer",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/t/{{tenant}}/api/v1/appointments",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer not-a-valid-session-token"
+              }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Unauthorized request is rejected',()=>pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reject cross-tenant patient bearer",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/t/{{otherTenant}}/api/v1/appointments",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{patientToken}}"
+              }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Unauthorized request is rejected',()=>pm.response.to.have.status(401));"
+                ]
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.variables.set('otherTenant',pm.variables.get('tenant')==='bayview-care'?'northwind-health':'bayview-care');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reject patient bearer on staff endpoint",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/t/{{tenant}}/api/v1/staff/auth/me",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{patientToken}}"
+              }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Unauthorized request is rejected',()=>pm.response.to.have.status(401));"
                 ]
               }
             }
@@ -313,7 +551,31 @@
               }
             ],
             "url": "{{baseUrl}}/t/{{tenant}}/api/v1/auth/me"
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "{",
+                  "pm.test('Authenticated request succeeds',()=>pm.response.to.have.status(200));",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "{",
+                  "pm.test('HTTP contract: Current patient profile',()=>pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "}"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "List patient records",
@@ -326,12 +588,25 @@
               }
             ],
             "url": "{{baseUrl}}/t/{{tenant}}/api/v1/patients"
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "{",
+                  "pm.test('HTTP contract: List patient records',()=>pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "}"
+                ]
+              }
+            }
+          ]
         }
       ]
     },
     {
-      "name": "03 — Patient appointment lifecycle",
+      "name": "03 \u2014 Patient appointment lifecycle",
       "item": [
         {
           "name": "Create appointment",
@@ -363,7 +638,21 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "if (pm.response.code === 201) pm.collectionVariables.set('appointmentId', pm.response.json().booking_id);"
+                  "{",
+                  "function saveDerived(key,value){pm.environment.set(key,value);pm.collectionVariables.set(key,value);}",
+                  "if (pm.response.code === 201) saveDerived('appointmentId', pm.response.json().booking_id);",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "{",
+                  "pm.test('HTTP contract: Create appointment',()=>pm.expect(pm.response.code).to.be.oneOf([201]));",
+                  "}"
                 ]
               }
             }
@@ -380,7 +669,31 @@
               }
             ],
             "url": "{{baseUrl}}/t/{{tenant}}/api/v1/appointments"
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "{",
+                  "pm.test('Authenticated request succeeds',()=>pm.response.to.have.status(200));",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "{",
+                  "pm.test('HTTP contract: List appointments',()=>pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "}"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Get appointment",
@@ -393,7 +706,20 @@
               }
             ],
             "url": "{{baseUrl}}/t/{{tenant}}/api/v1/appointments/{{appointmentId}}"
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "{",
+                  "pm.test('HTTP contract: Get appointment',()=>pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "}"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Reschedule appointment",
@@ -414,7 +740,20 @@
               "raw": "{\"slot_id\":\"{{newSlotId}}\",\"provider_id\":\"{{providerId}}\"}"
             },
             "url": "{{baseUrl}}/t/{{tenant}}/api/v1/appointments/{{appointmentId}}/reschedule"
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "{",
+                  "pm.test('HTTP contract: Reschedule appointment',()=>pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "}"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Cancel appointment",
@@ -435,25 +774,25 @@
               "raw": "{\"reason\":\"Course test cancellation\"}"
             },
             "url": "{{baseUrl}}/t/{{tenant}}/api/v1/appointments/{{appointmentId}}/cancel"
-          }
-        },
-        {
-          "name": "Logout patient",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{patientToken}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "{",
+                  "pm.test('HTTP contract: Cancel appointment',()=>pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "}"
+                ]
               }
-            ],
-            "url": "{{baseUrl}}/t/{{tenant}}/api/v1/auth/logout"
-          }
+            }
+          ]
         }
       ]
     },
     {
-      "name": "04 — Provider and front desk",
+      "name": "04 \u2014 Provider and front desk",
       "item": [
         {
           "name": "Staff login",
@@ -477,10 +816,158 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "{",
                   "if (pm.response.code === 200 && pm.response.json().access_token) {",
                   "  pm.environment.set('staffToken', pm.response.json().access_token);",
                   "  pm.collectionVariables.set('staffToken', pm.response.json().access_token);",
-                  "} else { throw new Error('Staff login did not return an access token.'); }"
+                  "} else { throw new Error('Staff login did not return an access token.'); }",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "{",
+                  "pm.environment.unset('staffToken');",
+                  "pm.collectionVariables.unset('staffToken');",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "{",
+                  "pm.test('HTTP contract: Staff login',()=>pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Staff token status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staffToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/t/{{tenant}}/api/v1/staff/auth/me"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "{",
+                  "pm.test('Staff token is set', function () { pm.expect(pm.environment.get('staffToken') || pm.collectionVariables.get('staffToken')).to.be.a('string').and.not.empty; });",
+                  "pm.test('Staff token is accepted', function () { pm.response.to.have.status(200); });",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "{",
+                  "pm.test('HTTP contract: Staff token status',()=>pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Staff availability",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staffToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/t/{{tenant}}/api/v1/staff/availability?clinic_id={{clinicId}}&visit_type_id={{visitTypeId}}&provider_id={{providerId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "{",
+                  "pm.test('Staff availability succeeds',()=>pm.response.to.have.status(200));",
+                  "const responseBody=pm.response.json();if(responseBody.slots.length<2)throw new Error('Staff needs two available slots');for(const [key,value] of Object.entries({slotId:responseBody.slots[0].id,newSlotId:responseBody.slots[1].id,appointmentDate:responseBody.slots[0].starts_at.slice(0,10)})){pm.environment.set(key,value);pm.collectionVariables.set(key,value);}",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "{",
+                  "pm.test('HTTP contract: Staff availability',()=>pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Front-desk book appointment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staffToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"clinic_id\":\"{{clinicId}}\",\"service_id\":\"{{visitTypeId}}\",\"provider_id\":\"{{providerId}}\",\"slot_id\":\"{{slotId}}\",\"first_name\":\"Walk-in\",\"last_name\":\"Learner\",\"date_of_birth\":\"1988-05-10\",\"email\":\"walkin.learner@example.test\",\"reason\":\"Course front-desk booking\",\"modality\":\"in_person\",\"consent_attested\":true}"
+            },
+            "url": "{{baseUrl}}/t/{{tenant}}/api/v1/staff/appointments"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "{",
+                  "function saveDerived(key,value){pm.environment.set(key,value);pm.collectionVariables.set(key,value);}",
+                  "pm.test('Staff booking succeeds',()=>pm.response.to.have.status(201));",
+                  "const responseBody=pm.response.json();if(!responseBody.id)throw new Error('Staff booking missing id');pm.environment.set('appointmentId',responseBody.id);saveDerived('appointmentId',responseBody.id);",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "{",
+                  "pm.test('HTTP contract: Front-desk book appointment',()=>pm.expect(pm.response.code).to.be.oneOf([201]));",
+                  "}"
                 ]
               }
             }
@@ -497,7 +984,20 @@
               }
             ],
             "url": "{{baseUrl}}/t/{{tenant}}/api/v1/staff/catalog"
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "{",
+                  "pm.test('HTTP contract: Staff catalog',()=>pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "}"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Staff day schedule",
@@ -510,7 +1010,20 @@
               }
             ],
             "url": "{{baseUrl}}/t/{{tenant}}/api/v1/staff/appointments?date={{appointmentDate}}"
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "{",
+                  "pm.test('HTTP contract: Staff day schedule',()=>pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "}"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Get staff appointment",
@@ -523,7 +1036,20 @@
               }
             ],
             "url": "{{baseUrl}}/t/{{tenant}}/api/v1/staff/appointments/{{appointmentId}}"
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "{",
+                  "pm.test('HTTP contract: Get staff appointment',()=>pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "}"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Mark patient arrived",
@@ -544,7 +1070,20 @@
               "raw": "{\"status\":\"arrived\"}"
             },
             "url": "{{baseUrl}}/t/{{tenant}}/api/v1/staff/appointments/{{appointmentId}}/status"
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "{",
+                  "pm.test('HTTP contract: Mark patient arrived',()=>pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "}"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Complete visit",
@@ -565,32 +1104,45 @@
               "raw": "{\"status\":\"completed\"}"
             },
             "url": "{{baseUrl}}/t/{{tenant}}/api/v1/staff/appointments/{{appointmentId}}/status"
-          }
-        },
-        {
-          "name": "Logout staff",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{staffToken}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "{",
+                  "pm.test('HTTP contract: Complete visit',()=>pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "}"
+                ]
               }
-            ],
-            "url": "{{baseUrl}}/t/{{tenant}}/api/v1/staff/auth/logout"
-          }
+            }
+          ]
         }
       ]
     },
     {
-      "name": "05 — Patient support and preferences",
+      "name": "05 \u2014 Patient support and preferences",
       "item": [
         {
           "name": "Get intake config",
           "request": {
             "method": "GET",
             "url": "{{baseUrl}}/t/{{tenant}}/api/v1/intake/config"
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "{",
+                  "pm.test('HTTP contract: Get intake config',()=>pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "}"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Update notification preferences",
@@ -611,7 +1163,20 @@
               "raw": "{\"email\":true,\"sms\":false}"
             },
             "url": "{{baseUrl}}/t/{{tenant}}/api/v1/notifications/preferences"
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "{",
+                  "pm.test('HTTP contract: Update notification preferences',()=>pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "}"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "List waitlist",
@@ -624,7 +1189,20 @@
               }
             ],
             "url": "{{baseUrl}}/t/{{tenant}}/api/v1/waitlist"
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "{",
+                  "pm.test('HTTP contract: List waitlist',()=>pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "}"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Join waitlist",
@@ -645,9 +1223,152 @@
               "raw": "{\"clinic_id\":\"{{clinicId}}\",\"visit_type_id\":\"{{visitTypeId}}\",\"provider_id\":\"{{providerId}}\"}"
             },
             "url": "{{baseUrl}}/t/{{tenant}}/api/v1/waitlist"
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "{",
+                  "pm.test('HTTP contract: Join waitlist',()=>pm.expect(pm.response.code).to.be.oneOf([201]));",
+                  "}"
+                ]
+              }
+            }
+          ]
         }
       ]
+    },
+    {
+      "name": "06 - Session cleanup and optional account recovery",
+      "item": [
+        {
+          "name": "Logout patient",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{patientToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/t/{{tenant}}/api/v1/auth/logout"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "{",
+                  "pm.test('Logout succeeds',()=>pm.response.to.have.status(204));",
+                  "pm.environment.unset('patientToken');",
+                  "pm.collectionVariables.unset('patientToken');",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "{",
+                  "pm.test('HTTP contract: Logout patient',()=>pm.expect(pm.response.code).to.be.oneOf([204]));",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.variables.set('revokedPatientToken',pm.environment.get('patientToken') || pm.collectionVariables.get('patientToken'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reject revoked patient bearer",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/t/{{tenant}}/api/v1/appointments",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{revokedPatientToken}}"
+              }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Unauthorized request is rejected',()=>pm.response.to.have.status(401));",
+                  "pm.variables.unset('revokedPatientToken');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Logout staff",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staffToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/t/{{tenant}}/api/v1/staff/auth/logout"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "{",
+                  "pm.test('Logout succeeds',()=>pm.response.to.have.status(204));",
+                  "pm.environment.unset('staffToken');",
+                  "pm.collectionVariables.unset('staffToken');",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "{",
+                  "pm.test('HTTP contract: Logout staff',()=>pm.expect(pm.response.code).to.be.oneOf([204]));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "{",
+          "for (const key of [\"clinicId\", \"visitTypeId\", \"providerId\", \"slotId\", \"newSlotId\", \"appointmentId\", \"dependentId\", \"waitlistEntryId\", \"employerId\", \"appointmentDate\"]) { if(pm.environment.get(key)==='') pm.environment.unset(key); }",
+          "}"
+        ]
+      }
     }
   ]
 }
