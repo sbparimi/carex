@@ -132,6 +132,22 @@ def register_api_v1(app: FastAPI, W) -> None:
         _, tid = tenant(slug)
         return c.intake.config(tid)
 
+    @app.post(prefix + "/auth/password-reset/request", status_code=202)
+    async def request_password_reset(slug: str, request: Request):
+        t, tid = tenant(slug); b = await body(request)
+        c.accounts.request_reset(tid, t["slug"], b.get("email"))
+        # Same response for known and unknown email addresses.
+        return {"accepted": True, "message": "If the account exists, reset instructions will be sent."}
+
+    @app.post(prefix + "/auth/password-reset/confirm")
+    async def confirm_password_reset(slug: str, request: Request):
+        _, tid = tenant(slug); b = await body(request)
+        try:
+            c.accounts.reset_password(tid, b.get("token"), b.get("new_password"))
+            return {"reset": True}
+        except Exception as e:
+            api_error(e)
+
     # Patient identity and account lifecycle
     @app.get(prefix + "/accounts/access-options")
     def access_options(slug: str, q: str = ""):
@@ -323,6 +339,24 @@ def register_api_v1(app: FastAPI, W) -> None:
         _, tid = tenant(slug); s = staff(request, tid)
         try:
             return {"appointments": c.desk.schedule(tid, s, date, clinic_id or None, provider_id or None)}
+        except Exception as e:
+            api_error(e)
+
+    @app.get(prefix + "/staff/availability")
+    def staff_availability(slug: str, request: Request, clinic_id: str, visit_type_id: str, provider_id: str):
+        _, tid = tenant(slug); s = staff(request, tid)
+        try:
+            return {"slots": c.desk.slots(tid, s, clinic_id, visit_type_id, provider_id)}
+        except Exception as e:
+            api_error(e)
+
+    @app.post(prefix + "/staff/appointments", status_code=201)
+    async def staff_book_appointment(slug: str, request: Request):
+        _, tid = tenant(slug); s = staff(request, tid); b = await body(request)
+        try:
+            result = c.desk.book(tid, s, b)
+            W.notify_now(result["id"])
+            return result
         except Exception as e:
             api_error(e)
 
