@@ -1,28 +1,28 @@
-# Knowledge check — 3.1 Define The Workflow State And Hand Offs
+# Knowledge check — Lesson 3.1: Define the workflow state and hand-offs
 
-Answer before reading the explanations. Each question has one best answer.
+Choose the single best answer.
 
-1. What is the strongest evidence that **define the workflow state and hand offs** has been applied successfully?
-   - A. The team documented its intention.
-   - B. A reproducible artefact meets explicit acceptance criteria.
-   - C. An AI summary says it looks correct.
-   - D. A single run completed without retained evidence.
+1. **What is the best hand-off from requirement analysis to impact analysis?**
+   - A. A source-linked requirement record with confirmed rules, assumptions and open questions
+   - B. A chat summary without source references
+   - C. A green API test run
+   - D. A verbal instruction
 
-2. A required input is missing or ambiguous. What should the workflow do?
-   - A. Guess silently.
-   - B. Treat the missing value as confirmed.
-   - C. Record uncertainty, assess impact and seek clarification or use an approved safe default.
-   - D. Hide uncertainty in the report.
+2. **Agent Mode proposes an update to a shared collection while the requirement is ambiguous. What is the correct state?**
+   - A. Approved for execution
+   - B. Blocked pending clarification and human review
+   - C. Automatically retried
+   - D. Release approved
 
-3. Which verification is strongest?
-   - A. Trust the agent's self-assessment.
-   - B. Independently check the result against acceptance criteria and retain evidence.
-   - C. Check only for HTTP 200.
-   - D. Assume one successful demo guarantees future runs.
+3. **Which workflow state should follow successful deterministic validation of an AI proposal?**
+   - A. Released
+   - B. Production deployed
+   - C. Validated for review
+   - D. Human approval implied
 
-## Answers and explanations
-1. **B.** Reproducible evidence proves application; intention and unverified summaries do not.
-2. **C.** Uncertainty must be visible and resolved or bounded by an approved policy.
-3. **B.** Independent verification is stronger than self-assessment or superficial success.
+## Answer key and explanations
+1. **A.** The next stage needs traceable inputs and visible uncertainty.
 
-Record your score and one change you would make to the CareX workflow.
+2. **B.** Ambiguity and a shared-resource mutation require review before action.
+
+3. **C.** Validation checks the proposal contract; it does not execute or approve the change.

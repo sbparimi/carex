@@ -1,25 +1,24 @@
-# Practical assignment — 3.2 Design Specialist Agent Responsibilities
+# Practical assignment — Lesson 3.2: Design specialist-agent responsibilities
 
 ## Business context
-You are extending the CareX appointment-booking quality workflow. Apply **design specialist agent responsibilities** to a realistic change in that workflow.
+CareX is changing its appointment-cancellation quality workflow. A patient may cancel their own appointment only when the appointment start is more than 24 hours away in the clinic-local timezone; exactly 24 hours is not allowed. Staff cancellation remains governed by existing permissions.
 
 ## Task
-Create a reviewable artefact that demonstrates the lesson's technique in the CareX project. Depending on the lesson, this may be a decision record, traceability map, JSON/YAML schema, Python module, Postman request/test, GitHub Actions workflow or execution report.
+Create five Postman Agent Mode prompt cards for CareX: Requirement Analyst, Change/Impact Analyst, Test Planner, Collection Reviewer and Failure Analyst. Each card must state objective, allowed context, required evidence, JSON output fields, prohibited actions and hand-off recipient. Use the 24-hour cancellation rule as the shared scenario. Ask Agent Mode to execute one card and compare its output with the card's contract.
 
-## Required submission
-1. Problem statement and business risk.
-2. The artefact created or changed.
-3. Verification evidence.
-4. One limitation, assumption or unresolved question.
-5. A note connecting this checkpoint to the previous and next lessons.
+## Submission
+1. Completed artefact.
+2. Source references and assumptions.
+3. One failure, ambiguity or prohibited action considered.
+4. Evidence of Postman Agent Mode output where required.
+5. Postman verification evidence and a short interpretation.
 
 ## Acceptance criteria
-- The artefact directly supports the lesson outcome.
-- Inputs, assumptions and outputs are explicit.
-- Work is reproducible from the linked repository checkpoint.
-- A positive case and a relevant negative, boundary or failure case are considered.
-- Verification is independent of the component that produced the result.
-- Only synthetic data and disposable development resources are used.
-- You can explain the result and diagnose one likely failure without copying the solution.
+- The artefact directly demonstrates this lesson's outcome.
+- Agent output is treated as a proposal, not proof.
+- No endpoint, status code, schema or policy is invented.
+- Deterministic verification is separate from AI self-assessment.
+- No write action or release approval is performed by an agent.
+- Only synthetic data and a verified non-production environment are used.
 
-Attempt the task before opening the completed reference solution.
+Attempt the task before opening the instructor reference solution.

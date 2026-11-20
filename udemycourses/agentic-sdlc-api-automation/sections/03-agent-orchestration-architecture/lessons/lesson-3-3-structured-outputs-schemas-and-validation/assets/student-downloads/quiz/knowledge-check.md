@@ -1,28 +1,28 @@
-# Knowledge check — 3.3 Structured Outputs Schemas And Validation
+# Knowledge check — Lesson 3.3: Structured outputs, schemas and validation
 
-Answer before reading the explanations. Each question has one best answer.
+Choose the single best answer.
 
-1. What is the strongest evidence that **structured outputs schemas and validation** has been applied successfully?
-   - A. The team documented its intention.
-   - B. A reproducible artefact meets explicit acceptance criteria.
-   - C. An AI summary says it looks correct.
-   - D. A single run completed without retained evidence.
+1. **A JSON proposal passes schema validation but contains a scenario unsupported by the requirement. What does that prove?**
+   - A. The scenario is correct
+   - B. Only that the output conforms structurally; semantic review is still required
+   - C. The API endpoint exists
+   - D. The release is approved
 
-2. A required input is missing or ambiguous. What should the workflow do?
-   - A. Guess silently.
-   - B. Treat the missing value as confirmed.
-   - C. Record uncertainty, assess impact and seek clarification or use an approved safe default.
-   - D. Hide uncertainty in the report.
+2. **Which field is essential for tracing a proposed scenario to its source?**
+   - A. A colourful label
+   - B. A source/evidence reference
+   - C. A model name
+   - D. A free-form confidence adjective
 
-3. Which verification is strongest?
-   - A. Trust the agent's self-assessment.
-   - B. Independently check the result against acceptance criteria and retain evidence.
-   - C. Check only for HTTP 200.
-   - D. Assume one successful demo guarantees future runs.
+3. **The agent returns action=update_collection but the allow-list permits only read_contract and propose_test. What should Postman validation do?**
+   - A. Silently ignore the action
+   - B. Execute it if the JSON is valid
+   - C. Fail the policy assertion and require human review
+   - D. Change the allow-list automatically
 
-## Answers and explanations
-1. **B.** Reproducible evidence proves application; intention and unverified summaries do not.
-2. **C.** Uncertainty must be visible and resolved or bounded by an approved policy.
-3. **B.** Independent verification is stronger than self-assessment or superficial success.
+## Answer key and explanations
+1. **B.** Structural validity is not semantic correctness or source verification.
 
-Record your score and one change you would make to the CareX workflow.
+2. **B.** Evidence references make proposals reviewable and traceable.
+
+3. **C.** A syntactically valid proposal can still violate deterministic policy.

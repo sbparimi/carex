@@ -1,25 +1,24 @@
-# Practical assignment — 3.1 Define The Workflow State And Hand Offs
+# Practical assignment — Lesson 3.1: Define the workflow state and hand-offs
 
 ## Business context
-You are extending the CareX appointment-booking quality workflow. Apply **define the workflow state and hand offs** to a realistic change in that workflow.
+CareX is changing its appointment-cancellation quality workflow. A patient may cancel their own appointment only when the appointment start is more than 24 hours away in the clinic-local timezone; exactly 24 hours is not allowed. Staff cancellation remains governed by existing permissions.
 
 ## Task
-Create a reviewable artefact that demonstrates the lesson's technique in the CareX project. Depending on the lesson, this may be a decision record, traceability map, JSON/YAML schema, Python module, Postman request/test, GitHub Actions workflow or execution report.
+Create a CareX workflow-state diagram from change intake to release recommendation. Include received, analysed, clarification-required, proposal-ready, human-review, collection-updated, executed, triaged, release-assessed and blocked. For every transition, identify required evidence and actor (Postman Agent Mode, Postman, CLI, GitHub Actions or human). Include an ambiguous-requirement path and forbidden-write path. Use Mermaid or a structured table. Verify that no path moves directly from agent proposal to production release.
 
-## Required submission
-1. Problem statement and business risk.
-2. The artefact created or changed.
-3. Verification evidence.
-4. One limitation, assumption or unresolved question.
-5. A note connecting this checkpoint to the previous and next lessons.
+## Submission
+1. Completed artefact.
+2. Source references and assumptions.
+3. One failure, ambiguity or prohibited action considered.
+4. Evidence of Postman Agent Mode output where required.
+5. Postman verification evidence and a short interpretation.
 
 ## Acceptance criteria
-- The artefact directly supports the lesson outcome.
-- Inputs, assumptions and outputs are explicit.
-- Work is reproducible from the linked repository checkpoint.
-- A positive case and a relevant negative, boundary or failure case are considered.
-- Verification is independent of the component that produced the result.
-- Only synthetic data and disposable development resources are used.
-- You can explain the result and diagnose one likely failure without copying the solution.
+- The artefact directly demonstrates this lesson's outcome.
+- Agent output is treated as a proposal, not proof.
+- No endpoint, status code, schema or policy is invented.
+- Deterministic verification is separate from AI self-assessment.
+- No write action or release approval is performed by an agent.
+- Only synthetic data and a verified non-production environment are used.
 
-Attempt the task before opening the completed reference solution.
+Attempt the task before opening the instructor reference solution.

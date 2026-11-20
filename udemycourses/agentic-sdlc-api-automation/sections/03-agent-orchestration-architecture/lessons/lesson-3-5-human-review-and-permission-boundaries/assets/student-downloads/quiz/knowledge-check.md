@@ -1,28 +1,28 @@
-# Knowledge check — 3.5 Human Review And Permission Boundaries
+# Knowledge check — Lesson 3.5: Human review and permission boundaries
 
-Answer before reading the explanations. Each question has one best answer.
+Choose the single best answer.
 
-1. What is the strongest evidence that **human review and permission boundaries** has been applied successfully?
-   - A. The team documented its intention.
-   - B. A reproducible artefact meets explicit acceptance criteria.
-   - C. An AI summary says it looks correct.
-   - D. A single run completed without retained evidence.
+1. **Agent Mode proposes a collection update based on an ambiguous requirement. What should happen?**
+   - A. Accept automatically
+   - B. Review the diff, resolve ambiguity and approve only the bounded change
+   - C. Run it against production
+   - D. Let the agent approve itself
 
-2. A required input is missing or ambiguous. What should the workflow do?
-   - A. Guess silently.
-   - B. Treat the missing value as confirmed.
-   - C. Record uncertainty, assess impact and seek clarification or use an approved safe default.
-   - D. Hide uncertainty in the report.
+2. **Which permission model is appropriate for a learner demo?**
+   - A. Broad production credentials
+   - B. Shared admin token in collection variables
+   - C. Read-only access by default with isolated write access only when required and verified
+   - D. No environment separation
 
-3. Which verification is strongest?
-   - A. Trust the agent's self-assessment.
-   - B. Independently check the result against acceptance criteria and retain evidence.
-   - C. Check only for HTTP 200.
-   - D. Assume one successful demo guarantees future runs.
+3. **A CI run is green but required business evidence is missing. Who can waive the release gate?**
+   - A. The test-planning agent
+   - B. The failure-diagnosis agent
+   - C. A deterministic rule should silently waive it
+   - D. An authorised human under documented policy
 
-## Answers and explanations
-1. **B.** Reproducible evidence proves application; intention and unverified summaries do not.
-2. **C.** Uncertainty must be visible and resolved or bounded by an approved policy.
-3. **B.** Independent verification is stronger than self-assessment or superficial success.
+## Answer key and explanations
+1. **B.** The agent can propose; a human reviews high-impact or ambiguous changes.
 
-Record your score and one change you would make to the CareX workflow.
+2. **C.** Least privilege and isolated environments reduce impact.
+
+3. **D.** Agents cannot waive mandatory release controls.
