@@ -59,6 +59,9 @@ def register(app: FastAPI, W: Web) -> None:
         u = W.user(request, t)
         c.accounts.logout(t["id"], request.cookies.get(COOKIE))
         if u:
+            r = W.redirect(f"/t/{slug}/login?notice=out")
+            W.set_cookie(r, COOKIE, None, slug, 0)
+            return r
         r = W.redirect(f"/t/{slug}/login?notice=out")
         W.set_cookie(r, COOKIE, None, slug, 0)
         return r
