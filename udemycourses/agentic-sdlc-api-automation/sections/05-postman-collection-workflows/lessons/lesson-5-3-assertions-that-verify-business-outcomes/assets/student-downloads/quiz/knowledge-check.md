@@ -1,28 +1,28 @@
-# Knowledge check — 5.3 Assertions That Verify Business Outcomes
+# Knowledge check — Lesson 5.3: Assertions that verify business outcomes
 
-Answer before reading the explanations. Each question has one best answer.
+Choose the single best answer.
 
-1. What is the strongest evidence that **assertions that verify business outcomes** has been applied successfully?
-   - A. The team documented its intention.
-   - B. A reproducible artefact meets explicit acceptance criteria.
-   - C. An AI summary says it looks correct.
-   - D. A single run completed without retained evidence.
+1. **A request returns HTTP 200 but the appointment belongs to a different patient. What should the test conclude?**
+   - A. Pass because status is 200
+   - B. Fail because the business ownership invariant is violated
+   - C. Skip the test
+   - D. Change the expected patient
 
-2. A required input is missing or ambiguous. What should the workflow do?
-   - A. Guess silently.
-   - B. Treat the missing value as confirmed.
-   - C. Record uncertainty, assess impact and seek clarification or use an approved safe default.
-   - D. Hide uncertainty in the report.
+2. **Where should an expected response field be sourced from?**
+   - A. A model guess
+   - B. OpenAPI contract or verified implementation
+   - C. A random example online
+   - D. A response from another tenant
 
-3. Which verification is strongest?
-   - A. Trust the agent's self-assessment.
-   - B. Independently check the result against acceptance criteria and retain evidence.
-   - C. Check only for HTTP 200.
-   - D. Assume one successful demo guarantees future runs.
+3. **For a strict >24-hour cancellation rule, which test set is strongest?**
+   - A. Only 48 hours
+   - B. Just over 24h, exactly 24h and just under 24h
+   - C. Only a past appointment
+   - D. Only a successful cancellation
 
-## Answers and explanations
-1. **B.** Reproducible evidence proves application; intention and unverified summaries do not.
-2. **C.** Uncertainty must be visible and resolved or bounded by an approved policy.
-3. **B.** Independent verification is stronger than self-assessment or superficial success.
+## Answer key and explanations
+1. **B.** Business assertions must verify the actual invariant, not just transport success.
 
-Record your score and one change you would make to the CareX workflow.
+2. **B.** Assertions must be grounded in the authoritative API contract.
+
+3. **B.** Boundary tests distinguish strict greater-than from inclusive comparisons.

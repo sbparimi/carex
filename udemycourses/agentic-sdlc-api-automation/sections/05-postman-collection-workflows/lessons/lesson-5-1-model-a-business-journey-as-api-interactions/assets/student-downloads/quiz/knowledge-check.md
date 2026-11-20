@@ -1,28 +1,28 @@
-# Knowledge check — 5.1 Model A Business Journey As Api Interactions
+# Knowledge check — Lesson 5.1: Model a business journey as API interactions
 
-Answer before reading the explanations. Each question has one best answer.
+Choose the single best answer.
 
-1. What is the strongest evidence that **model a business journey as api interactions** has been applied successfully?
-   - A. The team documented its intention.
-   - B. A reproducible artefact meets explicit acceptance criteria.
-   - C. An AI summary says it looks correct.
-   - D. A single run completed without retained evidence.
+1. **What should define the request order in a business-journey collection?**
+   - A. Business dependencies and required state transitions
+   - B. Alphabetical order
+   - C. Agent Mode output order
+   - D. HTTP method grouping only
 
-2. A required input is missing or ambiguous. What should the workflow do?
-   - A. Guess silently.
-   - B. Treat the missing value as confirmed.
-   - C. Record uncertainty, assess impact and seek clarification or use an approved safe default.
-   - D. Hide uncertainty in the report.
+2. **A booking request needs a slot ID returned by availability. How should the collection handle it?**
+   - A. Hard-code a live slot ID
+   - B. Capture the returned identifier into a variable and use it downstream
+   - C. Ask learners to guess
+   - D. Skip availability
 
-3. Which verification is strongest?
-   - A. Trust the agent's self-assessment.
-   - B. Independently check the result against acceptance criteria and retain evidence.
-   - C. Check only for HTTP 200.
-   - D. Assume one successful demo guarantees future runs.
+3. **Agent Mode creates a request for an undocumented endpoint. What is the correct action?**
+   - A. Run it against production
+   - B. Review against OpenAPI and remove or clarify unsupported operations
+   - C. Assume it exists
+   - D. Rename it
 
-## Answers and explanations
-1. **B.** Reproducible evidence proves application; intention and unverified summaries do not.
-2. **C.** Uncertainty must be visible and resolved or bounded by an approved policy.
-3. **B.** Independent verification is stronger than self-assessment or superficial success.
+## Answer key and explanations
+1. **A.** The sequence must reflect the actual workflow dependencies.
 
-Record your score and one change you would make to the CareX workflow.
+2. **B.** Runtime data flow keeps the journey reproducible.
+
+3. **B.** Collection requests must be grounded in the API contract.

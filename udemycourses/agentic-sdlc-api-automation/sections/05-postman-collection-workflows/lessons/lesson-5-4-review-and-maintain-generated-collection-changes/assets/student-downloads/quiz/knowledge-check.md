@@ -1,28 +1,28 @@
-# Knowledge check — 5.4 Review And Maintain Generated Collection Changes
+# Knowledge check — Lesson 5.4: Review and maintain generated collection changes
 
-Answer before reading the explanations. Each question has one best answer.
+Choose the single best answer.
 
-1. What is the strongest evidence that **review and maintain generated collection changes** has been applied successfully?
-   - A. The team documented its intention.
-   - B. A reproducible artefact meets explicit acceptance criteria.
-   - C. An AI summary says it looks correct.
-   - D. A single run completed without retained evidence.
+1. **Agent Mode proposes changing a shared environment and adding a new write request. What should happen first?**
+   - A. Accept both changes
+   - B. Review the diff and verify the requirement, contract and target environment before approval
+   - C. Run against production
+   - D. Disable tests
 
-2. A required input is missing or ambiguous. What should the workflow do?
-   - A. Guess silently.
-   - B. Treat the missing value as confirmed.
-   - C. Record uncertainty, assess impact and seek clarification or use an approved safe default.
-   - D. Hide uncertainty in the report.
+2. **What is the best evidence that an AI-generated collection change is acceptable?**
+   - A. Agent says it is done
+   - B. A reviewed diff, contract traceability and passing relevant Postman tests
+   - C. A large number of new requests
+   - D. A screenshot only
 
-3. Which verification is strongest?
-   - A. Trust the agent's self-assessment.
-   - B. Independently check the result against acceptance criteria and retain evidence.
-   - C. Check only for HTTP 200.
-   - D. Assume one successful demo guarantees future runs.
+3. **Why commit a reviewed collection checkpoint?**
+   - A. To make the AI prompt shorter
+   - B. To preserve traceability and enable comparison/rollback
+   - C. To bypass Postman tests
+   - D. To hide changes
 
-## Answers and explanations
-1. **B.** Reproducible evidence proves application; intention and unverified summaries do not.
-2. **C.** Uncertainty must be visible and resolved or bounded by an approved policy.
-3. **B.** Independent verification is stronger than self-assessment or superficial success.
+## Answer key and explanations
+1. **B.** Agent changes require review, especially when environment or write scope changes.
 
-Record your score and one change you would make to the CareX workflow.
+2. **B.** Review and independent execution evidence support the change.
+
+3. **B.** Version control provides provenance and controlled change history.

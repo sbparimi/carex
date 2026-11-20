@@ -1,30 +1,21 @@
 # Lesson 5.2 — Variables, environments and safe test data
 
 **Section:** 05 — Postman Collection Workflows  
-**Production status:** Blueprint planned; lesson-specific assets not yet produced.
+**Learner outcome:** Configure Postman collection and environment variables to separate reusable request definitions from environment-specific values and protect secrets and synthetic test data.
 
-## Required lesson sequence
+## Seven-part lesson
+1. **Opening:** Start with the CareX appointment journey and the quality risk this lesson addresses.
+2. **Concept:** Explain the Postman collection technique and relevant variables/assertions.
+3. **Why:** Connect the technique to reliable, repeatable API business-journey testing.
+4. **Demo:** Use Postman Agent Mode where appropriate to propose or improve the collection; inspect the work.
+5. **Build:** Complete the practical assignment in the CareX collection.
+6. **Verify:** Run the affected requests and interpret assertions, response evidence and failure cases.
+7. **Recap:** Commit the reviewed checkpoint and carry it into Postman CLI execution.
 
-1. Opening
-2. Concept
-3. Why
-4. Demo
-5. Build
-6. Verify
-7. Recap
+## Learner resources
+- [Knowledge check](assets/student-downloads/quiz/knowledge-check.md)
+- [Practical assignment](assets/student-downloads/assignment/practical-assignment.md)
+- [Resource index](assets/student-downloads/README.md)
 
-## Measurable learner outcome
-
-To be stated as an observable capability that the learner can independently demonstrate and verify.
-
-## Asset index
-
-- [Instructor assets](assets/instructor/README.md)
-- [Slide assets](assets/slides/README.md)
-- [Demo assets](assets/demo/README.md)
-- [Learner assets](assets/learner/README.md)
-- [Assessment assets](assets/assessment/README.md)
-
-## Acceptance evidence
-
-Do not mark this lesson complete until all 13 mandatory criteria score 10/10 and the evidence is retained. See the course production standard in the course design workspace.
+## Production gate
+Bespoke outcome and assessment authored. Live Postman demonstration, runnable starter and reference solution, app-level execution and 13-point 10/10 evidence remain required.
