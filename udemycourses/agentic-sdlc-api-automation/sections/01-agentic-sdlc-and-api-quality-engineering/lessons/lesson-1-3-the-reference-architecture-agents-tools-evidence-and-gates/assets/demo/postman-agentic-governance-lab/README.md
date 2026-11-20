@@ -1,49 +1,46 @@
-# Postman-first lab — validate agent proposals with deterministic checks
+# Postman-first lab — Agent Mode proposal and deterministic verification
 
 ## Learner outcome
-Use a Postman collection to inspect an AI-agent test-plan proposal, verify traceability and allowed actions, and demonstrate that unsafe actions and agent-issued release approvals are rejected.
-
-## Why this is the core lab
-The course teaches Agentic SDLC for API automation through Postman. This lab keeps the learner in Postman: collection requests, pre-request scripts, test scripts, variables, collection runs and execution evidence. It does not introduce a separate Python testing framework.
+Use Postman Agent Mode to analyse a CareX business change and produce a structured API test proposal. Transfer that output into a Postman collection variable, then run deterministic Postman assertions for traceability, action permissions and release authority.
 
 ## Requirements
-- Postman desktop or web app
-- CareX running locally using the course environment setup
-- A disposable development tenant/database only; use the existing course safety instructions
-- No API write permissions are required for this lab
+- Postman app with Agent Mode enabled and AI terms accepted
+- CareX course workspace and API contract/collection available as Agent Mode context
+- Non-production CareX environment for read-only health checks
 
-## Import and run
+Agent Mode availability and account/plan requirements can change. Check current Postman documentation and account access before recording. A static fixture must never be represented as a live AI response.
+
+## Instructor fixtures
 1. Import `CareX-Agentic-SDLC-Governance.postman_collection.json`.
-2. Select the course CareX Dev environment and verify `baseUrl` and `tenant`.
-3. Confirm the environment points to a disposable development database. Do not use production.
-4. Run the collection.
-5. Inspect each request's Test Results and the Postman Console.
+2. Select the CareX Dev environment and verify `baseUrl` and `tenant`.
+3. Confirm the URL is non-production.
+4. Run requests 01 and 02. Both issue only GET health requests; the unsafe proposal is test data, never an executed action.
 
-## Expected result
-- Request 01: three policy assertions pass for an evidence-backed proposal.
-- Request 02: three policy assertions pass by confirming that mutating/unknown actions and agent release approval are rejected.
-- Both HTTP requests are read-only GET health checks. The lab does not update a collection, write a database, send email, deploy or release anything.
+## Actual AI-assisted workflow
+1. Open Postman Agent Mode in the CareX workspace.
+2. Submit the prompt in `agent-proposal-prompt.md` with the CareX API contract/collection available as context.
+3. Ask for JSON only. Review the result; do not approve write actions.
+4. Copy the JSON into the collection variable `agentProposal` (no Markdown fences).
+5. Run request 03 and inspect all assertions.
+6. Diagnose any failed assertion; do not weaken policy merely to obtain a green result.
 
-## Instructor demonstration — seven-part lesson flow
-1. **Opening:** Show a proposed agent test plan and ask what could go wrong if the agent can directly mutate a collection.
-2. **Concept:** Explain proposal versus execution, evidence references, allow-listed actions and human approval.
-3. **Why:** Connect these controls to change traceability and release safety.
-4. **Demo:** Run the safe proposal, then the unsafe proposal. Ask learners to predict the result before each run.
-5. **Build:** Have learners add a proposed action `delete_patient` to the unsafe fixture and add an assertion that it remains blocked.
-6. **Verify:** Run the collection and inspect assertion results, response status and console output. Explain why a passing policy assertion is not evidence that a business API behaviour is correct.
-7. **Recap:** Distinguish agent proposal, deterministic validation, Postman execution and human release approval.
+## Expected results
+- Request 01: safe fixture passes traceability, allow-list/evidence and release-authority checks.
+- Request 02: unsafe fixture is identified as containing forbidden actions and an invalid release decision.
+- Request 03: actual Agent Mode output passes only when it has change/source traceability, permitted evidence-backed actions and a non-approval release recommendation.
+- No proposed action is executed. All HTTP calls are read-only health checks.
 
-## Independent learner task
-Add a third proposal containing:
-- a valid change ID and source revision;
-- one evidence-backed `read_contract` action;
-- one action not on the allow-list;
-- `recommend_review` as the release decision.
+## Seven-part lesson sequence
+Opening: introduce the CareX change and autonomy risk.  
+Concept: distinguish AI reasoning, deterministic validation and human authority.  
+Why: explain traceability and release safety.  
+Demo: generate a proposal with Agent Mode and run safe/unsafe fixtures.  
+Build: adapt the prompt and generate a learner proposal.  
+Verify: validate the actual JSON output with Postman.  
+Recap: separate proposal, API execution and release approval.
 
-Write Postman tests that accept the valid read action, reject the unknown action and prevent agent release approval. Capture the collection run result.
+## Independent task
+Ask Agent Mode to add a test scenario for cancellation exactly 24 hours before appointment start. Require an evidence reference. Verify that the proposal classifies the case as rejected based on the business rule. Do not infer an HTTP status or response schema.
 
-## Important limitation
-The policy is intentionally implemented in Postman test scripts for teaching. It is not a production authorization service. A passing test demonstrates the rules encoded in this collection only; it does not secure Postman, GitHub, CareX or production systems. Production permissions must be enforced by the relevant platform and server-side controls.
-
-## Instructor-only legacy material
-The adjacent `technical-lab` Python policy-gate example is not a required learner activity and must not be used as the course's primary API automation demonstration. It is retained as an optional instructor reference for discussing deterministic policy logic.
+## Limitations
+The collection checks a narrow proposal contract. It does not prove semantic completeness, execute generated test scenarios, secure Postman or enforce server-side permissions. A passing assertion is not release approval.

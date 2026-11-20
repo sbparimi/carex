@@ -1,46 +1,48 @@
 # Environment setup guide — learner edition
 
-**Status:** Draft; tool versions and clean-machine walkthrough must be verified before release.
+**Status:** Draft; clean-machine walkthrough required before release.
 
-## Required tools
+## Core learner tools
+- Current supported Postman app
+- Postman Agent Mode access, subject to account, plan and AI consent requirements
+- Git and a supported browser/terminal
+- Postman CLI for command-line and CI lessons
+- GitHub account for CI lessons
 
-- Python 3.11 or the course-pinned compatible version
-- Git
-- Postman desktop application
-- Postman CLI for the execution lessons
-- A GitHub account for the CI lessons
-- A supported browser and terminal
+Python is **not** a core learner prerequisite. The course teaches Agentic SDLC for API automation through Postman Agent Mode, Postman collections, Postman CLI and GitHub Actions. Do not require learners to build a separate Python testing or orchestration framework.
 
-## Before starting
+## Optional tooling
+- Node.js only if using the npm installation route for Postman CLI or an explicitly identified optional utility. Follow current Postman installation documentation.
+- Newman is limited to legacy compatibility/migration context; it is not the primary runner for new Postman v12 workflows.
 
-1. Download the CareX learner starter package from the course resources.
-2. Read the package README and confirm the required Python version.
-3. Create a dedicated local working folder.
-4. Create a Python virtual environment and install only the pinned requirements supplied with the starter package.
-5. Start the local CareX service using the learner instructions.
-6. Import the supplied Postman collection and local environment.
-7. Confirm the health endpoint and a read-only discovery request before enabling any write operation.
+## Setup
+1. Install Postman and record the app version.
+2. Verify Agent Mode access, enable AI features where permitted and review Postman's AI terms.
+3. Import the CareX learner collection and environment.
+4. Verify `baseUrl` and tenant point to a non-production course instance.
+5. Run the read-only health request and one read-only discovery request.
+6. Install Postman CLI using the current official instructions before Section 6.
+7. Use a training GitHub repository for CI lessons; do not connect production repositories or credentials.
 
-## Database safety
+## CareX and database safety
+CareX is the API under test. Its implementation uses FastAPI and Neon/PostgreSQL; learners are not expected to write Python. Use a dedicated development or disposable test database branch. Never seed or run destructive tests against production. Never include real database credentials in course assets. Do not imply SQLite support.
 
-The upstream CareX project uses Neon/PostgreSQL. Learner setup must use a dedicated development or disposable test database branch. Never run demo seeding or destructive tests against production. A learner package must not contain a real database connection string. Provide a documented local/demo option only if it has been built and verified; do not imply SQLite support.
+## Secret and environment safety
+- Keep secrets in Postman Vault or local secret fields where supported.
+- Never export secrets into course files, screenshots or logs.
+- Keep writes disabled until the target environment is verified.
+- Use synthetic accounts/data only.
+- Never run write-enabled collections against a shared preview/production database.
 
-## Postman environment safety
+## Verification checklist
+- [ ] Postman app launches and collection imports.
+- [ ] Agent Mode access and consent requirements are understood.
+- [ ] Learner can submit the supplied prompt and inspect Agent Mode output.
+- [ ] Learner can paste JSON output into the `agentProposal` collection variable.
+- [ ] Postman assertions execute and show results.
+- [ ] Base URL is non-production.
+- [ ] Read-only health request succeeds.
+- [ ] Postman CLI installs before Section 6.
+- [ ] No secrets appear in files, screenshots or logs.
 
-- Keep secrets in Postman Vault or environment-local secret fields where supported.
-- Do not export secret values into course files.
-- Keep write operations disabled until the learner has verified the target environment.
-- Use synthetic accounts and synthetic data only.
-
-## Setup verification checklist
-
-- [ ] Python version matches the course package requirement.
-- [ ] Dependencies install from the supplied lock/pinned requirements.
-- [ ] CareX starts successfully.
-- [ ] API documentation endpoint loads.
-- [ ] Postman collection imports without errors.
-- [ ] Environment base URL points to the learner's non-production instance.
-- [ ] Read-only request succeeds.
-- [ ] No secret is present in exported files, screenshots or logs.
-
-Do not mark setup complete until a clean-machine test has passed.
+Do not mark setup complete until a clean-machine walkthrough passes.
