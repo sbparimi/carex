@@ -34,3 +34,5 @@ The following documents govern the handover to Codex and Instinct:
 - [Instinct video-production prompt](INSTINCT-VIDEO-PRODUCTION-PROMPT.md) — copy-ready instructions for video production.
 - [Codex engineering handover](CODEX-ENGINEERING-HANDOVER.md) — repository, technical implementation and validation instructions.
 - [Course alignment audit](ALIGNMENT-AUDIT.md) — deviations corrected and outstanding release blockers.
+- [UCF instructional quality rules](UCF-INSTRUCTIONAL-QUALITY-RULES.md) — mandatory seven-part teaching structure and 13-point lesson quality gate.
+- [Course rules](COURSE-RULES.md) — fixed course scope, Postman-first technical boundaries, CareX safety, learner asset, repository and release rules.
