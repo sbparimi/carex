@@ -10,6 +10,7 @@ from typing import Callable
 
 from .accounts import hash_password, normalize_email, password_problem, verify_password, _dummy
 from .intake import Intake, IntakeError
+from .notify import enqueue
 from .scheduling import BookingNotFoundError, ReserveInput, Scheduling, SlotTakenError
 from .util import iso, local_parts, ms, now as _now, parse, sha256, token as new_token
 
@@ -221,6 +222,8 @@ class StaffDesk:
                 raise StaffError("conflict", "An appointment can only be marked no-show after its start time")
             ts = iso(self.now())
             tx.run("UPDATE appointments SET status = ?, status_changed_at = ?, updated_at = ? WHERE tenant_id = ? AND id = ?", status, ts, ts, tenant_id, aid)
+            if status == "completed" and r.get("user_id"):
+                enqueue(tx, self.now(), tenant_id=tenant_id, kind="completion", dedupe=f"completion:{aid}", appointment_id=aid, user_id=r["user_id"])
             if self.audit:
                 self.audit.record(tenant_id, "staff", "appointment.status", actor_id=staff["id"], target_type="appointment", target_id=aid, detail={"status": status}, db=tx)
             return to_row({**r, "status": status})

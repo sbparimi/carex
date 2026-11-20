@@ -88,6 +88,8 @@ def render(r: dict, base_url: str) -> dict | None:
         return {"subject": f"Reminder: appointment tomorrow — {vl}", "text": f"{hello}\n\nA reminder about your appointment in about 24 hours.\n\n{details}\n\nNeed to change it? {manage}{sign}", "sms": f"{tn} reminder: {vl} {when_s}. Manage: {manage}"}
     if k == "reminder_2h":
         return {"subject": f"Starting soon — {vl}", "text": f"{hello}\n\nYour appointment starts in about 2 hours.\n\n{details}{sign}", "sms": f"{tn}: {vl} starts in ~2 hours ({when_s})."}
+    if k == "completion":
+        return {"subject": f"Visit completed — {vl}", "text": f"{hello}\\n\\nYour visit has been marked as completed.\\n\\n{details}\\n\\nFor questions about your visit, contact {tn}.{sign}", "sms": f"{tn}: your {vl} visit with {r['provider_name']} has been completed."}
     if k == "cancellation":
         late = f"\n\nThis was inside the {r['late_cancel_hours']}-hour cancellation window and may be recorded as a late cancellation." if r["late_cancel"] else ""
         return {"subject": f"Appointment cancelled — {vl}", "text": f"{hello}\n\nYour appointment has been cancelled.\n\n{details}{late}\n\nBook a new time: {manage}{sign}", "sms": f"{tn}: your {vl} on {when_s} is cancelled."}
@@ -117,7 +119,7 @@ def render_email_extras(r: dict, base_url: str, now_iso: str) -> dict:
     out: dict = {"html": render_html(r, k, details=details, link=link, extra=extra)}
     if r.get("support_email"):
         out["reply_to"] = r["support_email"]
-    if k in ("confirmation", "rescheduled", "cancellation") and r["starts_at"] and r["ends_at"] and r["clinic_name"]:
+    if k in ("confirmation", "rescheduled", "cancellation", "completion") and r["starts_at"] and r["ends_at"] and r["clinic_name"]:
         summary = {"clinic": {"name": r["clinic_name"], "address": r["address"], "city": r["clinic_city"] or "", "state_code": r["clinic_state"] or ""},
                    "visit_type": {"label": r["visit_label"]}, "provider": {"display_name": r["provider_name"]}, "modality": r["modality"],
                    "join_url": r["join_url"], "starts_at": r["starts_at"], "ends_at": r["ends_at"]}

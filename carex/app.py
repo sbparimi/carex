@@ -13,6 +13,7 @@ from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, Res
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from . import pages_auth, pages_patient, pages_staff, pages_staff2, pages_account, feed
+from .api_v1 import register_api_v1
 from .admin import AdminNotFoundError, AdminValidationError
 from .context import Ctx, build
 from .staff import StaffError, to_fhir
@@ -27,7 +28,7 @@ STATUS = {"invalid_input": 400, "invalid_credentials": 401, "locked": 423, "forb
 def create_app(ctx: Ctx | None = None) -> FastAPI:
     ctx = ctx or build()
     W = Web(ctx)
-    app = FastAPI(title="CareX", docs_url=None, redoc_url=None, openapi_url=None)
+    app = FastAPI(title="CareX REST API", version="1.0.0", docs_url="/api/docs", redoc_url=None, openapi_url="/api/openapi.json")
     app.state.web, app.state.ctx = W, ctx
 
     # ---------------------------------------------------------------- middleware: CSRF second layer + security headers
@@ -148,6 +149,7 @@ def create_app(ctx: Ctx | None = None) -> FastAPI:
     pages_staff2.register(app, W)
     pages_account.register(app, W)
     feed.register(app, W)
+    register_api_v1(app, W)
     register_admin_api(app, W)
     return app
 

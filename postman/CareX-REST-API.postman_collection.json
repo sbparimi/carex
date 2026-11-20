@@ -1,0 +1,586 @@
+{
+  "info": {
+    "_postman_id": "carex-rest-api-v1",
+    "name": "CareX — End-to-End Healthcare REST API",
+    "description": "Versioned CareX REST API training collection. Uses synthetic tenant data. Run in order: public discovery, patient signup/login, availability, appointment lifecycle, then staff lifecycle. Appointment booking is confirmed immediately in the current CareX business model; there is no separate doctor-approval state.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://carex-sable.vercel.app"
+    },
+    {
+      "key": "tenant",
+      "value": "bayview-care"
+    },
+    {
+      "key": "patientToken",
+      "value": ""
+    },
+    {
+      "key": "staffToken",
+      "value": ""
+    },
+    {
+      "key": "clinicId",
+      "value": ""
+    },
+    {
+      "key": "visitTypeId",
+      "value": ""
+    },
+    {
+      "key": "providerId",
+      "value": ""
+    },
+    {
+      "key": "slotId",
+      "value": ""
+    },
+    {
+      "key": "appointmentId",
+      "value": ""
+    },
+    {
+      "key": "idempotencyKey",
+      "value": "course-booking-0001"
+    },
+    {
+      "key": "patientEmail",
+      "value": ""
+    },
+    {
+      "key": "patientPassword",
+      "value": ""
+    },
+    {
+      "key": "newSlotId",
+      "value": ""
+    },
+    {
+      "key": "staffEmail",
+      "value": ""
+    },
+    {
+      "key": "staffPassword",
+      "value": ""
+    },
+    {
+      "key": "appointmentDate",
+      "value": "2026-11-25"
+    },
+    {
+      "key": "employerId",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "01 — Public discovery",
+      "item": [
+        {
+          "name": "Health",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/t/{{tenant}}/api/v1/health"
+          }
+        },
+        {
+          "name": "List clinics",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/t/{{tenant}}/api/v1/clinics?limit=50"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const d=pm.response.json(); if(d.clinics && d.clinics.length) pm.collectionVariables.set('clinicId',d.clinics[0].id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Clinic visit types",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/t/{{tenant}}/api/v1/clinics/{{clinicId}}/visit-types"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const d=pm.response.json(); if(d.visit_types && d.visit_types.length) pm.collectionVariables.set('visitTypeId',d.visit_types[0].id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Clinic providers",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/t/{{tenant}}/api/v1/clinics/{{clinicId}}/providers?visit_type_id={{visitTypeId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const d=pm.response.json(); if(d.providers && d.providers.length) pm.collectionVariables.set('providerId',d.providers[0].id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Available slots",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/t/{{tenant}}/api/v1/availability?clinic_id={{clinicId}}&visit_type_id={{visitTypeId}}&provider_id={{providerId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const data = pm.response.json();",
+                  "if (data.slots && data.slots.length) pm.collectionVariables.set('slotId', data.slots[0].id);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02 — Patient authentication",
+      "item": [
+        {
+          "name": "Access options",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/t/{{tenant}}/api/v1/accounts/access-options"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const d=pm.response.json(); if(d.employers && d.employers.length) pm.collectionVariables.set('employerId',d.employers[0].id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Patient signup",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\":\"{{patientEmail}}\",\"password\":\"{{patientPassword}}\",\"first_name\":\"Course\",\"last_name\":\"Patient\",\"date_of_birth\":\"1990-02-03\",\"phone\":\"555-123-4567\",\"access_type\":\"employer\",\"access_id\":\"{{employerId}}\"}"
+            },
+            "url": "{{baseUrl}}/t/{{tenant}}/api/v1/auth/signup"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) pm.collectionVariables.set('patientToken', pm.response.json().access_token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Patient login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\":\"{{patientEmail}}\",\"password\":\"{{patientPassword}}\"}"
+            },
+            "url": "{{baseUrl}}/t/{{tenant}}/api/v1/auth/login"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) pm.collectionVariables.set('patientToken', pm.response.json().access_token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Current patient profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{patientToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/t/{{tenant}}/api/v1/auth/me"
+          }
+        },
+        {
+          "name": "List patient records",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{patientToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/t/{{tenant}}/api/v1/patients"
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 — Patient appointment lifecycle",
+      "item": [
+        {
+          "name": "Create appointment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{patientToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{idempotencyKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"clinic_id\":\"{{clinicId}}\",\"service_id\":\"{{visitTypeId}}\",\"provider_id\":\"{{providerId}}\",\"slot_id\":\"{{slotId}}\",\"reason\":\"Routine appointment\",\"modality\":\"in_person\",\"consent_version\":\"v1\"}"
+            },
+            "url": "{{baseUrl}}/t/{{tenant}}/api/v1/appointments"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) pm.collectionVariables.set('appointmentId', pm.response.json().booking_id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List appointments",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{patientToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/t/{{tenant}}/api/v1/appointments"
+          }
+        },
+        {
+          "name": "Get appointment",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{patientToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/t/{{tenant}}/api/v1/appointments/{{appointmentId}}"
+          }
+        },
+        {
+          "name": "Reschedule appointment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{patientToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"slot_id\":\"{{newSlotId}}\",\"provider_id\":\"{{providerId}}\"}"
+            },
+            "url": "{{baseUrl}}/t/{{tenant}}/api/v1/appointments/{{appointmentId}}/reschedule"
+          }
+        },
+        {
+          "name": "Cancel appointment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{patientToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"reason\":\"Course test cancellation\"}"
+            },
+            "url": "{{baseUrl}}/t/{{tenant}}/api/v1/appointments/{{appointmentId}}/cancel"
+          }
+        },
+        {
+          "name": "Logout patient",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{patientToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/t/{{tenant}}/api/v1/auth/logout"
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 — Provider and front desk",
+      "item": [
+        {
+          "name": "Staff login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\":\"{{staffEmail}}\",\"password\":\"{{staffPassword}}\"}"
+            },
+            "url": "{{baseUrl}}/t/{{tenant}}/api/v1/staff/auth/login"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) pm.collectionVariables.set('staffToken', pm.response.json().access_token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Staff catalog",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staffToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/t/{{tenant}}/api/v1/staff/catalog"
+          }
+        },
+        {
+          "name": "Staff day schedule",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staffToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/t/{{tenant}}/api/v1/staff/appointments?date={{appointmentDate}}"
+          }
+        },
+        {
+          "name": "Get staff appointment",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staffToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/t/{{tenant}}/api/v1/staff/appointments/{{appointmentId}}"
+          }
+        },
+        {
+          "name": "Mark patient arrived",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staffToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"status\":\"arrived\"}"
+            },
+            "url": "{{baseUrl}}/t/{{tenant}}/api/v1/staff/appointments/{{appointmentId}}/status"
+          }
+        },
+        {
+          "name": "Complete visit",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staffToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"status\":\"completed\"}"
+            },
+            "url": "{{baseUrl}}/t/{{tenant}}/api/v1/staff/appointments/{{appointmentId}}/status"
+          }
+        },
+        {
+          "name": "Logout staff",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staffToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/t/{{tenant}}/api/v1/staff/auth/logout"
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 — Patient support and preferences",
+      "item": [
+        {
+          "name": "Get intake config",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/t/{{tenant}}/api/v1/intake/config"
+          }
+        },
+        {
+          "name": "Update notification preferences",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{patientToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\":true,\"sms\":false}"
+            },
+            "url": "{{baseUrl}}/t/{{tenant}}/api/v1/notifications/preferences"
+          }
+        },
+        {
+          "name": "List waitlist",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{patientToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/t/{{tenant}}/api/v1/waitlist"
+          }
+        },
+        {
+          "name": "Join waitlist",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{patientToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"clinic_id\":\"{{clinicId}}\",\"visit_type_id\":\"{{visitTypeId}}\",\"provider_id\":\"{{providerId}}\"}"
+            },
+            "url": "{{baseUrl}}/t/{{tenant}}/api/v1/waitlist"
+          }
+        }
+      ]
+    }
+  ]
+}
