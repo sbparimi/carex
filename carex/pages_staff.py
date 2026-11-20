@@ -78,9 +78,7 @@ def register(app: FastAPI, W: Web) -> None:
     @app.post(P + "/logout")
     def logout(slug: str, request: Request):
         t = W.tenant(slug)
-        st = W.staff(request, t)
         c.staff_accounts.logout(t["id"], request.cookies.get(STAFF_COOKIE))
-        if st:
         r = W.redirect(f"/t/{slug}/staff/login")
         W.set_cookie(r, STAFF_COOKIE, None, slug, 0, samesite="strict")
         return r
