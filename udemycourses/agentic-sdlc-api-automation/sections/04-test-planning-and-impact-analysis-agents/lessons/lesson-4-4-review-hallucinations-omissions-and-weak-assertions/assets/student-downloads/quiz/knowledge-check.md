@@ -1,28 +1,28 @@
-# Knowledge check — 4.4 Review Hallucinations Omissions And Weak Assertions
+# Knowledge check — Lesson 4.4: Review hallucinations, omissions and weak assertions
 
-Answer before reading the explanations. Each question has one best answer.
+Choose the single best answer.
 
-1. What is the strongest evidence that **review hallucinations omissions and weak assertions** has been applied successfully?
-   - A. The team documented its intention.
-   - B. A reproducible artefact meets explicit acceptance criteria.
-   - C. An AI summary says it looks correct.
-   - D. A single run completed without retained evidence.
+1. **An AI-generated test asserts only status 200 for a booking response. What is missing?**
+   - A. Nothing; status is enough
+   - B. Business outcome, schema/field checks and relevant invariants supported by contract
+   - C. A longer test name
+   - D. A second GET request
 
-2. A required input is missing or ambiguous. What should the workflow do?
-   - A. Guess silently.
-   - B. Treat the missing value as confirmed.
-   - C. Record uncertainty, assess impact and seek clarification or use an approved safe default.
-   - D. Hide uncertainty in the report.
+2. **A proposed assertion checks a response field absent from OpenAPI and implementation. What should happen?**
+   - A. Keep it because AI suggested it
+   - B. Mark it unsupported and remove or clarify it
+   - C. Assume it will exist
+   - D. Change the API to match the test
 
-3. Which verification is strongest?
-   - A. Trust the agent's self-assessment.
-   - B. Independently check the result against acceptance criteria and retain evidence.
-   - C. Check only for HTTP 200.
-   - D. Assume one successful demo guarantees future runs.
+3. **Which review method is strongest?**
+   - A. Count generated tests
+   - B. Compare each scenario/assertion against source rules, OpenAPI and risk coverage
+   - C. Trust Agent Mode summary
+   - D. Run only happy path
 
-## Answers and explanations
-1. **B.** Reproducible evidence proves application; intention and unverified summaries do not.
-2. **C.** Uncertainty must be visible and resolved or bounded by an approved policy.
-3. **B.** Independent verification is stronger than self-assessment or superficial success.
+## Answer key and explanations
+1. **B.** HTTP success alone does not prove the business outcome.
 
-Record your score and one change you would make to the CareX workflow.
+2. **B.** Assertions must be grounded in authoritative contract/implementation evidence.
+
+3. **B.** Evidence-based review detects hallucination, omissions and weak checks.

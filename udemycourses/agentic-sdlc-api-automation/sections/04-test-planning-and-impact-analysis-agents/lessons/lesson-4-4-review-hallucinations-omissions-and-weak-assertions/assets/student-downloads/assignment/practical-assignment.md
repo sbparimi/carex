@@ -1,25 +1,23 @@
-# Practical assignment — 4.4 Review Hallucinations Omissions And Weak Assertions
+# Practical assignment — Lesson 4.4: Review hallucinations, omissions and weak assertions
 
 ## Business context
-You are extending the CareX appointment-booking quality workflow. Apply **review hallucinations omissions and weak assertions** to a realistic change in that workflow.
+CareX is changing patient appointment cancellation: a patient may cancel their own appointment only when the appointment start is more than 24 hours away in the clinic-local timezone. Exactly 24 hours is not allowed. Staff cancellation follows existing permissions.
 
 ## Task
-Create a reviewable artefact that demonstrates the lesson's technique in the CareX project. Depending on the lesson, this may be a decision record, traceability map, JSON/YAML schema, Python module, Postman request/test, GitHub Actions workflow or execution report.
+Review a deliberately flawed Agent Mode proposal containing one invented endpoint/field, one missing exact-boundary scenario, one status-only assertion and one duplicated happy path. Annotate each defect with its evidence source and correction. Ask Agent Mode to revise the proposal, then compare the revision against the original requirements and contract. Do not accept its self-review as verification.
 
-## Required submission
-1. Problem statement and business risk.
-2. The artefact created or changed.
-3. Verification evidence.
-4. One limitation, assumption or unresolved question.
-5. A note connecting this checkpoint to the previous and next lessons.
+## Submission
+1. Agent Mode prompt and unmodified output.
+2. Reviewed artefact with source/evidence references.
+3. Defects, assumptions and open questions.
+4. Verification evidence and interpretation.
+5. One paragraph explaining what the AI did not establish.
 
 ## Acceptance criteria
-- The artefact directly supports the lesson outcome.
-- Inputs, assumptions and outputs are explicit.
-- Work is reproducible from the linked repository checkpoint.
-- A positive case and a relevant negative, boundary or failure case are considered.
-- Verification is independent of the component that produced the result.
-- Only synthetic data and disposable development resources are used.
-- You can explain the result and diagnose one likely failure without copying the solution.
+- All expected outcomes trace to the requirement or verified API contract.
+- Positive, negative and boundary coverage is considered where relevant.
+- No unsupported endpoint, status, field or response schema is invented.
+- Human review is visible and separate from AI output.
+- The work is reproducible using synthetic data and the course environment.
 
-Attempt the task before opening the completed reference solution.
+Attempt the task before opening the instructor reference solution.

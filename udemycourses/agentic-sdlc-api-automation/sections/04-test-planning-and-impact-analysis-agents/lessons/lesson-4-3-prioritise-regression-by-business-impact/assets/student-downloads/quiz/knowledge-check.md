@@ -1,28 +1,28 @@
-# Knowledge check — 4.3 Prioritise Regression By Business Impact
+# Knowledge check — Lesson 4.3: Prioritise regression by business impact
 
-Answer before reading the explanations. Each question has one best answer.
+Choose the single best answer.
 
-1. What is the strongest evidence that **prioritise regression by business impact** has been applied successfully?
-   - A. The team documented its intention.
-   - B. A reproducible artefact meets explicit acceptance criteria.
-   - C. An AI summary says it looks correct.
-   - D. A single run completed without retained evidence.
+1. **Which factor should dominate risk-based regression prioritisation?**
+   - A. Test name length
+   - B. Business impact and likelihood grounded in evidence
+   - C. Number of prompts used
+   - D. Collection folder order
 
-2. A required input is missing or ambiguous. What should the workflow do?
-   - A. Guess silently.
-   - B. Treat the missing value as confirmed.
-   - C. Record uncertainty, assess impact and seek clarification or use an approved safe default.
-   - D. Hide uncertainty in the report.
+2. **A changed cancellation rule also touches appointment ownership checks. What should impact analysis include?**
+   - A. Only the changed endpoint
+   - B. The changed rule and dependent authorization/booking journeys
+   - C. Only health check
+   - D. Only tests that failed previously
 
-3. Which verification is strongest?
-   - A. Trust the agent's self-assessment.
-   - B. Independently check the result against acceptance criteria and retain evidence.
-   - C. Check only for HTTP 200.
-   - D. Assume one successful demo guarantees future runs.
+3. **Agent Mode ranks a low-impact read-only endpoint above booking authorization without evidence. What is the right response?**
+   - A. Accept the rank
+   - B. Ask for factor-level rationale and correct the ranking against agreed risk criteria
+   - C. Remove the authorization tests
+   - D. Treat ranking as a release gate
 
-## Answers and explanations
-1. **B.** Reproducible evidence proves application; intention and unverified summaries do not.
-2. **C.** Uncertainty must be visible and resolved or bounded by an approved policy.
-3. **B.** Independent verification is stronger than self-assessment or superficial success.
+## Answer key and explanations
+1. **B.** Prioritisation must reflect risk, not convenience or superficial volume.
 
-Record your score and one change you would make to the CareX workflow.
+2. **B.** Dependencies and shared business invariants can be affected by a local change.
+
+3. **B.** AI ranking is a proposal and must be justified by explicit risk factors.

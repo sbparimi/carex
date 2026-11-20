@@ -1,30 +1,21 @@
 # Lesson 4.4 — Review hallucinations, omissions and weak assertions
 
 **Section:** 04 — Test Planning and Impact Analysis Agents  
-**Production status:** Blueprint planned; lesson-specific assets not yet produced.
+**Learner outcome:** Critically review Agent Mode test proposals for invented API facts, missing scenarios, weak status-only assertions and unsupported expected results.
 
-## Required lesson sequence
+## Seven-part lesson
+1. **Opening:** Start with the CareX cancellation change and the risk of incomplete regression.
+2. **Concept:** Explain the planning technique and the evidence required.
+3. **Why:** Connect coverage and prioritisation to customer and release risk.
+4. **Demo:** Use Postman Agent Mode with the CareX requirement and OpenAPI context.
+5. **Build:** Complete the lesson assignment and create a reviewable test-plan artefact.
+6. **Verify:** Compare generated output with the source rule, contract and coverage criteria; diagnose one flawed proposal.
+7. **Recap:** Carry the reviewed test plan into Postman collection implementation in Section 5.
 
-1. Opening
-2. Concept
-3. Why
-4. Demo
-5. Build
-6. Verify
-7. Recap
+## Learner resources
+- [Knowledge check](assets/student-downloads/quiz/knowledge-check.md)
+- [Practical assignment](assets/student-downloads/assignment/practical-assignment.md)
+- [Resource index](assets/student-downloads/README.md)
 
-## Measurable learner outcome
-
-To be stated as an observable capability that the learner can independently demonstrate and verify.
-
-## Asset index
-
-- [Instructor assets](assets/instructor/README.md)
-- [Slide assets](assets/slides/README.md)
-- [Demo assets](assets/demo/README.md)
-- [Learner assets](assets/learner/README.md)
-- [Assessment assets](assets/assessment/README.md)
-
-## Acceptance evidence
-
-Do not mark this lesson complete until all 13 mandatory criteria score 10/10 and the evidence is retained. See the course production standard in the course design workspace.
+## Production gate
+Bespoke outcome and assessments authored. Contract-grounded Agent Mode recording, starter fixtures, reference solution, live Postman execution and 13-point 10/10 evidence remain required.

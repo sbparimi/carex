@@ -1,25 +1,23 @@
-# Practical assignment — 4.2 Generate Positive Negative And Boundary Scenarios
+# Practical assignment — Lesson 4.2: Generate positive, negative and boundary scenarios
 
 ## Business context
-You are extending the CareX appointment-booking quality workflow. Apply **generate positive negative and boundary scenarios** to a realistic change in that workflow.
+CareX is changing patient appointment cancellation: a patient may cancel their own appointment only when the appointment start is more than 24 hours away in the clinic-local timezone. Exactly 24 hours is not allowed. Staff cancellation follows existing permissions.
 
 ## Task
-Create a reviewable artefact that demonstrates the lesson's technique in the CareX project. Depending on the lesson, this may be a decision record, traceability map, JSON/YAML schema, Python module, Postman request/test, GitHub Actions workflow or execution report.
+Prompt Postman Agent Mode to generate positive, negative, exact-boundary, just-over, just-under, ownership and staff-regression scenarios for the cancellation rule. Build a coverage matrix with one row per rule and columns for scenario class, actor, boundary, evidence and expected business outcome. Identify duplicate scenarios and at least one omission. Implement only contract-backed cases in the Postman collection.
 
-## Required submission
-1. Problem statement and business risk.
-2. The artefact created or changed.
-3. Verification evidence.
-4. One limitation, assumption or unresolved question.
-5. A note connecting this checkpoint to the previous and next lessons.
+## Submission
+1. Agent Mode prompt and unmodified output.
+2. Reviewed artefact with source/evidence references.
+3. Defects, assumptions and open questions.
+4. Verification evidence and interpretation.
+5. One paragraph explaining what the AI did not establish.
 
 ## Acceptance criteria
-- The artefact directly supports the lesson outcome.
-- Inputs, assumptions and outputs are explicit.
-- Work is reproducible from the linked repository checkpoint.
-- A positive case and a relevant negative, boundary or failure case are considered.
-- Verification is independent of the component that produced the result.
-- Only synthetic data and disposable development resources are used.
-- You can explain the result and diagnose one likely failure without copying the solution.
+- All expected outcomes trace to the requirement or verified API contract.
+- Positive, negative and boundary coverage is considered where relevant.
+- No unsupported endpoint, status, field or response schema is invented.
+- Human review is visible and separate from AI output.
+- The work is reproducible using synthetic data and the course environment.
 
-Attempt the task before opening the completed reference solution.
+Attempt the task before opening the instructor reference solution.
