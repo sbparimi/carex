@@ -63,3 +63,21 @@ Needs clinical review (red-flag list, consent text), legal review (privacy notic
 
 Set `RESEND_API_KEY`, `EMAIL_FROM` and `DEMO_EMAIL_TEMPLATE` (see `.env.example`) in your local `.env`, then use a fresh Neon development branch, run `python -m carex.ops seed-demo --yes`, and start `python -m carex.ops serve`.
 Each demo patient gets a numbered inbox (`...+test001@...`, `...+test002@...`). Sign in as that patient, book, reschedule or cancel, and the emails arrive there. Reminders go out when `python -m carex.ops dispatch` runs (or `/internal/dispatch` is called on a schedule).
+
+## GitHub Codespaces
+
+Open this repository on the `fix/postman-bearer-auth-setup` branch and create a Codespace using the checked-in `.devcontainer/devcontainer.json`. The container uses Python 3.12, installs the development dependencies, forwards port 8127 privately, and includes VS Code tasks for starting the API and running tests.
+
+1. In GitHub, switch to branch `fix/postman-bearer-auth-setup`.
+2. Select **Code → Codespaces → Create codespace on fix/postman-bearer-auth-setup**.
+3. Wait for the post-create setup to finish. It installs `requirements-dev.txt` and creates a local `.env` from `.env.example`.
+4. Create a dedicated, empty Neon development branch. Do not use production or the shared Preview/Production database.
+5. Set `DATABASE_URL` in the Codespace's local `.env` to that branch's pooled Neon connection string. Do not commit `.env`.
+6. Start the API using **Terminal → Run Task → CareX: start API (8127)**, or run:
+   `python -m carex.ops serve --host 0.0.0.0 --port 8127 --reload`
+7. In the Ports panel, open port 8127. Keep its visibility **Private**. Use the forwarded HTTPS URL as Postman's `baseUrl` when Postman is running outside the Codespace. If Postman runs inside the Codespace, use `http://127.0.0.1:8127`.
+8. On the dedicated empty Neon development branch only, seed the synthetic demo accounts once with `python -m carex.ops seed-demo --yes`.
+
+The Dev Postman environment's default `baseUrl` remains `http://127.0.0.1:8127` for a local process. When using Postman outside Codespaces, replace it with the forwarded HTTPS port URL displayed by GitHub.
+
+**Database requirement:** CareX does not support SQLite or an in-memory database. The API cannot start successfully until `DATABASE_URL` points to a reachable PostgreSQL/Neon database. Integration tests additionally require a separate empty Neon branch in `CAREX_TEST_DATABASE_URL`; never point tests at the demo or production database.

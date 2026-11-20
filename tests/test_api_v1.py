@@ -54,3 +54,52 @@ def test_patient_api_booking_lifecycle(client):
     cancelled = client.post(f"{base}/appointments/{appointment_id}/cancel", headers=headers, json={"reason": "Course test cleanup"})
     assert cancelled.status_code == 200, cancelled.text
     assert cancelled.json()["status"] == "cancelled"
+
+
+def test_patient_bearer_authentication_rejects_missing_and_invalid_tokens(client):
+    base = "/t/northwind-health/api/v1"
+    missing = client.get(base + "/appointments")
+    assert missing.status_code == 401
+    assert "Bearer token" in missing.text
+
+    invalid = client.get(base + "/appointments", headers={"Authorization": "Bearer not-a-valid-session-token"})
+    assert invalid.status_code == 401
+
+
+def test_patient_bearer_token_from_login_is_accepted(client):
+    base = "/t/northwind-health/api/v1"
+    signup = client.post(base + "/auth/signup", json={
+        "email": "api.bearer-login@example.com", "password": "correct horse 1",
+        "first_name": "Bearer", "last_name": "Login", "date_of_birth": "1990-02-03",
+        "phone": "555-123-4567", "access_type": "employer", "access_id": "em-n-1"
+    })
+    assert signup.status_code == 201, signup.text
+
+    login = client.post(base + "/auth/login", json={
+        "email": "api.bearer-login@example.com", "password": "correct horse 1"
+    })
+    assert login.status_code == 200, login.text
+    payload = login.json()
+    assert payload["token_type"] == "Bearer"
+    assert payload["access_token"]
+
+    me = client.get(base + "/auth/me", headers={
+        "Authorization": f"Bearer {payload['access_token']}"
+    })
+    assert me.status_code == 200, me.text
+    assert me.json()["profile"]["email"] == "api.bearer-login@example.com"
+
+
+def test_patient_bearer_token_is_tenant_scoped(client):
+    base = "/t/northwind-health/api/v1"
+    signup = client.post(base + "/auth/signup", json={
+        "email": "api.bearer-tenant@example.com", "password": "correct horse 1",
+        "first_name": "Tenant", "last_name": "Scope", "date_of_birth": "1990-02-03",
+        "phone": "555-123-4567", "access_type": "employer", "access_id": "em-n-1"
+    })
+    assert signup.status_code == 201
+    token = signup.json()["access_token"]
+    other_tenant = client.get("/t/bayview-care/api/v1/appointments", headers={
+        "Authorization": f"Bearer {token}"
+    })
+    assert other_tenant.status_code == 401

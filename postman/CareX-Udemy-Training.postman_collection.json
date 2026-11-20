@@ -77,6 +77,61 @@
   ],
   "item": [
     {
+      "name": "00 — Authentication preflight",
+      "item": [
+        {
+          "name": "Patient token status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{patientToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/t/{{tenant}}/api/v1/auth/me"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Patient token is set', function () { pm.expect(pm.environment.get('patientToken') || pm.collectionVariables.get('patientToken')).to.be.a('string').and.not.empty; });",
+                  "pm.test('Patient token is accepted', function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Staff token status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staffToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/t/{{tenant}}/api/v1/staff/auth/me"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Staff token is set', function () { pm.expect(pm.environment.get('staffToken') || pm.collectionVariables.get('staffToken')).to.be.a('string').and.not.empty; });",
+                  "pm.test('Staff token is accepted', function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "01 — Public discovery",
       "item": [
         {
@@ -238,7 +293,10 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "if (pm.response.code === 201) pm.collectionVariables.set('patientToken', pm.response.json().access_token);"
+                  "if (pm.response.code === 201 && pm.response.json().access_token) {",
+                  "  pm.environment.set('patientToken', pm.response.json().access_token);",
+                  "  pm.collectionVariables.set('patientToken', pm.response.json().access_token);",
+                  "} else { throw new Error('Signup did not return an access token.'); }"
                 ]
               }
             }
@@ -266,7 +324,13 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "if (pm.response.code === 200) pm.collectionVariables.set('patientToken', pm.response.json().access_token);"
+                  "if (pm.response.code === 200 && pm.response.json().access_token) {",
+                  "  pm.environment.set('patientToken', pm.response.json().access_token);",
+                  "  pm.collectionVariables.set('patientToken', pm.response.json().access_token);",
+                  "} else if (pm.response.code === 202 && pm.response.json().mfa_required) {",
+                  "  pm.environment.set('mfaChallenge', pm.response.json().challenge);",
+                  "  pm.collectionVariables.set('mfaChallenge', pm.response.json().challenge);",
+                  "} else { throw new Error('Login did not return an access token. Check credentials or complete MFA.'); }"
                 ]
               }
             }
@@ -545,7 +609,10 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "if (pm.response.code === 200) pm.collectionVariables.set('staffToken', pm.response.json().access_token);"
+                  "if (pm.response.code === 200 && pm.response.json().access_token) {",
+                  "  pm.environment.set('staffToken', pm.response.json().access_token);",
+                  "  pm.collectionVariables.set('staffToken', pm.response.json().access_token);",
+                  "} else { throw new Error('Staff login did not return an access token.'); }"
                 ]
               }
             }

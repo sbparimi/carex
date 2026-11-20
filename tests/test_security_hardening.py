@@ -18,6 +18,7 @@ def test_required_audit_write_failure_is_not_silently_swallowed():
 
 
 class ErasureDb:
+    for_update = " FOR UPDATE"
     def __init__(self):
         self.calls = []
         self.status = "active"
