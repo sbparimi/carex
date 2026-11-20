@@ -1,25 +1,26 @@
-# Practical assignment — 1.1 The Limits Of Conventional Api Automation
+# Lesson 1.1 practical assignment — expose a coverage blind spot
 
-## Business context
-You are extending the CareX appointment-booking quality workflow. Apply **the limits of conventional api automation** to a realistic change in that workflow.
+## Scenario
+CareX currently allows a patient to request an available appointment. A new business rule will restrict bookings to the next 30 calendar days. The existing API regression suite reports green, but no test has been mapped to this new rule.
 
 ## Task
-Create a reviewable artefact that demonstrates the lesson's technique in the CareX project. Depending on the lesson, this may be a decision record, traceability map, JSON/YAML schema, Python module, Postman request/test, GitHub Actions workflow or execution report.
+Create a one-page change-to-test traceability analysis.
 
-## Required submission
-1. Problem statement and business risk.
-2. The artefact created or changed.
-3. Verification evidence.
-4. One limitation, assumption or unresolved question.
-5. A note connecting this checkpoint to the previous and next lessons.
+## Starter
+Use `coverage-gap-template.csv` and `booking-rule-change.json`.
+
+## Deliverables
+1. Complete the traceability CSV with the new rule, affected API behaviour, candidate test and evidence required.
+2. Identify at least one reason the existing green suite could provide false confidence.
+3. Write one positive and two negative/boundary scenarios, including day 30 and day 31.
+4. State which parts should be handled by an agent and which require deterministic validation or human approval.
 
 ## Acceptance criteria
-- The artefact directly supports the lesson outcome.
-- Inputs, assumptions and outputs are explicit.
-- Work is reproducible from the linked repository checkpoint.
-- A positive case and a relevant negative, boundary or failure case are considered.
-- Verification is independent of the component that produced the result.
-- Only synthetic data and disposable development resources are used.
-- You can explain the result and diagnose one likely failure without copying the solution.
+- The new 30-day rule is explicit and testable.
+- Day 30 and day 31 are distinguished.
+- Each scenario has a precondition, request input and expected outcome.
+- The analysis does not claim the current API already enforces this rule.
+- Each proposed test traces to the business rule.
 
-Attempt the task before opening the completed reference solution.
+## Verify
+A reviewer should be able to derive the same expected outcomes from the stated rule without guessing timezone or inclusive-boundary semantics. If the rule does not specify those details, record them as open questions.

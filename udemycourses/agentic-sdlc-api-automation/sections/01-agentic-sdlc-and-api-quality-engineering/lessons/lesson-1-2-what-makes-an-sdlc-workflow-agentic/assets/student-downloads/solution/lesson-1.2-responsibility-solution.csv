@@ -1,0 +1,11 @@
+activity_id,primary_owner,reason
+1,Agent,Natural-language interpretation with source traceability
+2,Agent,Detect ambiguity and raise an open question without inventing a rule
+3,Deterministic,Schema conformance is objectively verifiable
+4,Agent,Semantic impact mapping proposes candidates for review
+5,Deterministic,Collection runner executes approved requests and records results
+6,Deterministic,Assertions compare actual and expected values
+7,Agent,Explains and correlates evidence but remains advisory
+8,Deterministic,Versioned policy enforces mandatory release gates
+9,Human,Authorised person accepts and records residual risk
+10,Deterministic,Fixed tested redaction rules provide consistent protection

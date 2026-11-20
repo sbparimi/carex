@@ -1,28 +1,37 @@
-# Knowledge check — 1.2 What Makes An Sdlc Workflow Agentic
+# Lesson 1.2 knowledge check — agent, deterministic tool or human?
 
-Answer before reading the explanations. Each question has one best answer.
+**Outcome tested:** Allocate workflow responsibilities without allowing an AI agent to become an unchecked authority.
 
-1. What is the strongest evidence that **what makes an sdlc workflow agentic** has been applied successfully?
-   - A. The team documented its intention.
-   - B. A reproducible artefact meets explicit acceptance criteria.
-   - C. An AI summary says it looks correct.
-   - D. A single run completed without retained evidence.
+## Questions
 
-2. A required input is missing or ambiguous. What should the workflow do?
-   - A. Guess silently.
-   - B. Treat the missing value as confirmed.
-   - C. Record uncertainty, assess impact and seek clarification or use an approved safe default.
-   - D. Hide uncertainty in the report.
+**1. The requirement says “bookings should be made at a convenient time,” with no definition of convenient. What should the requirement-analysis agent do?**
+- A. Choose a time range based on common practice.
+- B. Record the ambiguity, cite the source and raise an open question.
+- C. Mark the requirement as complete.
+- D. Ask the test runner to infer the business rule.
 
-3. Which verification is strongest?
-   - A. Trust the agent's self-assessment.
-   - B. Independently check the result against acceptance criteria and retain evidence.
-   - C. Check only for HTTP 200.
-   - D. Assume one successful demo guarantees future runs.
+**2. The generated requirement object must conform to a JSON Schema. Who should decide whether it is structurally valid?**
+- A. The LLM that generated it.
+- B. A deterministic schema validator.
+- C. The product owner by visual inspection only.
+- D. The Postman collection name.
+
+**3. A mandatory tenant-isolation test fails, but the agent recommends GO because 98% of tests passed. What is the correct action?**
+- A. Average the results and release.
+- B. Let the agent override the failed test.
+- C. Apply the versioned release policy; the mandatory failure blocks release.
+- D. Delete the failed result and rerun until green.
+
+**4. Which activity requires accountable human authority?**
+- A. Parsing a JSON response.
+- B. Executing a Postman collection.
+- C. Approving a documented production risk exception.
+- D. Checking a required response header.
 
 ## Answers and explanations
-1. **B.** Reproducible evidence proves application; intention and unverified summaries do not.
-2. **C.** Uncertainty must be visible and resolved or bounded by an approved policy.
-3. **B.** Independent verification is stronger than self-assessment or superficial success.
+1. **B.** Agents should expose ambiguity rather than silently invent requirements.
+2. **B.** Structural validity is objectively testable and should be enforced deterministically.
+3. **C.** Mandatory policy gates cannot be overridden by a probabilistic recommendation.
+4. **C.** Risk acceptance requires an authorised accountable person and an audit trail.
 
-Record your score and one change you would make to the CareX workflow.
+**Reflection:** Name one action that your agent may propose but must not execute without approval.

@@ -1,0 +1,11 @@
+agent_or_component,permission,decision
+Requirement Analyst,Read change description,Allow read-only
+Requirement Analyst,Read secret store,Deny
+Test Planner,Propose test scenarios,Allow
+Test Planner,Modify mandatory test definitions,Deny
+Test Planner,Edit release policy,Deny
+Postman Runner,Execute approved collection in disposable test environment,Allow scoped
+Postman Runner,Execute against production,Deny
+Release Assessor,Read test report and policy decision,Allow read-only
+Release Assessor,Approve or deploy release,Deny
+Human approver,Approve scoped risk exception,Allow only through audited approval workflow

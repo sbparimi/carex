@@ -1,0 +1,13 @@
+{
+  "change_id": "CAREX-CHANGE-030",
+  "summary": "Restrict patient appointment bookings to the next 30 calendar days",
+  "current_behaviour": "The current API accepts an available slot subject to existing validation.",
+  "proposed_rule": "A patient may book an appointment only when the slot date is within the next 30 calendar days.",
+  "unresolved_questions": [
+    "Is the 30th calendar day inclusive?",
+    "Which timezone defines the calendar-day boundary?",
+    "Does the restriction apply to staff-created bookings?"
+  ],
+  "status": "proposed_not_implemented",
+  "synthetic_fixture": true
+}

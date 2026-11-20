@@ -1,0 +1,2 @@
+rule_id,rule_statement,affected_journey,candidate_test,expected_result,open_question,evidence
+BR-030,Booking allowed only within next 30 calendar days,Patient appointment booking,,,,

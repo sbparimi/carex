@@ -1,0 +1,10 @@
+component,type,responsibility,may_write,required_evidence
+Change Intake,Source,Receive versioned change request,No,Source ID and revision
+Requirement Analyst,Agent,Extract rules and open questions,No,Requirement draft with source references
+Impact Analyst,Agent,Propose affected operations and journeys,No,Impact proposal with contract references
+Test Planner,Agent,Propose scenarios and priorities,No,Test plan proposal
+Schema Validator,Deterministic,Validate structured hand-off,No,Validation report
+Postman Runner,Deterministic,Execute approved collection,Test environment only,Raw run report
+Policy Evaluator,Deterministic,Apply mandatory release rules,No,Policy decision and version
+Human Reviewer,Human,Approve scoped high-impact changes or exception,Explicit scoped approval,Auditable approval record
+Evidence Store,Storage,Retain immutable run and decision artefacts,Append-only,Artifact IDs and hashes

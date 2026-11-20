@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CareX proposed test plan hand-off",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["change_id", "source_revision", "proposed_scenarios", "open_questions", "approval_required"],
+  "properties": {
+    "change_id": {"type": "string", "minLength": 1},
+    "source_revision": {"type": "string", "minLength": 1},
+    "proposed_scenarios": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["scenario_id", "rule_id", "type", "description", "expected", "source_refs", "confidence"],
+        "properties": {
+          "scenario_id": {"type": "string"},
+          "rule_id": {"type": "string"},
+          "type": {"enum": ["positive", "negative", "boundary", "authorization", "integration"]},
+          "description": {"type": "string"},
+          "expected": {"type": "object"},
+          "source_refs": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+          "confidence": {"type": "number", "minimum": 0, "maximum": 1}
+        }
+      }
+    },
+    "open_questions": {"type": "array", "items": {"type": "string"}},
+    "approval_required": {"type": "boolean"}
+  }
+}

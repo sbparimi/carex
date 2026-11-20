@@ -1,0 +1,20 @@
+{
+  "change_id": "CAREX-CHANGE-030",
+  "source_revision": "jira-fixture-v1",
+  "proposed_scenarios": [
+    {
+      "scenario_id": "BR030-NEG-001",
+      "rule_id": "BR-030",
+      "type": "negative",
+      "description": "Attempt to book a slot outside the approved booking window",
+      "expected": {
+        "status": "pending_contract_confirmation",
+        "reason": "Exact error response not yet approved"
+      },
+      "source_refs": ["CAREX-CHANGE-030"],
+      "confidence": 0.82
+    }
+  ],
+  "open_questions": ["Confirm inclusive boundary and timezone"],
+  "approval_required": true
+}

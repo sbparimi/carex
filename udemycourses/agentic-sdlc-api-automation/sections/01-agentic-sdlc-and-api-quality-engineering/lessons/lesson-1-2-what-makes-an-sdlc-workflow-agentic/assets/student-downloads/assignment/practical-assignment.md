@@ -1,25 +1,22 @@
-# Practical assignment — 1.2 What Makes An Sdlc Workflow Agentic
+# Lesson 1.2 practical assignment — draw the responsibility boundary
 
-## Business context
-You are extending the CareX appointment-booking quality workflow. Apply **what makes an sdlc workflow agentic** to a realistic change in that workflow.
+## Scenario
+A clinic change enters the CareX delivery workflow. AI agents interpret the story, propose impacted tests and summarise failures. Postman executes approved requests. A deterministic policy blocks release if a mandatory test fails.
 
 ## Task
-Create a reviewable artefact that demonstrates the lesson's technique in the CareX project. Depending on the lesson, this may be a decision record, traceability map, JSON/YAML schema, Python module, Postman request/test, GitHub Actions workflow or execution report.
+Review `responsibility-matrix.csv` and `scenario-release-conflict.json`. Confirm or amend the responsibility assigned to each activity and resolve the release conflict.
 
-## Required submission
-1. Problem statement and business risk.
-2. The artefact created or changed.
-3. Verification evidence.
-4. One limitation, assumption or unresolved question.
-5. A note connecting this checkpoint to the previous and next lessons.
+## Deliverables
+1. A completed responsibility matrix with a rationale for each owner: agent, deterministic component or human.
+2. The correct release decision for run `demo-run-2026-001`.
+3. A short explanation separating recommendation, execution evidence, policy evaluation and human exception approval.
 
 ## Acceptance criteria
-- The artefact directly supports the lesson outcome.
-- Inputs, assumptions and outputs are explicit.
-- Work is reproducible from the linked repository checkpoint.
-- A positive case and a relevant negative, boundary or failure case are considered.
-- Verification is independent of the component that produced the result.
-- Only synthetic data and disposable development resources are used.
-- You can explain the result and diagnose one likely failure without copying the solution.
+- All ten activity owners are justified.
+- The learner identifies `API-TENANT-004` as the mandatory failed test.
+- The expected outcome is BLOCKED under `CAREX-RELEASE-POLICY-1`.
+- The agent's GO recommendation remains advisory.
+- Any exception requires an authorised human and retained approval evidence.
 
-Attempt the task before opening the completed reference solution.
+## Verify
+Compare your matrix and decision with `expected-results/lesson-1.2-verification.md`. Open the reference answer only after completing your own analysis.

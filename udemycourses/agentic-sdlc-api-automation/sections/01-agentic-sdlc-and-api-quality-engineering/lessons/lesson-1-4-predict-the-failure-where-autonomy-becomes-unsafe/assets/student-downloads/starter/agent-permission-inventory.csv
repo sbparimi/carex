@@ -1,0 +1,9 @@
+agent_or_component,proposed_permission,needed_for_task,decision,rationale
+Requirement Analyst,Read change description,Yes,Allow,Read-only task input
+Requirement Analyst,Read secret store,No,Remove,No legitimate requirement-analysis need
+Test Planner,Propose test cases,Yes,Allow,Proposal only
+Test Planner,Edit release policy,No,Remove,Policy is deterministic and controlled
+Postman Runner,Execute in isolated test environment,Yes,Scoped allow,Only approved collection and disposable environment
+Postman Runner,Execute against production,No,Deny,No production execution permission
+Release Assessor,Read test report and policy result,Yes,Allow,Produces advisory assessment
+Release Assessor,Approve production release,No,Deny,Human and policy gate authority

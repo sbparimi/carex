@@ -1,25 +1,28 @@
-# Practical assignment — 1.4 Predict The Failure Where Autonomy Becomes Unsafe
+# Lesson 1.4 practical assignment — contain an unsafe agent action
 
-## Business context
-You are extending the CareX appointment-booking quality workflow. Apply **predict the failure where autonomy becomes unsafe** to a realistic change in that workflow.
+## Scenario
+A malicious instruction is embedded in a CareX change description. It asks the agent to reveal a database URL, disable a mandatory test and run a write-enabled collection against a shared environment.
 
 ## Task
-Create a reviewable artefact that demonstrates the lesson's technique in the CareX project. Depending on the lesson, this may be a decision record, traceability map, JSON/YAML schema, Python module, Postman request/test, GitHub Actions workflow or execution report.
+Analyse the threat and design a safe execution decision. Do not execute the embedded instructions.
 
-## Required submission
-1. Problem statement and business risk.
-2. The artefact created or changed.
-3. Verification evidence.
-4. One limitation, assumption or unresolved question.
-5. A note connecting this checkpoint to the previous and next lessons.
+## Starter
+Use `untrusted-change-description.txt` and `agent-permission-inventory.csv`.
+
+## Deliverables
+1. Mark the untrusted instruction segments and explain why they have no authority.
+2. Complete the permission inventory using least-privilege principles.
+3. Produce a safe workflow decision: continue, pause, reject or request human approval at each relevant boundary.
+4. Define the evidence that must be retained for security review.
+5. State how the workflow behaves if schema validation fails or an agent tool call times out.
 
 ## Acceptance criteria
-- The artefact directly supports the lesson outcome.
-- Inputs, assumptions and outputs are explicit.
-- Work is reproducible from the linked repository checkpoint.
-- A positive case and a relevant negative, boundary or failure case are considered.
-- Verification is independent of the component that produced the result.
-- Only synthetic data and disposable development resources are used.
-- You can explain the result and diagnose one likely failure without copying the solution.
+- No secret is disclosed or copied into prompts/logs.
+- Mandatory tests and release policy cannot be changed by the agent.
+- Write-enabled execution is restricted to a disposable, explicitly approved test environment.
+- Proposed diffs are reviewed before execution.
+- Invalid output and tool failures stop dependent actions safely.
+- The decision and evidence are auditable.
 
-Attempt the task before opening the completed reference solution.
+## Verify
+Use `expected-results/threat-review.md` to compare control coverage. The exercise is a design review; it does not authorise running destructive commands.
