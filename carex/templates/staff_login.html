@@ -13,6 +13,6 @@
   {{ field('password', 'Password', demo.password if demo else '', 'password', '', 'current-password') }}
   <button class="primary wide" type="submit">Sign in</button>
 </form>
-{% if demo %}<div class="demobox" role="note"><strong>Demo account</strong> (front desk, invented data). Already filled in.<br>Email: <code>{{ demo.email }}</code><br>Password: <code>{{ demo.password }}</code><br>Also: <code>dr.alex@northwind.example.test</code> (provider), <code>admin@northwind.example.test</code> (admin), same password.<br><a href="/t/{{ slug }}/login">Patient sign in</a></div>{% endif %}
+{% if demo_accounts %}<div class="demobox" role="note"><strong>Staff demo accounts</strong> — synthetic data only.<ul>{% for account in demo_accounts %}<li><strong>{{ account.name }}</strong> ({{ account.role|replace('_', ' ') }})<br>Email: <code>{{ account.email }}</code><br>Password: <code>{{ account.password }}</code></li>{% endfor %}</ul><a href="/t/{{ slug }}/login">Patient sign in</a></div>{% endif %}
 </section>
 {% endblock %}

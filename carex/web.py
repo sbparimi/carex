@@ -130,19 +130,28 @@ class Web:
         self.c.audit.record(t["id"], actor_type, action, actor_id=actor_id, ip=self.client(request), **kw)
 
     # ---- responses
-    def demo(self, t: dict | None, kind: str) -> dict | None:
-        """Demo sign-in details, only for databases loaded with `seed-demo` (the demo user exists). Real databases never match."""
+    def demo_accounts(self, t: dict | None, kind: str) -> list[dict]:
+        """Return only synthetic demo identities that are already provisioned in this tenant."""
         if not t or self.c.hide_demo:
-            return None
+            return []
         from .seed_demo import DEMO_PASSWORD, DEMO_PATIENTS, DEMO_STAFF
         rows = DEMO_STAFF if kind == "staff" else DEMO_PATIENTS
+        table = "staff_users" if kind == "staff" else "users"
+        result = []
         for r in rows:
             if r["tenant_id"] != t["id"]:
                 continue
-            table = "staff_users" if kind == "staff" else "users"
-            if self.c.db.get(f"SELECT 1 AS ok FROM {table} WHERE tenant_id = ? AND email = ?", t["id"], r["email"]):
-                return {"email": r["email"], "password": DEMO_PASSWORD}
-        return None
+            exists = self.c.db.get(f"SELECT 1 AS ok FROM {table} WHERE tenant_id = ? AND email = ?", t["id"], r["email"])
+            if exists:
+                result.append({"email": r["email"], "password": DEMO_PASSWORD,
+                               "name": r.get("name") or f'{r.get("first", "")} {r.get("last", "")}'.strip(),
+                               "role": r.get("role", "patient")})
+        return result
+
+    def demo(self, t: dict | None, kind: str) -> dict | None:
+        """First provisioned demo identity, used to prefill the sign-in form."""
+        accounts = self.demo_accounts(t, kind)
+        return accounts[0] if accounts else None
 
     def visit_colors(self, t: dict | None) -> dict:
         """Each visit type of an organisation gets its own colour (0-9), stable and the same on every screen: its card, dates, times and appointments."""
@@ -155,8 +164,10 @@ class Web:
         if name.startswith(("book_", "appointments", "manage", "video_room", "reschedule", "staff_day", "staff_reschedule", "staff_book")):
             ctx["vtc"] = self.visit_colors(t)
         ctx.setdefault("guest_nav", name.startswith("book_") and not ctx.get("user") and not ctx.get("staff"))
-        if name in ("login.html", "staff_login.html") and "demo" not in ctx:
-            ctx["demo"] = self.demo(t, "staff" if name == "staff_login.html" else "patient")
+        if name in ("login.html", "staff_login.html"):
+            kind = "staff" if name == "staff_login.html" else "patient"
+            ctx.setdefault("demo", self.demo(t, kind))
+            ctx.setdefault("demo_accounts", self.demo_accounts(t, kind))
         html = self.env.get_template(name).render(request=request, t=t, slug=t["slug"] if t else None, brand=t["brand"] if t else {"display_name": "CareX"}, **ctx)
         return HTMLResponse(html, status_code=status, headers={**SECURITY_HEADERS, "content-security-policy": CSP_PAGE, "cache-control": "no-store"})
 

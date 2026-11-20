@@ -24,7 +24,7 @@
   {{ field('password', 'Password', demo.password if demo else '', 'password', '', 'current-password') }}
   <button class="primary wide" type="submit">Sign in</button>
 </form>
-{% if demo %}<div class="demobox" role="note"><strong>Demo account</strong> (invented data). Already filled in: just press Sign in.<br>Email: <code>{{ demo.email }}</code><br>Password: <code>{{ demo.password }}</code><br><a href="/t/{{ slug }}/staff/login">Clinic staff sign in</a></div>{% endif %}
+{% if demo_accounts %}<div class="demobox" role="note"><strong>Demo accounts</strong> — synthetic data only. Use any listed credentials to sign in.<ul>{% for account in demo_accounts %}<li><strong>{{ account.name }}</strong><br>Email: <code>{{ account.email }}</code><br>Password: <code>{{ account.password }}</code></li>{% endfor %}</ul><a href="/t/{{ slug }}/staff/login">Clinic staff sign in</a></div>{% endif %}
 <p class="links"><a href="/t/{{ slug }}/forgot">Forgot password?</a></p>
 <p class="alt">New here? <a href="/t/{{ slug }}/signup{% if nxt %}?next={{ nxt|urlencode }}{% endif %}">Create an account</a></p>
 <p class="alt">Just looking? <a href="/t/{{ slug }}/book">Browse clinics and times without an account</a></p>
