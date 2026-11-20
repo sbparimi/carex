@@ -1,28 +1,28 @@
-# Knowledge check — 6.2 Run Postman Cli Locally And Interpret Reports
+# Knowledge check — Lesson 6.2: Run Postman CLI locally and interpret reports
 
-Answer before reading the explanations. Each question has one best answer.
+Choose the single best answer.
 
-1. What is the strongest evidence that **run postman cli locally and interpret reports** has been applied successfully?
-   - A. The team documented its intention.
-   - B. A reproducible artefact meets explicit acceptance criteria.
-   - C. An AI summary says it looks correct.
-   - D. A single run completed without retained evidence.
+1. **Which command runs a local collection file with Postman CLI?**
+   - A. postman collection run <collection-file>
+   - B. newman start
+   - C. python run.py
+   - D. postman api test
 
-2. A required input is missing or ambiguous. What should the workflow do?
-   - A. Guess silently.
-   - B. Treat the missing value as confirmed.
-   - C. Record uncertainty, assess impact and seek clarification or use an approved safe default.
-   - D. Hide uncertainty in the report.
+2. **The CLI reports a request error and a failed test assertion. How should these be interpreted?**
+   - A. They are identical failures
+   - B. Separate transport/request execution problems from assertion failures
+   - C. Ignore the request error
+   - D. Mark the collection green if some tests pass
 
-3. Which verification is strongest?
-   - A. Trust the agent's self-assessment.
-   - B. Independently check the result against acceptance criteria and retain evidence.
-   - C. Check only for HTTP 200.
-   - D. Assume one successful demo guarantees future runs.
+3. **When does a local CLI run require a Postman API key?**
+   - A. Always
+   - B. Never under any circumstances
+   - C. Not for a local file-only run; cloud result upload/authenticated resources may require authentication
+   - D. Only when running GET
 
-## Answers and explanations
-1. **B.** Reproducible evidence proves application; intention and unverified summaries do not.
-2. **C.** Uncertainty must be visible and resolved or bounded by an approved policy.
-3. **B.** Independent verification is stronger than self-assessment or superficial success.
+## Answer key and explanations
+1. **A.** The documented collection command runs a local collection path.
 
-Record your score and one change you would make to the CareX workflow.
+2. **B.** Different failure types need separate diagnosis.
+
+3. **C.** Authentication depends on local/cloud workflow and resource linking.

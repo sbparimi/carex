@@ -1,28 +1,28 @@
-# Knowledge check — 6.4 Build A Github Actions Pipeline
+# Knowledge check — Lesson 6.4: Build a GitHub Actions pipeline
 
-Answer before reading the explanations. Each question has one best answer.
+Choose the single best answer.
 
-1. What is the strongest evidence that **build a github actions pipeline** has been applied successfully?
-   - A. The team documented its intention.
-   - B. A reproducible artefact meets explicit acceptance criteria.
-   - C. An AI summary says it looks correct.
-   - D. A single run completed without retained evidence.
+1. **What should a CI pipeline run?**
+   - A. The agent’s unreviewed draft
+   - B. A reviewed, version-controlled Postman collection
+   - C. A production write-enabled collection by default
+   - D. Only a health request
 
-2. A required input is missing or ambiguous. What should the workflow do?
-   - A. Guess silently.
-   - B. Treat the missing value as confirmed.
-   - C. Record uncertainty, assess impact and seek clarification or use an approved safe default.
-   - D. Hide uncertainty in the report.
+2. **Where should a Postman API key be stored when cloud authentication is required?**
+   - A. Committed environment JSON
+   - B. Workflow secret
+   - C. Collection description
+   - D. Console output
 
-3. Which verification is strongest?
-   - A. Trust the agent's self-assessment.
-   - B. Independently check the result against acceptance criteria and retain evidence.
-   - C. Check only for HTTP 200.
-   - D. Assume one successful demo guarantees future runs.
+3. **What is the correct response to a failing required assertion?**
+   - A. Force the job to pass
+   - B. Preserve failure status and report evidence for diagnosis
+   - C. Delete the assertion
+   - D. Allow the agent to approve release
 
-## Answers and explanations
-1. **B.** Reproducible evidence proves application; intention and unverified summaries do not.
-2. **C.** Uncertainty must be visible and resolved or bounded by an approved policy.
-3. **B.** Independent verification is stronger than self-assessment or superficial success.
+## Answer key and explanations
+1. **B.** CI should execute a reviewed artefact, not an unreviewed proposal.
 
-Record your score and one change you would make to the CareX workflow.
+2. **B.** Secrets belong in the CI secret store and must not be printed.
+
+3. **B.** Mandatory quality failures must remain visible to the pipeline.

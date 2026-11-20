@@ -1,28 +1,28 @@
-# Knowledge check — 6.1 Collection Execution Options And Tool Roles
+# Knowledge check — Lesson 6.1: Collection execution options and tool roles
 
-Answer before reading the explanations. Each question has one best answer.
+Choose the single best answer.
 
-1. What is the strongest evidence that **collection execution options and tool roles** has been applied successfully?
-   - A. The team documented its intention.
-   - B. A reproducible artefact meets explicit acceptance criteria.
-   - C. An AI summary says it looks correct.
-   - D. A single run completed without retained evidence.
+1. **Which tool is the primary runner for new Postman v12 course workflows?**
+   - A. Newman
+   - B. Postman CLI
+   - C. Python requests
+   - D. A custom shell loop
 
-2. A required input is missing or ambiguous. What should the workflow do?
-   - A. Guess silently.
-   - B. Treat the missing value as confirmed.
-   - C. Record uncertainty, assess impact and seek clarification or use an approved safe default.
-   - D. Hide uncertainty in the report.
+2. **What is the role of GitHub Actions?**
+   - A. Generate business requirements
+   - B. Coordinate repeatable CI jobs that run reviewed Postman collections
+   - C. Replace Postman assertions
+   - D. Approve business policy
 
-3. Which verification is strongest?
-   - A. Trust the agent's self-assessment.
-   - B. Independently check the result against acceptance criteria and retain evidence.
-   - C. Check only for HTTP 200.
-   - D. Assume one successful demo guarantees future runs.
+3. **What is Newman’s role in this course?**
+   - A. Preferred runner for all new collections
+   - B. Legacy compatibility and migration context
+   - C. Agent Mode
+   - D. A database migration tool
 
-## Answers and explanations
-1. **B.** Reproducible evidence proves application; intention and unverified summaries do not.
-2. **C.** Uncertainty must be visible and resolved or bounded by an approved policy.
-3. **B.** Independent verification is stronger than self-assessment or superficial success.
+## Answer key and explanations
+1. **B.** Postman CLI is the current primary runner for the course.
 
-Record your score and one change you would make to the CareX workflow.
+2. **B.** GitHub Actions orchestrates pipeline execution; it does not replace the test platform.
+
+3. **B.** Newman is covered to help learners understand legacy estates, not as the primary new runner.

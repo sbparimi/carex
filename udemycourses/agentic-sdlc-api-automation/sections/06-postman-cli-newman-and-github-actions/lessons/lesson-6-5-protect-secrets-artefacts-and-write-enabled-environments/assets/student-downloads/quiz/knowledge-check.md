@@ -1,28 +1,28 @@
-# Knowledge check — 6.5 Protect Secrets Artefacts And Write Enabled Environments
+# Knowledge check — Lesson 6.5: Protect secrets, artefacts and write-enabled environments
 
-Answer before reading the explanations. Each question has one best answer.
+Choose the single best answer.
 
-1. What is the strongest evidence that **protect secrets artefacts and write enabled environments** has been applied successfully?
-   - A. The team documented its intention.
-   - B. A reproducible artefact meets explicit acceptance criteria.
-   - C. An AI summary says it looks correct.
-   - D. A single run completed without retained evidence.
+1. **A failed CI run prints an access token in the log. What is the priority?**
+   - A. Keep the log for debugging
+   - B. Treat the token as exposed, revoke/rotate it and remove further secret exposure
+   - C. Ignore it if the job failed
+   - D. Move it into the collection JSON
 
-2. A required input is missing or ambiguous. What should the workflow do?
-   - A. Guess silently.
-   - B. Treat the missing value as confirmed.
-   - C. Record uncertainty, assess impact and seek clarification or use an approved safe default.
-   - D. Hide uncertainty in the report.
+2. **When may a write-enabled environment be used in training?**
+   - A. Whenever the URL responds
+   - B. Only after verifying a dedicated disposable non-production target and the required approval controls
+   - C. Against preview if it looks separate
+   - D. With production credentials
 
-3. Which verification is strongest?
-   - A. Trust the agent's self-assessment.
-   - B. Independently check the result against acceptance criteria and retain evidence.
-   - C. Check only for HTTP 200.
-   - D. Assume one successful demo guarantees future runs.
+3. **Can an Agent Mode recommendation override a failed mandatory CI gate?**
+   - A. Yes, if confidence is high
+   - B. Yes, if it says retry
+   - C. No; deterministic mandatory policy and authorised human process remain in force
+   - D. Only for release builds
 
-## Answers and explanations
-1. **B.** Reproducible evidence proves application; intention and unverified summaries do not.
-2. **C.** Uncertainty must be visible and resolved or bounded by an approved policy.
-3. **B.** Independent verification is stronger than self-assessment or superficial success.
+## Answer key and explanations
+1. **B.** A leaked credential must be treated as compromised.
 
-Record your score and one change you would make to the CareX workflow.
+2. **B.** Write permission must be tied to an isolated and verified target.
+
+3. **C.** AI recommendations cannot override mandatory release controls.
