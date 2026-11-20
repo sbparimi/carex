@@ -1,0 +1,9 @@
+{
+  "change_id": "CAREX-214",
+  "source_revision": "demo-story-v2-approved",
+  "proposed_actions": [
+    {"action": "read_contract", "evidence_ref": "openapi:sha256:demo-contract"},
+    {"action": "propose_test", "evidence_ref": "requirement:BR-03"}
+  ],
+  "release_decision": "recommend_review"
+}

@@ -1,0 +1,9 @@
+{
+  "change_id": "CAREX-214",
+  "source_revision": "demo-story-v2-approved",
+  "proposed_actions": [
+    {"action": "update_collection"},
+    {"action": "write_database"}
+  ],
+  "release_decision": "approve_release"
+}
