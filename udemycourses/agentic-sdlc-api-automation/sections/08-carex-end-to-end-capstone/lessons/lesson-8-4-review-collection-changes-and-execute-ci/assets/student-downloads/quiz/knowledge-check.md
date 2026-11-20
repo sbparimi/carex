@@ -1,28 +1,28 @@
-# Knowledge check — 8.4 Review Collection Changes And Execute Ci
+# Knowledge check — Lesson 8.4: Review collection changes and execute CI
 
-Answer before reading the explanations. Each question has one best answer.
+Choose the single best answer.
 
-1. What is the strongest evidence that **review collection changes and execute ci** has been applied successfully?
-   - A. The team documented its intention.
-   - B. A reproducible artefact meets explicit acceptance criteria.
-   - C. An AI summary says it looks correct.
-   - D. A single run completed without retained evidence.
+1. **What should happen before a generated collection update is executed?**
+   - A. Automatic merge
+   - B. Human review of the diff and contract traceability
+   - C. Production run
+   - D. Disable assertions
 
-2. A required input is missing or ambiguous. What should the workflow do?
-   - A. Guess silently.
-   - B. Treat the missing value as confirmed.
-   - C. Record uncertainty, assess impact and seek clarification or use an approved safe default.
-   - D. Hide uncertainty in the report.
+2. **What should CI execute?**
+   - A. The latest unreviewed Agent Mode draft
+   - B. The committed reviewed collection revision
+   - C. A different test suite
+   - D. Only the model's summary
 
-3. Which verification is strongest?
-   - A. Trust the agent's self-assessment.
-   - B. Independently check the result against acceptance criteria and retain evidence.
-   - C. Check only for HTTP 200.
-   - D. Assume one successful demo guarantees future runs.
+3. **What should happen when a mandatory test fails in GitHub Actions?**
+   - A. Mark the workflow successful manually
+   - B. Preserve the failed gate and retain evidence for diagnosis
+   - C. Delete the run
+   - D. Ask Agent Mode to approve release
 
-## Answers and explanations
-1. **B.** Reproducible evidence proves application; intention and unverified summaries do not.
-2. **C.** Uncertainty must be visible and resolved or bounded by an approved policy.
-3. **B.** Independent verification is stronger than self-assessment or superficial success.
+## Answer key and explanations
+1. **B.** AI-generated changes must be reviewed before execution.
 
-Record your score and one change you would make to the CareX workflow.
+2. **B.** CI must execute a versioned approved artefact.
+
+3. **B.** Mandatory failures remain visible and cannot be overridden by the agent.

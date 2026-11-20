@@ -1,28 +1,28 @@
-# Knowledge check — 8.1 Understand The Carex Appointment Booking Journey
+# Knowledge check — Lesson 8.1: Understand the CareX appointment-booking journey
 
-Answer before reading the explanations. Each question has one best answer.
+Choose the single best answer.
 
-1. What is the strongest evidence that **understand the carex appointment booking journey** has been applied successfully?
-   - A. The team documented its intention.
-   - B. A reproducible artefact meets explicit acceptance criteria.
-   - C. An AI summary says it looks correct.
-   - D. A single run completed without retained evidence.
+1. **What should learners establish before changing the collection?**
+   - A. A verified baseline of the current journey and contract
+   - B. An assumed endpoint list
+   - C. A new test framework
+   - D. A release recommendation
 
-2. A required input is missing or ambiguous. What should the workflow do?
-   - A. Guess silently.
-   - B. Treat the missing value as confirmed.
-   - C. Record uncertainty, assess impact and seek clarification or use an approved safe default.
-   - D. Hide uncertainty in the report.
+2. **Which statement about CareX booking is confirmed in the course context?**
+   - A. Patient bookings require doctor approval
+   - B. Patient bookings are immediately confirmed
+   - C. All bookings are pending
+   - D. Time automatically marks appointments completed
 
-3. Which verification is strongest?
-   - A. Trust the agent's self-assessment.
-   - B. Independently check the result against acceptance criteria and retain evidence.
-   - C. Check only for HTTP 200.
-   - D. Assume one successful demo guarantees future runs.
+3. **What is the purpose of capturing the baseline run?**
+   - A. To prove future runs cannot fail
+   - B. To record current behaviour, request sequence and evidence for comparison
+   - C. To replace OpenAPI
+   - D. To approve production
 
-## Answers and explanations
-1. **B.** Reproducible evidence proves application; intention and unverified summaries do not.
-2. **C.** Uncertainty must be visible and resolved or bounded by an approved policy.
-3. **B.** Independent verification is stronger than self-assessment or superficial success.
+## Answer key and explanations
+1. **A.** A baseline provides a comparison point for change impact.
 
-Record your score and one change you would make to the CareX workflow.
+2. **B.** The current CareX behaviour is immediate confirmation; do not invent an approval state.
+
+3. **B.** Baseline evidence makes later changes measurable and diagnosable.

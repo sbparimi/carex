@@ -1,25 +1,25 @@
-# Practical assignment — 8.3 Run Requirement Impact And Test Planning Stages
+# Capstone assignment — Lesson 8.3: Run requirement, impact and test-planning stages
 
 ## Business context
-You are extending the CareX appointment-booking quality workflow. Apply **run requirement impact and test planning stages** to a realistic change in that workflow.
+The CareX capstone changes patient cancellation so that a patient may cancel their own appointment only when the appointment start is more than 24 hours away in the clinic-local timezone. Exactly 24 hours is not allowed. Staff cancellation remains governed by existing permissions.
 
 ## Task
-Create a reviewable artefact that demonstrates the lesson's technique in the CareX project. Depending on the lesson, this may be a decision record, traceability map, JSON/YAML schema, Python module, Postman request/test, GitHub Actions workflow or execution report.
+Run the requirement-analysis, impact-analysis and test-planning prompts in Postman Agent Mode using the CareX change and contract. Produce a traceability chain from business rule to acceptance criterion, API operation, scenario and proposed Postman request. Include positive, negative, boundary, ownership and staff-regression coverage. Review for invented facts and prioritise regression by business impact.
 
-## Required submission
-1. Problem statement and business risk.
-2. The artefact created or changed.
-3. Verification evidence.
-4. One limitation, assumption or unresolved question.
-5. A note connecting this checkpoint to the previous and next lessons.
+## Required evidence
+1. Change/requirement reference and source revision.
+2. Postman Agent Mode prompt and unmodified output where applicable.
+3. Human-reviewed artefact or diff.
+4. Postman/CLI run evidence and Git revision.
+5. Failure analysis, open risks and release assessment.
 
 ## Acceptance criteria
-- The artefact directly supports the lesson outcome.
-- Inputs, assumptions and outputs are explicit.
-- Work is reproducible from the linked repository checkpoint.
-- A positive case and a relevant negative, boundary or failure case are considered.
-- Verification is independent of the component that produced the result.
-- Only synthetic data and disposable development resources are used.
-- You can explain the result and diagnose one likely failure without copying the solution.
+- All proposed API operations and assertions are supported by CareX contract/implementation evidence.
+- Exact boundary, ownership and staff regression are considered.
+- Collection changes are reviewed before execution.
+- CLI/CI runs execute the reviewed commit and retain evidence.
+- Only synthetic data and a dedicated disposable non-production database are used.
+- AI cannot execute prohibited writes, waive mandatory gates or approve release.
+- The learner can reproduce and explain the final result independently.
 
-Attempt the task before opening the completed reference solution.
+Do not mark the capstone complete until the full workflow has executed and all evidence is retained.
