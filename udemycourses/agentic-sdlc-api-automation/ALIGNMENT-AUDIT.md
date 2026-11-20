@@ -2,7 +2,7 @@
 
 **Course:** Agentic SDLC for API Automation  
 **Branch:** `course/agentic-sdlc-api-automation`  
-**Latest reviewed baseline before this audit update:** `88700a79bfd58c0afbee029b9032d177f3321c0a`  
+**Latest review baseline:** `111f96fbff82348a5951b8f3219ec5b0e8491cd0`  
 **Scope:** All eight sections, 35 lesson folders, course manifest, learner standards, setup, assessments, sample demos and repository structure.
 
 ## 1. Non-negotiable objective
@@ -27,7 +27,9 @@ This is not a general Python agent-engineering course. Python is not a core lear
 - Removed the Python policy-gate lab from the course branch.
 - Removed Section 1 folders that incorrectly contained Section 8 lesson resources.
 - Removed Section 8 folders that incorrectly contained Section 7 lesson resources.
-- Confirmed repository contains eight sections, 35 lesson folders, 35 lesson READMEs, 35 knowledge checks and 35 practical assignments.
+- Confirmed repository contains eight sections, 35 lesson folders, 35 lesson READMEs, 35 knowledge checks and 35 bespoke practical assignments.
+- Verified the course tree has no duplicate Lesson 1.3 path, no misplaced Section 7/8 lesson folders, and no Python source files.
+- Parsed the Postman governance collection JSON; confirmed its three requests are GET-only and its default `agentProposal` variable is valid JSON. This is structural validation only, not Postman app execution.
 - Reframed learner setup so Python is not a core prerequisite.
 - Reframed Section 3 around Postman Agent Mode, bounded task hand-offs, structured proposals and human review.
 - Reframed Section 4 around AI-assisted traceable test planning and risk-based impact analysis.
