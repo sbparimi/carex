@@ -5,32 +5,30 @@
 **Level:** Intermediate to advanced  
 **Status:** Course production workspace — not yet recording-ready.
 
-## Repository structure
+## Two distinct audiences
 
-This course is organised strictly as **course → section → lesson → assets**.
+This repository separates **production-only materials** from **student-downloadable course assets**.
 
-- `sections/`: the eight course sections in learning order.
-- Each section contains `lessons/`.
-- Each lesson contains `assets/`, divided by production purpose:
-  - `instructor/` — narration scripts and instructor notes.
-  - `slides/` — slide storyboards and visual assets.
-  - `demo/` — demo plans, fixtures, commands and execution evidence.
-  - `learner/` — worksheets, lab instructions and downloadable resources.
-  - `assessment/` — checks, expected results and reference solutions.
+- Production materials: `assets/instructor/`, `assets/slides/`, `assets/demo/`, and `assets/assessment/`.
+- Student-facing downloads: `assets/student-downloads/` inside each lesson.
+- Course-wide student resources: `student-resources/` for the workbook, setup guide, project starter, quick references and final capstone package.
 
-## Production rules
+Never upload instructor scripts, recording notes, answer keys intended for release after an exercise, production checklists or internal scoring rubrics as student downloads.
 
-Every lesson follows the seven-part teaching sequence in this exact order:
+## Student experience standard
 
-1. Opening
-2. Concept
-3. Why
-4. Demo
-5. Build
-6. Verify
-7. Recap
+The course uses an original, continuous CareX API project. Learners receive a usable starter project and downloadable exercise files, then progressively extend the same project across sections. Each practical lesson identifies:
+- what to download before starting;
+- the exact task to perform;
+- the expected result;
+- how to verify the result independently;
+- the checkpoint or completed solution released after the exercise.
 
-Every lesson must pass all 13 mandatory acceptance criteria at 10/10 with evidence. A drafted file is not equivalent to a tested demonstration, rehearsed recording or approved lesson. Do not label the course complete until every lesson passes.
+Each lesson has its own downloadable resource index. Student resources must be clean, self-contained, versioned and usable without access to this production repository's internal files.
+
+## Lesson sequence
+
+Every lesson follows this exact sequence: Opening → Concept → Why → Demo → Build → Verify → Recap.
 
 ## Architecture principle
 
@@ -38,4 +36,4 @@ Agents interpret and propose. Deterministic components validate, execute and enf
 
 ## Capstone
 
-The CareX appointment-booking API change is the end-to-end capstone. Use synthetic data and a dedicated non-production database branch. Never place credentials or secrets in course assets.
+The CareX appointment-booking API change is the end-to-end capstone. Use synthetic data and a dedicated non-production database branch. Never put credentials, secrets, instructor-only materials or production identifiers in student downloads.

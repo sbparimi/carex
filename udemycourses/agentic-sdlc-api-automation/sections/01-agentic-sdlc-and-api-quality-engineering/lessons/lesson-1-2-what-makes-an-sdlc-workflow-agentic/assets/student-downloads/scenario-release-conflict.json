@@ -1,0 +1,43 @@
+{
+  "scenario_id": "CAREX-REL-001",
+  "description": "Synthetic teaching fixture: model recommendation conflicts with a mandatory regression result.",
+  "run_id": "demo-run-2026-001",
+  "test_results": [
+    {
+      "test_id": "API-BOOK-001",
+      "name": "Booking happy path",
+      "status": "passed",
+      "mandatory": false
+    },
+    {
+      "test_id": "API-TENANT-004",
+      "name": "Tenant isolation boundary",
+      "status": "failed",
+      "mandatory": true
+    },
+    {
+      "test_id": "API-AUTH-002",
+      "name": "Unauthenticated request rejected",
+      "status": "passed",
+      "mandatory": true
+    }
+  ],
+  "agent_release_summary": {
+    "recommendation": "GO",
+    "summary": "98% of checks passed; release appears acceptable.",
+    "authority": "advisory-only"
+  },
+  "release_policy": {
+    "policy_id": "CAREX-RELEASE-POLICY-1",
+    "rule": "Any failed mandatory test blocks release.",
+    "expected_outcome": "BLOCKED"
+  },
+  "learner_tasks": [
+    "Identify the mandatory failed test.",
+    "State the authoritative evidence.",
+    "Determine the policy outcome.",
+    "Explain what the agent may contribute without overriding the gate."
+  ],
+  "synthetic_fixture": true,
+  "execution_verified": false
+}

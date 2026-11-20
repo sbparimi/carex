@@ -1,0 +1,11 @@
+activity_id,activity,primary_owner,reason,evidence_or_control
+1,Extract acceptance criteria from a Jira-style story,Agent,Interpret natural language and retain source references,Requirement draft with source links
+2,Detect missing timezone in appointment availability,Agent,Identify ambiguity and raise an open question,Open-question record
+3,Validate requirement object against JSON schema,Deterministic,Schema validity is objectively testable,Schema validation result
+4,Map changed OpenAPI operation to candidate Postman requests,Agent,Semantic impact mapping requires context,Impact proposal with contract references
+5,Execute approved Postman collection,Deterministic,Runner produces repeatable execution results,Raw collection run report
+6,Assert expected appointment status,Deterministic,Expected response value is objectively checkable,Assertion result
+7,Summarise failing test with evidence links,Agent,Explain and correlate evidence but remain advisory,Summary linked to immutable run evidence
+8,Enforce block on mandatory failed tenant-isolation test,Deterministic,Versioned policy controls release gate,Policy evaluation result
+9,Approve production risk exception,Human,Accountable authority and risk acceptance required,Auditable approval record
+10,Redact secrets using fixed tested rules,Deterministic,Consistent rule-based control must not rely on LLM alone,Redaction test report
