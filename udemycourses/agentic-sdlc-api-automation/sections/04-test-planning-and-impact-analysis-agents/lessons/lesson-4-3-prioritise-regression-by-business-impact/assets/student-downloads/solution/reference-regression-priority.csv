@@ -1,0 +1,9 @@
+rank,candidate_id,journey,impact,proximity,blast_radius,likelihood,weighted_score,selected_depth,rationale
+1,REG-01,Patient cancels own confirmed appointment,5,5,4,4,4.7,Full boundary and state suite,Direct change target and customer-facing outcome
+2,REG-05,Patient attempts to cancel another patient's appointment,5,4,4,3,4.3,Authorization and ownership checks,Privacy and data isolation risk
+3,REG-03,Patient creates appointment,5,3,5,2,4.1,Smoke plus relevant state checks,High business value and broad blast radius with lower direct change proximity
+4,REG-02,Patient views own appointment after cancellation,4,4,3,3,3.7,State transition and read-back,Adjacent lifecycle consistency
+4,REG-06,Staff cancels appointment,4,4,3,3,3.7,Focused non-regression,Requirement explicitly preserves staff permission behaviour
+6,REG-04,Patient reschedules appointment,4,3,3,3,3.4,Focused regression,Adjacent change-window behaviour
+7,REG-07,Staff marks arrival or completes visit,3,1,2,2,2.1,Smoke only,Downstream lifecycle sanity check
+7,REG-08,Public clinic and availability discovery,2,1,4,2,2.1,Smoke only,Low direct proximity but broad shared surface

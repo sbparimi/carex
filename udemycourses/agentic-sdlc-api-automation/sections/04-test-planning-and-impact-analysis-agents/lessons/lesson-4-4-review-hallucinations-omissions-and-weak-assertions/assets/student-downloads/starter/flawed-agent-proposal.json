@@ -1,0 +1,63 @@
+{
+  "change_id": "CAREX-CHANGE-030-CANCEL-24H",
+  "summary": "AI-generated proposal supplied for learner review; intentionally contains defects.",
+  "scenarios": [
+    {
+      "id": "BAD-01",
+      "title": "Patient cancels appointment more than 24 hours before start",
+      "method": "PATCH",
+      "path": "/t/{tenant}/api/v1/appointments/{appointmentId}/cancel",
+      "expected_status": 200,
+      "assertion": "response.cancelled == true"
+    },
+    {
+      "id": "BAD-02",
+      "title": "Patient cancels appointment within 24 hours",
+      "method": "POST",
+      "path": "/t/{tenant}/api/v1/appointments/{appointmentId}/cancel",
+      "expected_status": 403,
+      "assertion": "response.error_code == 'CANCEL_WINDOW_CLOSED'"
+    },
+    {
+      "id": "BAD-03",
+      "title": "Patient cancels another patient's appointment",
+      "method": "POST",
+      "path": "/t/{tenant}/api/v1/appointments/{appointmentId}/cancel",
+      "expected_status": 404,
+      "assertion": "response.status == 'not_found'"
+    },
+    {
+      "id": "BAD-04",
+      "title": "Staff cancellation",
+      "method": "POST",
+      "path": "/t/{tenant}/api/v1/appointments/{appointmentId}/cancel",
+      "expected_status": 403,
+      "assertion": "all actors are subject to the same 24-hour rule"
+    },
+    {
+      "id": "BAD-05",
+      "title": "Patient cancels appointment 30 hours before start",
+      "method": "POST",
+      "path": "/t/{tenant}/api/v1/appointments/{appointmentId}/cancel",
+      "expected_status": 200,
+      "assertion": "response.status == 'cancelled'"
+    },
+    {
+      "id": "BAD-06",
+      "title": "Patient cancels appointment 31 hours before start",
+      "method": "POST",
+      "path": "/t/{tenant}/api/v1/appointments/{appointmentId}/cancel",
+      "expected_status": 200,
+      "assertion": "response.status == 'cancelled'"
+    }
+  ],
+  "intentional_defects": [
+    "BAD-01 invents PATCH method and response fields.",
+    "BAD-02 invents status code and error response property.",
+    "The exact 24-hour boundary is absent.",
+    "BAD-03 treats a possible implementation outcome as proven contract.",
+    "BAD-04 applies the patient-only threshold to staff and uses the wrong route family.",
+    "BAD-05 and BAD-06 are duplicate happy paths with no meaningful boundary distinction.",
+    "Every test relies on status-only or unverified response assertions."
+  ]
+}

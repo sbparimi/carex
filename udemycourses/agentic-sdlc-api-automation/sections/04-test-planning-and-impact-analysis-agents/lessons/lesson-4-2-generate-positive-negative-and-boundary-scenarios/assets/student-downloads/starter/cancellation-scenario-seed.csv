@@ -1,0 +1,9 @@
+scenario_seed,actor,appointment_state,time_to_start,ownership,expected_business_outcome,evidence_status
+S-01,patient,confirmed,25h,own,patient cancellation allowed by proposed rule,requirement fixture
+S-02,patient,confirmed,24h,own,patient cancellation denied by proposed rule,requirement fixture
+S-03,patient,confirmed,23h59m59s,own,patient cancellation denied by proposed rule,requirement fixture
+S-04,patient,confirmed,24h+1s,own,patient cancellation allowed by proposed rule,requirement fixture
+S-05,patient,confirmed,25h,other patient,other patient's appointment remains unchanged,ownership rule requires contract confirmation
+S-06,staff,confirmed,less than 24h,permitted staff scope,existing staff permissions remain unchanged,regression intent; permission contract required
+S-07,patient,cancelled,25h,own,do not assume repeated cancellation semantics,open question
+S-08,patient,confirmed,DST transition,own,resolve elapsed-duration versus wall-clock interpretation,open question

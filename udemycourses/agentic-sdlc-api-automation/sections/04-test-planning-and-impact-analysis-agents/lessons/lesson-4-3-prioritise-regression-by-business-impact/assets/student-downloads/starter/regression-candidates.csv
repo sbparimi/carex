@@ -1,0 +1,9 @@
+candidate_id,journey,change_proximity,business_impact,blast_radius,reason_for_inclusion,evidence_state
+REG-01,Patient cancels own confirmed appointment,5,5,4,Directly changed patient cancellation policy,Request path in checked-in collection; rule is proposed
+REG-02,Patient views own appointment after cancellation,4,4,3,Adjacent lifecycle read path,Collection contains list/get requests; state semantics need verification
+REG-03,Patient creates appointment,3,5,5,Booking lifecycle may be affected by appointment state and shared booking rules,Collection contains create request; impact is hypothesis
+REG-04,Patient reschedules appointment,3,4,3,Adjacent change-window behaviour may be affected,Collection contains reschedule request; impact is hypothesis
+REG-05,Patient attempts to cancel another patient's appointment,4,5,4,Ownership and privacy boundary,Implementation/contract evidence required
+REG-06,Staff cancels appointment,4,4,3,Explicit non-regression requirement for staff permissions,Staff cancellation request is present in collection; permission details need contract review
+REG-07,Staff marks patient arrived or completes visit,1,3,2,Downstream lifecycle smoke check,Adjacent workflow; no direct change evidence
+REG-08,Public clinic and availability discovery,1,2,4,Shared API smoke coverage and broad usage,No direct change evidence

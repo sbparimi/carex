@@ -1,7 +1,3 @@
-# Lesson 4.1 — learner assets
+# Lesson 4.1 learner guide
 
-Lab brief, worksheet, downloadable resources and troubleshooting guide.
-
-**Status:** Not yet populated.
-
-Only lesson-specific assets belong in this directory. Keep the source editable and retain evidence for all execution and review claims.
+Follow the student downloads index. Complete the prediction before running Agent Mode, preserve the unmodified proposal, annotate unsupported claims, and submit a human-reviewed test-plan contract. Do not execute mutating requests in this lesson.

@@ -1,7 +1,3 @@
-# Lesson 4.2 — learner assets
+# Lesson 4.2 learner guide
 
-Lab brief, worksheet, downloadable resources and troubleshooting guide.
-
-**Status:** Not yet populated.
-
-Only lesson-specific assets belong in this directory. Keep the source editable and retain evidence for all execution and review claims.
+Predict the boundary outcomes before prompting Agent Mode. Preserve the raw proposal, review every scenario against the seed fixture, and submit the corrected matrix with evidence references and unresolved questions. Do not execute mutating requests.

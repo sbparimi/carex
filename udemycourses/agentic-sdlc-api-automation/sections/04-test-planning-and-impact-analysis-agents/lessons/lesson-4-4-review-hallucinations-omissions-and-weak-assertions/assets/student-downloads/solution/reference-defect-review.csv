@@ -1,0 +1,11 @@
+defect_id,location,severity,finding,evidence,required_correction,verification
+D-01,BAD-01,high,Invented PATCH method,Checked-in Postman collection uses POST for patient cancellation; runtime OpenAPI still must be pinned,Use contract-confirmed method; current collection is provisional evidence,Compare against pinned OpenAPI operation
+D-02,BAD-01,high,Invented response.cancelled field,No response schema supplied,Remove property assertion until schema evidence exists,Validate against OpenAPI schema
+D-03,BAD-02,critical,Invented 403 status,No response contract supplied,Leave HTTP expectation unverified,Validate against pinned OpenAPI responses
+D-04,BAD-02,critical,Invented error_code field,No response schema supplied,Remove unsupported field assertion,Validate against pinned OpenAPI schema
+D-05,Scenario set,critical,Exact 24-hour boundary missing,Requirement fixture states exactly 24h is denied,Add exactly 24h and near-boundary scenarios,Compare matrix with requirement rule
+D-06,BAD-03,high,404 treated as proven response,Ownership implementation details do not establish the public response contract,Keep privacy outcome; mark exact HTTP result unverified,Inspect contract and verify isolated runtime
+D-07,BAD-04,high,Patient-only rule applied to staff,Change fixture explicitly leaves staff permissions unchanged,Create a separate staff non-regression scenario,Verify staff route and permissions in contract
+D-08,BAD-04,high,Wrong route family used for staff,Collection includes a separate staff cancellation request,Map to contract-confirmed staff operation,Inspect pinned OpenAPI
+D-09,BAD-05/BAD-06,medium,Duplicate happy paths,30h and 31h do not test a new boundary,Replace one with 24h plus one second,Review scenario coverage
+D-10,All,high,Status-only or unverified assertions,Response body contract is absent,Use documented response assertions and state verification where supported,Run in isolated test environment

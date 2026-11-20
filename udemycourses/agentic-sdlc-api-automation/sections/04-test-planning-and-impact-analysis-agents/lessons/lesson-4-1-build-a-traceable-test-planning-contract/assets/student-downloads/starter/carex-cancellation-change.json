@@ -1,0 +1,43 @@
+{
+  "change_id": "CAREX-CHANGE-030-CANCEL-24H",
+  "title": "Proposed 24-hour patient cancellation rule",
+  "classification": "synthetic_training_change",
+  "status": "proposed_not_implemented",
+  "business_rule": {
+    "actor": "patient",
+    "resource": "own_confirmed_appointment",
+    "allowed_when": "appointment_start_is_more_than_24_hours_after_current_instant",
+    "denied_when": "appointment_start_is_exactly_24_hours_or_less_after_current_instant",
+    "timezone_basis": "clinic_local_timezone",
+    "staff_cancellation": "existing_staff_permissions_remain_unchanged"
+  },
+  "known_current_implementation_evidence": {
+    "source_file": "carex/scheduling.py",
+    "online_change_gate": "min_change_notice_minutes defaults to 120; patient cancellation is rejected when the appointment starts less than this many minutes after the current instant.",
+    "late_cancellation_flag": "tenants.late_cancel_hours defaults to 24; this sets a late_cancel classification flag and does not itself reject cancellation.",
+    "staff_and_system": "Scheduling.cancel bypasses the online change-window guard for staff and system actors.",
+    "interpretation": "The current 120-minute gate and 24-hour late-cancel flag are separate behaviours. The proposed 24-hour denial rule is not currently proven or implemented.",
+    "must_reconcile_before_execution": true
+  },
+  "known_postman_request_evidence": {
+    "collection": "postman/CareX-Udemy-Training.postman_collection.json",
+    "request_name": "Cancel appointment",
+    "method": "POST",
+    "path_template": "/t/{{tenant}}/api/v1/appointments/{{appointmentId}}/cancel",
+    "body_example": {"reason": "Course test cancellation"},
+    "evidence_limit": "Collection request shape only; not proof of status codes or response schema."
+  },
+  "open_questions": [
+    "Does the proposed change alter the patient cancellation gate from 120 minutes to 24 hours?",
+    "Is the threshold based on elapsed duration or local wall-clock time across daylight-saving transitions?",
+    "What exact HTTP status and error response does the OpenAPI contract define for a closed cancellation window?",
+    "How is clinic-local timezone supplied and resolved for the appointment?",
+    "What should happen for an appointment that is already cancelled or no longer confirmed?",
+    "Which route-level roles are allowed to invoke staff cancellation?"
+  ],
+  "safety": {
+    "synthetic_data_only": true,
+    "mutating_tests_require_disposable_database": true,
+    "never_run_against_production": true
+  }
+}

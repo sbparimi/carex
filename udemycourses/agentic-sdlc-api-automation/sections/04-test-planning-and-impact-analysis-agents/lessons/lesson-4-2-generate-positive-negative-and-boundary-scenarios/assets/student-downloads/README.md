@@ -1,10 +1,10 @@
-# Learner resources — 4.2 Generate Positive Negative And Boundary Scenarios
+# Lesson 4.2 learner downloads
 
-- `quiz/knowledge-check.md`: scenario-based quiz with explanations.
-- `assignment/practical-assignment.md`: independent task and acceptance criteria.
-- `code-snippets/README.md`: applicable code/configuration examples.
-- `starter/README.md`: exact starter checkpoint and setup.
-- `expected-results/README.md`: observable results and interpretation.
-- `solution/README.md`: completed reference solution, to open after attempting.
+- starter/cancellation-scenario-seed.csv — scenario seeds and evidence status.
+- demo/agent-mode-prompt.md — Postman Agent Mode scenario-generation prompt.
+- expected-results/scenario-coverage-review.md — coverage criteria and interpretation.
+- solution/reference-scenario-matrix.csv — completed reference matrix.
+- assignment/practical-assignment.md — independent exercise.
+- quiz/knowledge-check.md — knowledge check.
 
-**Release state:** Quiz and assignment baseline authored. Executable starter files, expected outputs, code examples and completed solutions still require implementation and technical verification. This index alone is not a complete downloadable lab.
+The reference matrix is a planning artefact. Do not treat unverified HTTP expectations as executable assertions.

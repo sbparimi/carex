@@ -1,21 +1,22 @@
 # Lesson 4.3 — Prioritise regression by business impact
 
-**Section:** 04 — Test Planning and Impact Analysis Agents  
-**Learner outcome:** Rank impacted CareX API journeys using business criticality, change proximity, failure likelihood and blast radius, and justify the regression selection.
+**Duration:** 20 minutes  
+**Learner outcome:** Rank CareX regression journeys with an explicit risk model, justify coverage depth and document exclusions.
 
 ## Seven-part lesson
-1. **Opening:** Start with the CareX cancellation change and the risk of incomplete regression.
-2. **Concept:** Explain the planning technique and the evidence required.
-3. **Why:** Connect coverage and prioritisation to customer and release risk.
-4. **Demo:** Use Postman Agent Mode with the CareX requirement and OpenAPI context.
-5. **Build:** Complete the lesson assignment and create a reviewable test-plan artefact.
-6. **Verify:** Compare generated output with the source rule, contract and coverage criteria; diagnose one flawed proposal.
-7. **Recap:** Carry the reviewed test plan into Postman collection implementation in Section 5.
+1. **Opening — 2 min:** Predict the first three journeys to test under a constrained release window.
+2. **Concept — 4 min:** Define business impact, change proximity, blast radius and likelihood.
+3. **Why — 2 min:** Explain why endpoint count and convenience are not risk measures.
+4. **Demo — 5 min:** Ask Postman Agent Mode to rank the candidate journeys and challenge its rationale.
+5. **Build — 3 min:** Produce a ranked regression plan with full, focused, smoke or deferred coverage.
+6. **Verify — 3 min:** Check scoring arithmetic, evidence and uncertainty against the reference.
+7. **Recap — 1 min:** Hand the prioritised backlog to Section 5.
 
 ## Learner resources
 - [Knowledge check](assets/student-downloads/quiz/knowledge-check.md)
 - [Practical assignment](assets/student-downloads/assignment/practical-assignment.md)
-- [Resource index](assets/student-downloads/README.md)
+- [Complete download index](assets/student-downloads/README.md)
+- [Agent Mode prompt](assets/demo/agent-mode-prompt.md)
 
 ## Production gate
-Bespoke outcome and assessments authored. Contract-grounded Agent Mode recording, starter fixtures, reference solution, live Postman execution and 13-point 10/10 evidence remain required.
+Candidate matrix, scoring model, reference ranking, Agent Mode prompt, instructor script and storyboard are authored. Agent Mode rehearsal and independent scorecard verification remain open. Scores are classroom judgement, not measured CareX production risk.

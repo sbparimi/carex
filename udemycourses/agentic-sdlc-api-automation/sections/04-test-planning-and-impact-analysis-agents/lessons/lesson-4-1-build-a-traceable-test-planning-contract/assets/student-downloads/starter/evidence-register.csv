@@ -1,0 +1,8 @@
+evidence_id,source,location,claim_supported,claim_not_supported,verification_state
+EV-001,synthetic change fixture,carex-cancellation-change.json,Proposed patient 24-hour cancellation denial rule,Current deployed behaviour,Training fixture
+EV-002,Postman training collection,postman/CareX-Udemy-Training.postman_collection.json :: Cancel appointment,POST cancellation request path and example reason body,HTTP status codes response schema or business-rule implementation,Checked-in collection inspected
+EV-003,CareX booking service,carex/booking.py :: BookingService constructor and _managed,120-minute default used to project can_change,Full cancellation gate behaviour by itself,Checked-in source inspected
+EV-004,CareX scheduling service,carex/scheduling.py :: Scheduling constructor and _assert_change_allowed,120-minute default online change gate and patient cancellation guard,Deployed configuration,Checked-in source inspected
+EV-005,CareX scheduling service,carex/scheduling.py :: Scheduling.cancel,24-hour late_cancel flag is classification and does not itself block cancellation; staff/system bypass online change guard,Route-level authorization and deployment behaviour,Checked-in source inspected
+EV-006,Runtime OpenAPI,{{baseUrl}}/api/openapi.json,Actual API operation schema and documented responses,Whether runtime data is safe to mutate,Not yet pinned; learner must capture revision
+EV-007,Runtime execution,Isolated disposable CareX test environment,Observed behaviour for the pinned build and seeded synthetic data,Behaviour of another deployment or revision,Not yet executed

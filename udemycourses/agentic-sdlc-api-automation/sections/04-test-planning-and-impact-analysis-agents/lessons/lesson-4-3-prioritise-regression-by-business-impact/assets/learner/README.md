@@ -1,7 +1,3 @@
-# Lesson 4.3 — learner assets
+# Lesson 4.3 learner guide
 
-Lab brief, worksheet, downloadable resources and troubleshooting guide.
-
-**Status:** Not yet populated.
-
-Only lesson-specific assets belong in this directory. Keep the source editable and retain evidence for all execution and review claims.
+Rank the regression candidates before asking Agent Mode. Review the suggested ranking, verify the score arithmetic, explain uncertainty, and submit a justified regression order with selected execution depth and explicit exclusions.

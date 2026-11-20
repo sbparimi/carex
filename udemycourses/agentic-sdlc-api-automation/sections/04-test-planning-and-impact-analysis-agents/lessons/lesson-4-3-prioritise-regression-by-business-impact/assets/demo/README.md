@@ -1,7 +1,5 @@
-# Lesson 4.3 — demo assets
+# Lesson 4.3 demo
 
-Reset instructions, synthetic fixtures, commands, actual outputs and run evidence.
+Use agent-mode-prompt.md with regression-candidates.csv and the reviewed scenario matrix.
 
-**Status:** Not yet populated.
-
-Only lesson-specific assets belong in this directory. Keep the source editable and retain evidence for all execution and review claims.
+**Demo state:** Prompt, scoring model and reference ranking authored. Actual Postman Agent Mode execution and timed rehearsal remain outstanding.

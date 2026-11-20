@@ -1,7 +1,5 @@
-# Lesson 4.1 — demo assets
+# Lesson 4.1 demo
 
-Reset instructions, synthetic fixtures, commands, actual outputs and run evidence.
+Use agent-mode-prompt.md. Attach the synthetic change fixture, evidence register, test-plan schema, CareX training collection and a pinned OpenAPI document from the disposable target environment.
 
-**Status:** Not yet populated.
-
-Only lesson-specific assets belong in this directory. Keep the source editable and retain evidence for all execution and review claims.
+**Demo state:** Prompt and teaching fixtures authored. Postman Agent Mode execution, screenshots, actual output capture and rehearsal evidence are still outstanding. Do not represent this as a completed live demonstration.

@@ -1,7 +1,6 @@
-# Lesson 4.3 — instructor assets
+# Lesson 4.3 instructor assets
 
-Narration script, instructor notes, timing and delivery cues.
+- lesson-script.md — 20-minute instructor script.
+- ../slides/storyboard.md — editable storyboard.
 
-**Status:** Not yet populated.
-
-Only lesson-specific assets belong in this directory. Keep the source editable and retain evidence for all execution and review claims.
+Rehearse scoring calculations and Agent Mode output before recording. Never present classroom scores as observed CareX production metrics.

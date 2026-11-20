@@ -1,10 +1,10 @@
-# Learner resources — 4.4 Review Hallucinations Omissions And Weak Assertions
+# Lesson 4.4 learner downloads
 
-- `quiz/knowledge-check.md`: scenario-based quiz with explanations.
-- `assignment/practical-assignment.md`: independent task and acceptance criteria.
-- `code-snippets/README.md`: applicable code/configuration examples.
-- `starter/README.md`: exact starter checkpoint and setup.
-- `expected-results/README.md`: observable results and interpretation.
-- `solution/README.md`: completed reference solution, to open after attempting.
+- starter/flawed-agent-proposal.json — intentionally defective Agent Mode output.
+- demo/agent-mode-prompt.md — Postman Agent Mode review and revision prompt.
+- expected-results/defect-review-expected.md — defect taxonomy and verification standard.
+- solution/reference-defect-review.csv — completed defect log.
+- assignment/practical-assignment.md — independent review task.
+- quiz/knowledge-check.md — knowledge check.
 
-**Release state:** Quiz and assignment baseline authored. Executable starter files, expected outputs, code examples and completed solutions still require implementation and technical verification. This index alone is not a complete downloadable lab.
+Keep the original proposal unchanged. Submit the raw output, annotated defect log, revised output and human approval decision.

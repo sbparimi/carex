@@ -1,10 +1,12 @@
-# Learner resources — 4.1 Build A Traceable Test Planning Contract
+# Lesson 4.1 learner downloads
 
-- `quiz/knowledge-check.md`: scenario-based quiz with explanations.
-- `assignment/practical-assignment.md`: independent task and acceptance criteria.
-- `code-snippets/README.md`: applicable code/configuration examples.
-- `starter/README.md`: exact starter checkpoint and setup.
-- `expected-results/README.md`: observable results and interpretation.
-- `solution/README.md`: completed reference solution, to open after attempting.
+1. starter/carex-cancellation-change.json — synthetic proposed rule and known evidence boundary.
+2. starter/evidence-register.csv — evidence source and claim limits.
+3. starter/test-plan-contract.schema.json — required structure for the Agent Mode proposal.
+4. demo/agent-mode-prompt.md — proposal-only Postman Agent Mode prompt.
+5. expected-results/expected-test-plan-review.md — observable result and interpretation.
+6. solution/reference-test-plan-review.md — completed review and correct disposition.
+7. assignment/practical-assignment.md — independent learner task.
+8. quiz/knowledge-check.md — lesson knowledge check.
 
-**Release state:** Quiz and assignment baseline authored. Executable starter files, expected outputs, code examples and completed solutions still require implementation and technical verification. This index alone is not a complete downloadable lab.
+The OpenAPI document is intentionally not fabricated or committed as a guessed snapshot. Import it from the exact disposable CareX build used for the exercise and record its revision before approving contract-specific assertions.

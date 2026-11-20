@@ -1,7 +1,6 @@
-# Lesson 4.4 — instructor assets
+# Lesson 4.4 instructor assets
 
-Narration script, instructor notes, timing and delivery cues.
+- lesson-script.md — 25-minute instructor script.
+- ../slides/storyboard.md — editable storyboard.
 
-**Status:** Not yet populated.
-
-Only lesson-specific assets belong in this directory. Keep the source editable and retain evidence for all execution and review claims.
+Record actual Agent Mode output and update the defect comparison from the observed session before recording.

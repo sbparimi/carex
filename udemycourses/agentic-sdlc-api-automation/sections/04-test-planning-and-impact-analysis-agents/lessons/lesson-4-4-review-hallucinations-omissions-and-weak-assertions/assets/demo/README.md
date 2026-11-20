@@ -1,7 +1,5 @@
-# Lesson 4.4 — demo assets
+# Lesson 4.4 demo
 
-Reset instructions, synthetic fixtures, commands, actual outputs and run evidence.
+Use agent-mode-prompt.md with flawed-agent-proposal.json, the CareX change fixture, evidence register, collection and pinned OpenAPI contract.
 
-**Status:** Not yet populated.
-
-Only lesson-specific assets belong in this directory. Keep the source editable and retain evidence for all execution and review claims.
+**Demo state:** Flawed fixture, review prompt and reference defect log authored. Actual Agent Mode execution and rehearsal remain outstanding.

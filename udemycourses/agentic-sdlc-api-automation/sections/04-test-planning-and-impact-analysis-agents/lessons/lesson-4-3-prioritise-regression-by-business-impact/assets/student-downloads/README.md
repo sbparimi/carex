@@ -1,10 +1,10 @@
-# Learner resources — 4.3 Prioritise Regression By Business Impact
+# Lesson 4.3 learner downloads
 
-- `quiz/knowledge-check.md`: scenario-based quiz with explanations.
-- `assignment/practical-assignment.md`: independent task and acceptance criteria.
-- `code-snippets/README.md`: applicable code/configuration examples.
-- `starter/README.md`: exact starter checkpoint and setup.
-- `expected-results/README.md`: observable results and interpretation.
-- `solution/README.md`: completed reference solution, to open after attempting.
+- starter/regression-candidates.csv — CareX journey candidates and evidence states.
+- demo/agent-mode-prompt.md — Postman Agent Mode ranking prompt.
+- expected-results/regression-priority-review.md — scoring model and expected interpretation.
+- solution/reference-regression-priority.csv — completed reference ranking.
+- assignment/practical-assignment.md — independent prioritisation task.
+- quiz/knowledge-check.md — knowledge check.
 
-**Release state:** Quiz and assignment baseline authored. Executable starter files, expected outputs, code examples and completed solutions still require implementation and technical verification. This index alone is not a complete downloadable lab.
+Scores are classroom judgement under stated assumptions, not measured production risk.

@@ -1,7 +1,5 @@
-# Lesson 4.2 — slides assets
+# Lesson 4.2 slides
 
-Slide storyboard, diagrams, screenshots and visual source files.
+- storyboard.md — editable slide storyboard.
 
-**Status:** Not yet populated.
-
-Only lesson-specific assets belong in this directory. Keep the source editable and retain evidence for all execution and review claims.
+No final slide deck or live Postman screenshots are claimed.

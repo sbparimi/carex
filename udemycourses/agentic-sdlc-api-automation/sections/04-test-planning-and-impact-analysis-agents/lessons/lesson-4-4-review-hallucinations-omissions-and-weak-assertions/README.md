@@ -1,21 +1,22 @@
 # Lesson 4.4 — Review hallucinations, omissions and weak assertions
 
-**Section:** 04 — Test Planning and Impact Analysis Agents  
-**Learner outcome:** Critically review Agent Mode test proposals for invented API facts, missing scenarios, weak status-only assertions and unsupported expected results.
+**Duration:** 25 minutes  
+**Learner outcome:** Reject invented API facts, missing scenarios, duplicate coverage and weak assertions; produce a human-reviewed correction.
 
 ## Seven-part lesson
-1. **Opening:** Start with the CareX cancellation change and the risk of incomplete regression.
-2. **Concept:** Explain the planning technique and the evidence required.
-3. **Why:** Connect coverage and prioritisation to customer and release risk.
-4. **Demo:** Use Postman Agent Mode with the CareX requirement and OpenAPI context.
-5. **Build:** Complete the lesson assignment and create a reviewable test-plan artefact.
-6. **Verify:** Compare generated output with the source rule, contract and coverage criteria; diagnose one flawed proposal.
-7. **Recap:** Carry the reviewed test plan into Postman collection implementation in Section 5.
+1. **Opening — 2 min:** Inspect the flawed proposal and predict the first merge blocker.
+2. **Concept — 4 min:** Apply contract-fidelity, rule-coverage, actor-scope and assertion-strength review.
+3. **Why — 3 min:** Explain how plausible AI output can create false-green tests.
+4. **Demo — 6 min:** Use Postman Agent Mode to identify defects before asking it to revise the proposal.
+5. **Build — 5 min:** Annotate each defect with severity, evidence, correction and verification method.
+6. **Verify — 4 min:** Compare the revised proposal with the reference defect log; keep unresolved items blocked.
+7. **Recap — 1 min:** Approve the plan for Section 5 only after human review and contract reconciliation.
 
 ## Learner resources
 - [Knowledge check](assets/student-downloads/quiz/knowledge-check.md)
 - [Practical assignment](assets/student-downloads/assignment/practical-assignment.md)
-- [Resource index](assets/student-downloads/README.md)
+- [Complete download index](assets/student-downloads/README.md)
+- [Agent Mode prompt](assets/demo/agent-mode-prompt.md)
 
 ## Production gate
-Bespoke outcome and assessments authored. Contract-grounded Agent Mode recording, starter fixtures, reference solution, live Postman execution and 13-point 10/10 evidence remain required.
+Flawed proposal, expected defect review, reference defect log, Agent Mode prompt, instructor script and storyboard are authored. Live Agent Mode comparison, recording rehearsal and independent learner verification remain open.

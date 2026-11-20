@@ -1,7 +1,5 @@
-# Lesson 4.2 — demo assets
+# Lesson 4.2 demo
 
-Reset instructions, synthetic fixtures, commands, actual outputs and run evidence.
+Use agent-mode-prompt.md with the synthetic change fixture and cancellation-scenario-seed.csv.
 
-**Status:** Not yet populated.
-
-Only lesson-specific assets belong in this directory. Keep the source editable and retain evidence for all execution and review claims.
+**Demo state:** Prompt and reference artefacts authored. Actual Postman Agent Mode run, screenshot capture, output comparison and rehearsal remain outstanding.
