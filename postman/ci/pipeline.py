@@ -718,8 +718,8 @@ def stage_summary():
             ("Stage-board controls", "Verify all read-only board controls"),
         ],
         "Build": [
-            ("Build candidate and manifest", "Run python postman/ci/pipeline.py build"),
-            ("Retain the candidate", "Run actions/upload-artifact@cf430e0"),
+            ("Build candidate and manifest", "Build candidate and manifest"),
+            ("Retain the candidate", "Retain the candidate and manifests"),
         ],
         "Test": [
             (
@@ -763,8 +763,7 @@ def stage_summary():
         found = [j for j in jobs if j["name"] == name]
         require(len(found) <= 1, "Ambiguous native stage")
         job = found[0] if found else None
-        status = state(job) if job else "not_started"
-        cell = "<td><strong>" + show(status) + "</strong><ul>"
+        cell = "<td><ul>"
         if name == "Deploy":
             approval = (
                 "success"
