@@ -71,7 +71,12 @@ def bind_lab():
 
 
 def github(path, *, data=None):
-    require(path.startswith(f"repos/{REPO}/"), "Unexpected repository API target")
+    repo_path = f"repos/{REPO}"
+    require(
+        path == repo_path or path.startswith(repo_path + "/"),
+        "Unexpected repository API target",
+    )
+    require(not path.endswith("/"), "GitHub API path must use its canonical endpoint")
     headers = {
         "Accept": "application/vnd.github+json",
         "User-Agent": "CareX-course-pipeline",
@@ -82,9 +87,14 @@ def github(path, *, data=None):
     req = urllib.request.Request(
         "https://api.github.com/" + path, data=body, headers=headers
     )
-    with urllib.request.urlopen(req, timeout=30) as response:
-        payload = response.read()
-        return json.loads(payload) if payload else None
+    try:
+        with urllib.request.urlopen(req, timeout=30) as response:
+            payload = response.read()
+            return json.loads(payload) if payload else None
+    except urllib.error.HTTPError as error:
+        status = error.code
+        error.close()
+        raise ValueError(f"GitHub API HTTP {status}") from None
 
 
 def preflight():
@@ -98,7 +108,7 @@ def preflight():
             os.environ.get("FREE_STORAGE_CONFIRMED") == "true",
             "Check account-wide free artifact allowance before starting",
         )
-        repo = github(f"repos/{REPO}/")
+        repo = github(f"repos/{REPO}")
         require(
             repo["private"] is False,
             "Free standard-runner assumption requires a public repository",
