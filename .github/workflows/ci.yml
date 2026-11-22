@@ -1,6 +1,6 @@
 # Only the approved course branch. No pushes, PR triggers, main merge or external deploy.
 name: CareX staged course pipeline
-run-name: ${{ inputs.mode }} / health ${{ inputs.expected_health_status }} / ${{ github.ref_name }}
+run-name: ${{ inputs.mode }} / source run ${{ inputs.candidate_run_id || github.run_id }} / health ${{ inputs.expected_health_status }} / ${{ github.ref_name }}
 on:
   workflow_dispatch:
     inputs:
@@ -122,6 +122,8 @@ jobs:
         with:
           node-version: '24'
           package-manager-cache: false
+      - name: Verify read-only board status, link and source-binding controls
+        run: node --test postman/ci/test-viewer.cjs
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
           name: course-candidate-${{ github.run_id }}
