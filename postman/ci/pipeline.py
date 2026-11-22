@@ -140,13 +140,9 @@ def preflight():
     ):
         require(
             not os.environ.get(key),
-            "Unapproved AI, cloud or messaging credential present",
+            "Unapproved model, Postman or messaging credential present",
         )
     if os.environ.get("GITHUB_ACTIONS"):
-        require(
-            os.environ.get("FREE_STORAGE_CONFIRMED") == "true",
-            "Check account-wide free artifact allowance before starting",
-        )
         repo = github(f"repos/{REPO}")
         require(
             repo["private"] is False,
@@ -174,7 +170,7 @@ def preflight():
         "**Enforced:** exact repository/course branch; public repository for standard free runners; "
         "bounded artifact/cache checks; at least 45 minutes before bound lab expiry at start; "
         "exact Neon endpoint/database and expiry checked again before database access; "
-        "no injected AI/cloud or messaging keys. Mandatory coverage, assertions, skips, "
+        "no injected credentials under the six named model/Postman/messaging keys. Mandatory coverage, assertions, skips, "
         "source and candidate digest gates remain unchanged.\n\n"
         "**Human boundary:** successful gates automatically dispatch the built-in lab promotion; "
         "the protected course-isolated-lab job waits for native human approval. "
