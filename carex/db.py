@@ -102,8 +102,12 @@ def open_db(url: str | None = None) -> Db:
 def _open_pg(url: str) -> Db:
     from psycopg_pool import ConnectionPool
 
+    def check_connection(conn) -> None:
+        with conn.cursor() as cur:
+            cur.execute("SELECT 1")
+
     # prepare_threshold=None keeps this safe behind Neon's pooled (PgBouncer) endpoint.
-    pool = ConnectionPool(url, min_size=0, max_size=5, kwargs={"autocommit": True, "prepare_threshold": None}, open=True, timeout=10)
+    pool = ConnectionPool(url, min_size=0, max_size=5, kwargs={"autocommit": True, "prepare_threshold": None}, open=True, timeout=10, check=check_connection)
 
     @contextmanager
     def cursor():
@@ -147,4 +151,3 @@ def migrate(db: Db) -> None:
                 tx.run(_translate(stmt))
             from .util import iso, now
             tx.run("INSERT INTO carex_migrations (version, applied_at) VALUES (?, ?)", v + 1, iso(now()))
-
