@@ -13,3 +13,8 @@ __pycache__/
 _to_delete/
 # Generated course-only CI evidence and review candidates
 course-ci-output/
+
+# Local test and lint state, never candidate evidence
+.coverage*
+.ruff_cache/
+htmlcov/
