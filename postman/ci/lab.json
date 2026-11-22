@@ -1,0 +1,7 @@
+{
+  "branch": "course-ci-practical-20261122",
+  "expiresAt": "2026-11-23T08:10:04+01:00",
+  "sourceBranch": "course/agentic-sdlc-api-automation",
+  "scope": "Synthetic disposable lab only; not production",
+  "hostnameSha256": "4a29788cf7fab6ea2f197dc4ce6fa922da5965e80d2a024e98077ef9579dfc5c"
+}
