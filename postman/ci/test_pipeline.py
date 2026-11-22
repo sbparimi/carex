@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import io
 import json
+import os
 import tarfile
 import urllib.error
 from datetime import UTC, datetime
@@ -12,6 +13,16 @@ from datetime import UTC, datetime
 import pipeline as p
 import pytest
 from guard_lab import validate
+
+
+@pytest.fixture(autouse=True)
+def isolate_live_ci_summary(monkeypatch):
+    """Offline fixtures must never append simulated results to a real run summary."""
+    monkeypatch.delenv("GITHUB_STEP_SUMMARY", raising=False)
+
+
+def test_offline_controls_cannot_inherit_live_summary_output():
+    assert "GITHUB_STEP_SUMMARY" not in os.environ
 
 
 @pytest.mark.parametrize(
@@ -388,7 +399,7 @@ def test_deployment_requires_its_own_job_context(full_stage_context, monkeypatch
         p.validate_current_candidate()
 
 
-def test_native_lane_summary_escapes_step_content_and_labels_snapshot(
+def test_native_lane_summary_uses_only_named_checks_and_labels_snapshot(
     full_stage_context, capsys
 ):
     full_stage_context[3][0]["steps"] = [
@@ -402,11 +413,9 @@ def test_native_lane_summary_escapes_step_content_and_labels_snapshot(
     p.stage_summary()
     text = capsys.readouterr().out
     assert text.count("<th>") == 4
-    assert (
-        "&lt;b&gt;untrusted label&lt;/b&gt;" in text
-        and "<b>untrusted label</b>" not in text
-    )
-    assert "failure" in text and "waiting" in text
+    assert "untrusted label" not in text
+    assert "WAITING" in text and "NOT REPORTED" in text
+    assert text.index("CareX API candidate") < text.index("Stage checks")
     assert "retained snapshot, not a live dashboard" in text
     assert "live four-job graph above is authoritative" in text
 
@@ -414,7 +423,7 @@ def test_native_lane_summary_escapes_step_content_and_labels_snapshot(
 def test_missing_summary_stage_never_becomes_green(full_stage_context, capsys):
     full_stage_context[3].pop()
     p.stage_summary()
-    assert "No job result available" in capsys.readouterr().out
+    assert "NOT STARTED" in capsys.readouterr().out
 
 
 def test_duplicate_native_summary_stage_is_rejected(full_stage_context):
@@ -539,3 +548,31 @@ def test_missing_native_deploy_job_is_rejected(full_stage_context):
     full_stage_context[3][3]["name"] = "unexpected"
     with pytest.raises(ValueError, match="four native"):
         p.validate_current_candidate()
+
+
+def test_detailed_output_is_log_only_unless_explicitly_published(tmp_path, monkeypatch):
+    path = tmp_path / "summary.md"
+    path.write_text("sentinel\n")
+    monkeypatch.setenv("GITHUB_STEP_SUMMARY", str(path))
+    p.summary("offline diagnostic")
+    assert path.read_text() == "sentinel\n"
+    p.summary("real publication", publish=True)
+    assert path.read_text() == "sentinel\nreal publication\n"
+
+
+def test_stage_snapshot_is_published_only_once_by_test():
+    import yaml
+
+    workflow = yaml.safe_load((p.ROOT / ".github/workflows/dispatch.yml").read_text())
+    publishers = [
+        name
+        for name, job in workflow["jobs"].items()
+        for step in job["steps"]
+        if "stage-summary" in step.get("run", "")
+    ]
+    assert publishers == ["test"]
+    assert all(
+        "GITHUB_STEP_SUMMARY" not in step.get("run", "")
+        for job in workflow["jobs"].values()
+        for step in job["steps"]
+    )
