@@ -11,7 +11,7 @@ The automatic execution uses the built-in Actions identity. This is necessary be
 
 The actual execution run has four native job boxes with real dependency edges. Open a job for its native steps and logs. The environment review before Deploy is GitHub's actual protection, not a simulated pause.
 
-Each job also writes a four-column HTML table to its native job summary, using actual job/step API results. It is a timestamped snapshot. The current job can still be finishing when it is written; the live graph is authoritative. Refreshing the page does not regenerate a completed summary. Native GitHub styling and controls apply. This cannot reproduce a custom dashboard's CSS, live controls or simultaneous expandable stage lanes exactly. Mermaid rendering is not assumed.
+Test writes one compact, product-first four-column table to its native job summary, using actual named job/step API results. Detailed diagnostics remain in logs and artifacts, not repeated summary tables. Offline controls cannot inherit the live summary output path. The table is a timestamped handoff snapshot before approval. The current Test job can still be finishing when it is written; the live graph is authoritative for current status, especially Deploy. Refreshing the page does not regenerate this retained snapshot. After approval, Deploy adds only its short lab-release result, not another stage table. Native GitHub styling and controls apply. This cannot reproduce a custom dashboard's CSS, live controls or simultaneous expandable stage lanes exactly. Mermaid rendering is not assumed.
 
 ## Optional standalone live board
 
