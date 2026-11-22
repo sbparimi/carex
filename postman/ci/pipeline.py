@@ -770,8 +770,7 @@ def stage_summary():
                 "success"
                 if job
                 and any(
-                    step["name"] == "Set up job"
-                    and step.get("conclusion") == "success"
+                    step["name"] == "Set up job" and step.get("conclusion") == "success"
                     for step in job.get("steps", [])
                 )
                 else "not_started"
