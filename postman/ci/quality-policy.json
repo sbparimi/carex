@@ -1,0 +1,11 @@
+{
+  "applicationLineCoveragePercent": 80,
+  "changedApplicationLineCoveragePercent": 90,
+  "minimumPytestTests": 155,
+  "unexpectedSkipsAllowed": 0,
+  "secretFindingsAllowed": 0,
+  "highOrCriticalStaticFindingsAllowed": 0,
+  "dependencyAdvisoriesAllowed": 0,
+  "coverageScope": "carex/ and api/ Python application source; changed executable application lines since 1ca151e37b1a975e5ffeb8fc3effc02ff049fe6c",
+  "status": "155 mandatory application cases collected. Baseline coverage was 79.7603%; privacy/audit/config boundary tests added without reducing the 80/90 thresholds. Clean full-run evidence is still required."
+}
