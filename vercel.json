@@ -14,5 +14,10 @@
   ],
   "regions": [
     "iad1"
-  ]
+  ],
+  "git": {
+    "deploymentEnabled": {
+      "course/agentic-sdlc-api-automation": false
+    }
+  }
 }
