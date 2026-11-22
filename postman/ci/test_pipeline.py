@@ -7,7 +7,7 @@ import io
 import json
 import tarfile
 import urllib.error
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pipeline as p
 import pytest
@@ -37,7 +37,7 @@ def test_lab_guard_requires_exact_host_and_future_expiry():
     value = "postgresql://unit:unit-fixture-only@" + host + "/carex_course_dev"
     assert validate(value, config)["databaseOpened"] is False
     with pytest.raises(ValueError):
-        validate(value, config, datetime(2099, 1, 2, tzinfo=timezone.utc))
+        validate(value, config, datetime(2099, 1, 2, tzinfo=UTC))
     with pytest.raises(ValueError):
         validate(value.replace(host, "ep-other-fixture.neon.tech"), config)
     with pytest.raises(ValueError):
@@ -213,3 +213,36 @@ def test_application_environment_does_not_receive_the_delivery_token(monkeypatch
     env = p.runtime_environment("unit-fixture-database", testing=True)
     assert "GH_TOKEN" not in env and "RESEND_API_KEY" not in env
     assert env["CAREX_TEST_DATABASE_URL"] == "unit-fixture-database"
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "repos/sbparimi/carex/actions/runs/123/pending_deployments",
+        "repos/sbparimi/carex/environments/course-isolated-lab",
+        "repos/sbparimi/carex/pulls/1/merge",
+    ],
+)
+def test_delivery_helper_rejects_approval_settings_and_merge_writes(path):
+    with pytest.raises(ValueError, match="Only built-in"):
+        p.github(path, data={"ref": p.BRANCH, "inputs": {"mode": "promote-lab"}})
+
+
+def test_delivery_helper_rejects_dispatch_to_main():
+    with pytest.raises(ValueError, match="Only built-in"):
+        p.github(
+            f"repos/{p.REPO}/actions/workflows/ci.yml/dispatches",
+            data={"ref": "main", "inputs": {"mode": "promote-lab"}},
+        )
+
+
+def test_lab_window_requires_exact_source_and_45_minute_headroom():
+    config = {"sourceBranch": p.BRANCH, "expiresAt": "2099-01-01T01:00:00+00:00"}
+    p.validate_lab_window(config, datetime(2099, 1, 1, 0, 0, tzinfo=UTC))
+    with pytest.raises(ValueError, match="45 minutes"):
+        p.validate_lab_window(config, datetime(2099, 1, 1, 0, 15, tzinfo=UTC))
+    with pytest.raises(ValueError, match="another source"):
+        p.validate_lab_window(
+            {**config, "sourceBranch": "main"},
+            datetime(2099, 1, 1, tzinfo=UTC),
+        )
