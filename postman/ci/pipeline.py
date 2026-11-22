@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import html
 import json
 import os
 import re
@@ -79,11 +80,20 @@ def github(path, *, data=None):
     )
     require(not path.endswith("/"), "GitHub API path must use its canonical endpoint")
     if data is not None:
+        inputs = data.get("inputs", {})
         require(
-            path == f"repos/{REPO}/actions/workflows/ci.yml/dispatches"
-            and data.get("ref") == BRANCH
-            and data.get("inputs", {}).get("mode") == "promote-lab",
-            "Only built-in course lab dispatch is allowed; no approval or settings writes",
+            path == f"repos/{REPO}/actions/workflows/dispatch.yml/dispatches"
+            and set(data) == {"ref", "inputs"}
+            and data["ref"] == BRANCH
+            and set(inputs)
+            == {"launcher_run_id", "expected_health_status", "free_storage_confirmed"}
+            and inputs["launcher_run_id"] == os.environ.get("GITHUB_RUN_ID")
+            and str(inputs["launcher_run_id"]).isdigit()
+            and inputs["expected_health_status"] in {"200", "201"}
+            and inputs["free_storage_confirmed"] == "true"
+            and os.environ.get("GITHUB_JOB") == "launch"
+            and os.environ.get("GITHUB_ACTOR") != "github-actions[bot]",
+            "Only built-in course pipeline launch is allowed; no approval or settings writes",
         )
     headers = {
         "Accept": "application/vnd.github+json",
@@ -172,10 +182,10 @@ def preflight():
         "exact Neon endpoint/database and expiry checked again before database access; "
         "no injected credentials under the six named model/Postman/messaging keys. Mandatory coverage, assertions, skips, "
         "source and candidate digest gates remain unchanged.\n\n"
-        "**Human boundary:** successful gates automatically dispatch the built-in lab promotion; "
+        "**Human boundary:** the bot-started run executes Develop, Build, Test and Deploy; "
         "the protected course-isolated-lab job waits for native human approval. "
-        "This code never approves. The GitHub helper permits only the scoped promotion dispatch "
-        "as a write, not settings or deployment-review writes. Workflow tokens cannot merge main.\n\n"
+        "This code never approves. Only the separate scoped launcher has write permission for its pipeline dispatch "
+        "and never approves. All four execution jobs have read-only tokens. Workflow tokens cannot merge main.\n\n"
         "**Documented/account checks:** account-wide artifact allowance needs the dispatch confirmation; "
         "repository limits cannot prove another repository has not consumed it. No paid use is authorized. "
         "No new secret, OAuth, settings, branch or main merge is part of this workflow. "
@@ -540,6 +550,210 @@ def dispatch_promotion():
     )
 
 
+def start_pipeline():
+    require(
+        os.environ.get("GITHUB_JOB") == "launch",
+        "Only the scoped launcher job may start execution",
+    )
+    require(
+        os.environ.get("GITHUB_ACTOR") != "github-actions[bot]",
+        "Recursive automatic launch rejected",
+    )
+    require(
+        os.environ.get("GITHUB_ACTIONS") == "true"
+        and os.environ.get("GITHUB_EVENT_NAME") == "workflow_dispatch"
+        and os.environ.get("GITHUB_REPOSITORY") == REPO
+        and os.environ.get("GITHUB_REF") == "refs/heads/" + BRANCH,
+        "Wrong launcher scope",
+    )
+    preflight()
+    run_id = os.environ.get("GITHUB_RUN_ID", "")
+    require(run_id.isdigit(), "A numeric launcher run is required")
+    health = os.environ.get("EXPECTED_HEALTH_STATUS", "")
+    require(health in {"200", "201"}, "Unexpected health assertion input")
+    github(
+        f"repos/{REPO}/actions/workflows/dispatch.yml/dispatches",
+        data={
+            "ref": BRANCH,
+            "inputs": {
+                "launcher_run_id": run_id,
+                "expected_health_status": health,
+                "free_storage_confirmed": "true",
+            },
+        },
+    )
+    summary(
+        "### Four-stage execution requested\n"
+        "A separate bot-started run now performs ALL four stages, including the human gate before Deploy. "
+        "This preserves the existing no-self-review protection. This launch is not a test or deployment pass. "
+        "Open CareX staged course pipeline in Actions and select the pipeline run naming this launch. "
+        "No second human start is required."
+    )
+
+
+def validate_launch():
+    require(os.environ.get("GITHUB_REPOSITORY") == REPO, "Wrong repository")
+    require(os.environ.get("GITHUB_REF") == "refs/heads/" + BRANCH, "Wrong branch")
+    require(
+        os.environ.get("GITHUB_EVENT_NAME") == "workflow_dispatch",
+        "Manual dispatch event required",
+    )
+    require(
+        os.environ.get("GITHUB_ACTOR") == "github-actions[bot]",
+        "Execution must use the built-in initiator so the human can review",
+    )
+    launcher_id = os.environ.get("LAUNCHER_RUN_ID", "")
+    require(launcher_id.isdigit(), "An exact numeric launcher run is required")
+    require(
+        launcher_id != os.environ.get("GITHUB_RUN_ID"),
+        "Launcher and execution must differ",
+    )
+    run = github(f"repos/{REPO}/actions/runs/{launcher_id}")
+    require(run["path"] == ".github/workflows/ci.yml", "Wrong launcher workflow")
+    require(
+        run["head_branch"] == BRANCH and run["head_sha"] == identity(),
+        "Launcher source mismatch",
+    )
+    require(
+        run["event"] == "workflow_dispatch"
+        and run["actor"]["login"] != "github-actions[bot]",
+        "Wrong launcher origin",
+    )
+    require(
+        run["status"] == "completed" and run["conclusion"] == "success",
+        "Launcher did not complete successfully",
+    )
+
+
+def validate_current_candidate():
+    validate_launch()
+    run_id = os.environ.get("GITHUB_RUN_ID", "")
+    require(
+        run_id.isdigit() and os.environ.get("GITHUB_JOB") == "deploy",
+        "Candidate is only usable in this run's Deploy job",
+    )
+    run = github(f"repos/{REPO}/actions/runs/{run_id}")
+    require(
+        run["path"] == ".github/workflows/dispatch.yml"
+        and run["head_sha"] == identity()
+        and run["head_branch"] == BRANCH
+        and run["actor"]["login"] == "github-actions[bot]",
+        "Execution source mismatch",
+    )
+    jobs = github(f"repos/{REPO}/actions/runs/{run_id}/jobs?per_page=100")
+    require(
+        jobs["total_count"] == 4
+        and len(jobs["jobs"]) == 4
+        and {j["name"] for j in jobs["jobs"]} == {"Develop", "Build", "Test", "Deploy"},
+        "Expected exactly four native stage jobs",
+    )
+    for name in ("Develop", "Build", "Test"):
+        found = [j for j in jobs["jobs"] if j["name"] == name]
+        require(
+            len(found) == 1
+            and found[0]["status"] == "completed"
+            and found[0]["conclusion"] == "success",
+            "A required prior stage did not pass: " + name,
+        )
+    report = json.loads((OUT / "gate.json").read_text())
+    release = json.loads((OUT / "release.json").read_text())
+    require(
+        report["gate"] == "passed"
+        and report["commit"] == release["commit"] == identity(),
+        "Unbound candidate evidence",
+    )
+    require(
+        report["candidateSha256"] == release["sha256"] == digest(OUT / "candidate.tar"),
+        "Candidate evidence digest mismatch",
+    )
+    summary(
+        "### Same-run candidate verified\nDevelop, Build and Test completed successfully in this exact run. Original candidate digest, passed mandatory Gate, branch, source and bot initiator match. Native course-isolated-lab approval protects this Deploy job."
+    )
+
+
+def stage_summary():
+    require(
+        os.environ.get("GITHUB_REPOSITORY") == REPO
+        and os.environ.get("GITHUB_REF") == "refs/heads/" + BRANCH,
+        "Wrong summary scope",
+    )
+    run_id = os.environ.get("GITHUB_RUN_ID", "")
+    require(run_id.isdigit(), "A numeric source run is required")
+    run = github(f"repos/{REPO}/actions/runs/{run_id}")
+    require(
+        run["path"] == ".github/workflows/dispatch.yml"
+        and run["head_sha"] == identity()
+        and run["head_branch"] == BRANCH,
+        "Summary source mismatch",
+    )
+    payload = github(f"repos/{REPO}/actions/runs/{run_id}/jobs?per_page=100")
+    require(payload["total_count"] <= 100, "Incomplete job data cannot form a summary")
+    jobs = payload["jobs"]
+    columns = []
+    icons = {
+        "success": "✅",
+        "failure": "❌",
+        "skipped": "⏭",
+        "waiting": "⏳",
+        "in_progress": "⏳",
+        "queued": "⏳",
+    }
+    for name in ("Develop", "Build", "Test", "Deploy"):
+        found = [j for j in jobs if j["name"] == name]
+        require(len(found) <= 1, "Ambiguous native stage")
+        if not found:
+            columns.append("<td>Not started. No job result available.</td>")
+            continue
+        job = found[0]
+        status = (
+            job.get("conclusion") if job["status"] == "completed" else job["status"]
+        )
+        status = status or "unknown"
+        cell = (
+            "<td><strong>"
+            + icons.get(status, "❔")
+            + " "
+            + html.escape(status)
+            + "</strong><ul>"
+        )
+        for step in job.get("steps", []):
+            if step["name"] == "Show actual stage lanes in this GitHub run summary":
+                continue
+            state = (
+                step.get("conclusion")
+                if step["status"] == "completed"
+                else step["status"]
+            )
+            state = state or "unknown"
+            cell += (
+                "<li>"
+                + icons.get(state, "❔")
+                + " "
+                + html.escape(step["name"])
+                + "<br><sub>"
+                + html.escape(state)
+                + "</sub></li>"
+            )
+        columns.append(cell + "</ul></td>")
+    content = (
+        "## Four real stages\n\nSnapshot at " + datetime.now(UTC).isoformat() + ". "
+    )
+    content += "The current job may still be finishing. The live four-job graph above is authoritative; this table is a retained snapshot, not a live dashboard.\n\n"
+    content += (
+        "<table><thead><tr>"
+        + "".join("<th>" + n + "</th>" for n in ("Develop", "Build", "Test", "Deploy"))
+        + "</tr></thead><tbody><tr>"
+        + "".join(columns)
+        + "</tr></tbody></table>\n\n"
+    )
+    content += (
+        "Source: `"
+        + identity()
+        + "`. Only the isolated temporary lab is deployable here. Staging and production remain dry-run designs. Native GitHub controls above own review and cancellation."
+    )
+    summary(content)
+
+
 def validate_promotion():
     require(
         os.environ.get("GITHUB_ACTOR") == "github-actions[bot]",
@@ -547,7 +761,7 @@ def validate_promotion():
     )
     run_id = os.environ.get("CANDIDATE_RUN_ID", "")
     require(run_id.isdigit(), "A numeric candidate run is required")
-    for attempt in range(12):
+    for _attempt in range(12):
         run = github(f"repos/{REPO}/actions/runs/{run_id}")
         if run["status"] == "completed":
             break
@@ -581,7 +795,7 @@ def validate_promotion():
 
 def deploy():
     value = bind_lab()
-    validate_promotion()
+    validate_current_candidate()
     with tempfile.TemporaryDirectory(prefix="carex-lab-release-") as temp:
         candidate = Path(temp)
         manifest = unpack(candidate)
@@ -608,6 +822,9 @@ def main():
         "operation",
         choices=[
             "preflight",
+            "launch",
+            "validate-launch",
+            "stage-summary",
             "build",
             "test",
             "gate",
@@ -619,6 +836,9 @@ def main():
     args = parser.parse_args()
     operations = {
         "preflight": preflight,
+        "launch": start_pipeline,
+        "validate-launch": validate_launch,
+        "stage-summary": stage_summary,
         "build": build,
         "test": tests,
         "gate": gate,
