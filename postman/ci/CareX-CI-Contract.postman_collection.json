@@ -1,0 +1,96 @@
+{
+  "info": {
+    "name": "CareX CI contract smoke",
+    "description": "Four read-only contract checks against a CareX process using an isolated Neon course branch. Narrow smoke coverage, not the full 41-request training collection and not a production release approval. Source app baseline: 0556995b3719d1263c422bf060908080ce26f366.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "7d1d0f45-1ff0-427b-9aa2-5c9d03393c42"
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "const target = pm.variables.replaceIn('{{baseUrl}}');",
+          "if (target !== 'http://127.0.0.1:8130' || pm.environment.get('isolatedLab') !== 'true') { throw new Error('This course CI collection only runs against the isolated local lab process.'); }"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "Health and tenant identity",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/t/{{tenant}}/api/v1/health"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Mandatory health status', () => pm.response.to.have.status(Number(pm.environment.get('expectedHealthStatus') || 200)));",
+              "pm.test('Neon-backed service is ready', () => { const d=pm.response.json(); pm.expect(d.status).to.eql('ok'); pm.expect(d.tenant).to.eql('northwind-health'); pm.expect(d.api_version).to.eql('v1'); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Synthetic clinic discovery",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/t/{{tenant}}/api/v1/clinics?limit=2"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Discovery returns 200', () => pm.response.to.have.status(200));",
+              "pm.test('Seeded clinics are available', () => pm.expect(pm.response.json().clinics).to.be.an('array').and.not.be.empty);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Patient appointments require authentication",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/t/{{tenant}}/api/v1/appointments"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Unauthenticated access is denied', () => pm.response.to.have.status(401));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Unknown clinic is not a successful lookup",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/t/{{tenant}}/api/v1/clinics/course-ci-no-such-clinic"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Unknown clinic returns 404', () => pm.response.to.have.status(404));"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
