@@ -6,6 +6,7 @@ import hashlib
 import io
 import json
 import tarfile
+import urllib.error
 from datetime import datetime, timezone
 
 import pipeline as p
@@ -119,9 +120,48 @@ def test_candidate_source_mismatch_blocks_extraction(archive, monkeypatch):
         p.unpack(archive / "unpacked")
 
 
-def test_api_requests_cannot_target_other_repositories():
+@pytest.mark.parametrize(
+    "path",
+    [
+        "repos/another-owner/another-repo/actions/runs",
+        f"repos/{p.REPO}-other",
+        f"repos/{p.REPO}/",
+    ],
+)
+def test_api_requests_reject_wrong_repositories_and_noncanonical_root(path):
     with pytest.raises(ValueError):
-        p.github("repos/another-owner/another-repo/actions/runs")
+        p.github(path)
+
+
+def test_repository_metadata_uses_the_exact_canonical_endpoint(monkeypatch):
+    requests = []
+
+    def open_fixture(request, timeout):
+        requests.append((request.full_url, timeout))
+        return io.BytesIO(b'{"private": false}')
+
+    monkeypatch.setattr(p.urllib.request, "urlopen", open_fixture)
+    assert p.github(f"repos/{p.REPO}") == {"private": False}
+    assert requests == [("https://api.github.com/repos/sbparimi/carex", 30)]
+
+
+def test_http_error_keeps_status_but_never_response_body_or_credentials(monkeypatch):
+    private_fixture = "unit-fixture-response-should-not-print"
+
+    def reject_fixture(*args, **kwargs):
+        raise urllib.error.HTTPError(
+            "https://api.github.com/repos/sbparimi/carex",
+            404,
+            private_fixture,
+            {},
+            io.BytesIO(private_fixture.encode()),
+        )
+
+    monkeypatch.setattr(p.urllib.request, "urlopen", reject_fixture)
+    with pytest.raises(ValueError) as error:
+        p.github(f"repos/{p.REPO}")
+    assert str(error.value) == "GitHub API HTTP 404"
+    assert private_fixture not in str(error.value)
 
 
 def test_recursive_dispatch_is_rejected_before_any_network_request(monkeypatch):
