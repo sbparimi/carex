@@ -15,6 +15,7 @@ import time
 import urllib.error
 import urllib.request
 import xml.etree.ElementTree as ET
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from guard_lab import validate
@@ -77,6 +78,13 @@ def github(path, *, data=None):
         "Unexpected repository API target",
     )
     require(not path.endswith("/"), "GitHub API path must use its canonical endpoint")
+    if data is not None:
+        require(
+            path == f"repos/{REPO}/actions/workflows/ci.yml/dispatches"
+            and data.get("ref") == BRANCH
+            and data.get("inputs", {}).get("mode") == "promote-lab",
+            "Only built-in course lab dispatch is allowed; no approval or settings writes",
+        )
     headers = {
         "Accept": "application/vnd.github+json",
         "User-Agent": "CareX-course-pipeline",
@@ -97,12 +105,43 @@ def github(path, *, data=None):
         raise ValueError(f"GitHub API HTTP {status}") from None
 
 
+def validate_lab_window(lab, now=None):
+    require(lab["sourceBranch"] == BRANCH, "Lab binding names another source branch")
+    require(
+        (now or datetime.now(UTC)) + timedelta(minutes=45)
+        < datetime.fromisoformat(lab["expiresAt"]),
+        "Less than 45 minutes remain before disposable lab expiry; do not start",
+    )
+
+
 def preflight():
     require(os.environ.get("GITHUB_REPOSITORY", REPO) == REPO, "Wrong repository")
     require(
         os.environ.get("GITHUB_REF", "refs/heads/" + BRANCH) == "refs/heads/" + BRANCH,
         "Wrong branch",
     )
+    if os.environ.get("GITHUB_ACTIONS"):
+        require(
+            os.environ.get("FREE_STORAGE_CONFIRMED") == "true",
+            "Check account-wide free artifact allowance before starting",
+        )
+        require(
+            os.environ.get("GITHUB_EVENT_NAME") == "workflow_dispatch",
+            "Manual dispatch entry point required",
+        )
+    validate_lab_window(json.loads((ROOT / "postman/ci/lab.json").read_text()))
+    for key in (
+        "OPENAI_API_KEY",
+        "ANTHROPIC_API_KEY",
+        "POSTMAN_API_KEY",
+        "RESEND_API_KEY",
+        "SMTP_PASSWORD",
+        "TWILIO_AUTH_TOKEN",
+    ):
+        require(
+            not os.environ.get(key),
+            "Unapproved AI, cloud or messaging credential present",
+        )
     if os.environ.get("GITHUB_ACTIONS"):
         require(
             os.environ.get("FREE_STORAGE_CONFIRMED") == "true",
@@ -131,7 +170,25 @@ def preflight():
             "Course repository artifact envelope exceeded",
         )
     summary(
-        "### Preflight\nCourse branch only; standard public-repository runners; account storage checked separately. Lab data and messaging guards are mandatory before database access."
+        "### Preflight: constraints and limits\n"
+        "**Enforced:** exact repository/course branch; public repository for standard free runners; "
+        "bounded artifact/cache checks; at least 45 minutes before bound lab expiry at start; "
+        "exact Neon endpoint/database and expiry checked again before database access; "
+        "no injected AI/cloud or messaging keys. Mandatory coverage, assertions, skips, "
+        "source and candidate digest gates remain unchanged.\n\n"
+        "**Human boundary:** successful gates automatically dispatch the built-in lab promotion; "
+        "the protected course-isolated-lab job waits for native human approval. "
+        "This code never approves. The GitHub helper permits only the scoped promotion dispatch "
+        "as a write, not settings or deployment-review writes. Workflow tokens cannot merge main.\n\n"
+        "**Documented/account checks:** account-wide artifact allowance needs the dispatch confirmation; "
+        "repository limits cannot prove another repository has not consumed it. No paid use is authorized. "
+        "No new secret, OAuth, settings, branch or main merge is part of this workflow. "
+        "Postman Agent Mode and browser Copilot author/review are separately started manual sessions, "
+        "not unattended CI model calls. Their credits and consent are not read or reset here; stop "
+        "those sessions on quota/auth failures, never substitute a fake agent result. "
+        "The lab API stops after smoke checks; staging and production are DRY RUN ONLY. "
+        "The read-only board uses anonymous reads and 10-minute visible-page refresh; public REST "
+        "quota is shared per IP. No promise of unlimited storage, AI, real-time updates or permanent hosting."
     )
 
 
