@@ -53,9 +53,9 @@ def identity():
     return command(["git", "rev-parse", "HEAD"]).stdout.strip()
 
 
-def summary(text):
+def summary(text, *, publish=False):
     print(text)
-    if path := os.environ.get("GITHUB_STEP_SUMMARY"):
+    if publish and (path := os.environ.get("GITHUB_STEP_SUMMARY")):
         with open(path, "a") as f:
             f.write(text + "\n")
 
@@ -689,69 +689,161 @@ def stage_summary():
     payload = github(f"repos/{REPO}/actions/runs/{run_id}/jobs?per_page=100")
     require(payload["total_count"] <= 100, "Incomplete job data cannot form a summary")
     jobs = payload["jobs"]
-    columns = []
-    icons = {
-        "success": "✅",
-        "failure": "❌",
-        "skipped": "⏭",
-        "waiting": "⏳",
-        "in_progress": "⏳",
-        "queued": "⏳",
+    labels = {
+        "success": "PASS",
+        "failure": "FAIL",
+        "skipped": "SKIPPED",
+        "cancelled": "CANCELLED",
+        "timed_out": "TIMED OUT",
+        "waiting": "WAITING",
+        "in_progress": "RUNNING",
+        "queued": "QUEUED",
+        "pending": "PENDING",
+        "not_started": "NOT STARTED",
+        "not_reported": "NOT REPORTED",
     }
-    for name in ("Develop", "Build", "Test", "Deploy"):
+    checks = {
+        "Develop": [
+            (
+                "Scope and zero-spend guards",
+                "Verify the automatic launcher and all preflight constraints",
+            ),
+            ("Lint and tooling format", "Lint and strict tooling format checks"),
+            (
+                "Security, dependencies and secrets",
+                "Security, locked-dependency advisories and secret scan",
+            ),
+            ("Python 3.12 controls", "Offline pipeline controls on Python 3.12"),
+            ("Python 3.11 controls", "Offline pipeline controls on Python 3.11"),
+            ("Stage-board controls", "Verify all read-only board controls"),
+        ],
+        "Build": [
+            ("Build candidate and manifest", "Run python postman/ci/pipeline.py build"),
+            ("Retain the candidate", "Run actions/upload-artifact@cf430e0"),
+        ],
+        "Test": [
+            (
+                "Real pytest and Postman",
+                "Prepare, execute and retain real candidate test evidence",
+            ),
+            ("Retain test reports", "Retain reports even when tests fail"),
+            (
+                "Coverage, assertions and source gate",
+                "Gate / mandatory thresholds and source binding",
+            ),
+            (
+                "Staging / production: design only",
+                "Staging and production / dry-run design only",
+            ),
+        ],
+        "Deploy": [
+            (
+                "Approved bytes, lab smoke and shutdown",
+                "Deploy the approved bytes, verify them, then stop the temporary API",
+            ),
+            (
+                "Retain lab release evidence",
+                "Retain the lab release record and smoke evidence",
+            ),
+        ],
+    }
+
+    def state(item):
+        return (
+            item.get("conclusion")
+            if item.get("status") == "completed"
+            else item.get("status")
+        ) or "not_reported"
+
+    def show(value):
+        return html.escape(labels.get(value, "NOT REPORTED"))
+
+    columns = []
+    for name, expected in checks.items():
         found = [j for j in jobs if j["name"] == name]
         require(len(found) <= 1, "Ambiguous native stage")
-        if not found:
-            columns.append("<td>Not started. No job result available.</td>")
-            continue
-        job = found[0]
-        status = (
-            job.get("conclusion") if job["status"] == "completed" else job["status"]
-        )
-        status = status or "unknown"
-        cell = (
-            "<td><strong>"
-            + icons.get(status, "❔")
-            + " "
-            + html.escape(status)
-            + "</strong><ul>"
-        )
-        for step in job.get("steps", []):
-            if step["name"] == "Show actual stage lanes in this GitHub run summary":
-                continue
-            state = (
-                step.get("conclusion")
-                if step["status"] == "completed"
-                else step["status"]
+        job = found[0] if found else None
+        status = state(job) if job else "not_started"
+        cell = "<td><strong>" + show(status) + "</strong><ul>"
+        if name == "Deploy":
+            approval = (
+                "success"
+                if job
+                and any(
+                    step["name"] == "Set up job"
+                    and step.get("conclusion") == "success"
+                    for step in job.get("steps", [])
+                )
+                else "not_started"
             )
-            state = state or "unknown"
+            cell += "<li>Human approval: " + show(approval) + "</li>"
+        for label, exact in expected:
+            matches = [
+                step for step in (job or {}).get("steps", []) if step["name"] == exact
+            ]
+            require(len(matches) <= 1, "Ambiguous native check")
+            value = (
+                state(matches[0])
+                if matches
+                else (
+                    "not_started"
+                    if not job or job.get("status") != "completed"
+                    else "not_reported"
+                )
+            )
             cell += (
                 "<li>"
-                + icons.get(state, "❔")
-                + " "
-                + html.escape(step["name"])
-                + "<br><sub>"
-                + html.escape(state)
-                + "</sub></li>"
+                + html.escape(label)
+                + ": <strong>"
+                + show(value)
+                + "</strong></li>"
             )
         columns.append(cell + "</ul></td>")
-    content = (
-        "## Four real stages\n\nSnapshot at " + datetime.now(UTC).isoformat() + ". "
+    release_path = OUT / "release.json"
+    release = json.loads(release_path.read_text()) if release_path.exists() else None
+    product = "## CareX API candidate\n\n"
+    if release:
+        require(release["commit"] == identity(), "Product summary source mismatch")
+        product += (
+            "Built archive: `candidate.tar` ("
+            + str(release.get("bytes", "unknown"))
+            + " bytes). Candidate `"
+            + html.escape(release["sha256"][:12])
+            + "`. "
+        )
+    else:
+        product += "No source-bound candidate manifest available. "
+    product += (
+        "Source `"
+        + identity()[:12]
+        + "`. Isolated synthetic lab only, no persistent service or production release.\n\n"
     )
-    content += "The current job may still be finishing. The live four-job graph above is authoritative; this table is a retained snapshot, not a live dashboard.\n\n"
+    gate_path = OUT / "gate.json"
+    if gate_path.exists():
+        gate = json.loads(gate_path.read_text())
+        require(gate["commit"] == identity(), "Product gate source mismatch")
+        if gate.get("pytestTests") is not None:
+            product += (
+                str(gate["pytestTests"])
+                + " pytest tests; application coverage "
+                + str(round(gate["applicationCoveragePercent"], 2))
+                + "%. Real Postman contract smoke is part of the mandatory gate.\n\n"
+            )
+    content = product + "## Stage checks\n\n"
+    content += (
+        "Handoff snapshot at "
+        + datetime.now(UTC).isoformat()
+        + ". The current job may still be finishing; the live four-job graph above is authoritative. This is a retained snapshot, not a live dashboard.\n\n"
+    )
     content += (
         "<table><thead><tr>"
-        + "".join("<th>" + n + "</th>" for n in ("Develop", "Build", "Test", "Deploy"))
+        + "".join("<th>" + n + "</th>" for n in checks)
         + "</tr></thead><tbody><tr>"
         + "".join(columns)
-        + "</tr></tbody></table>\n\n"
+        + "</tr></tbody></table>\n"
     )
-    content += (
-        "Source: `"
-        + identity()
-        + "`. Only the isolated temporary lab is deployable here. Staging and production remain dry-run designs. Native GitHub controls above own review and cancellation."
-    )
-    summary(content)
+    content += "\nNOT STARTED is not PASS. Detailed logs, full digests, constraints and retained reports remain under the actual jobs and artifacts. Staging and production are dry-run designs only."
+    summary(content, publish=True)
 
 
 def validate_promotion():
@@ -812,7 +904,8 @@ def deploy():
             },
         )
     summary(
-        "### Lab deployment verified\nThe approved candidate digest started a real API against the exact isolated Neon branch and passed smoke checks. The temporary API is now stopped. This is not a persistent endpoint, staging deployment or production release.\n\n### Staging / production\nDry-run promotion design only. Separate targets, identities, costs, migration recovery and approval remain required."
+        "### Lab release result: PASS\nApproved candidate passed isolated lab smoke and the temporary API was stopped. This is not a persistent endpoint, staging deployment or production release.",
+        publish=True,
     )
 
 
