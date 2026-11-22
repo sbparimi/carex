@@ -246,3 +246,32 @@ def test_lab_window_requires_exact_source_and_45_minute_headroom():
             {**config, "sourceBranch": "main"},
             datetime(2099, 1, 1, tzinfo=UTC),
         )
+
+
+@pytest.mark.parametrize(
+    "key",
+    [
+        "OPENAI_API_KEY",
+        "ANTHROPIC_API_KEY",
+        "POSTMAN_API_KEY",
+        "RESEND_API_KEY",
+        "SMTP_PASSWORD",
+        "TWILIO_AUTH_TOKEN",
+    ],
+)
+def test_named_credentials_rejected_before_github_reads(monkeypatch, key):
+    monkeypatch.setenv("GITHUB_ACTIONS", "true")
+    monkeypatch.setenv("GITHUB_EVENT_NAME", "workflow_dispatch")
+    monkeypatch.setenv("FREE_STORAGE_CONFIRMED", "true")
+    monkeypatch.setattr(p, "validate_lab_window", lambda _: None)
+    monkeypatch.setenv(key, "unit-fixture-no-live-secret")
+    with pytest.raises(ValueError, match="credential present"):
+        p.preflight()
+
+
+def test_non_dispatch_event_rejected_before_lab_or_network_reads(monkeypatch):
+    monkeypatch.setenv("GITHUB_ACTIONS", "true")
+    monkeypatch.setenv("GITHUB_EVENT_NAME", "push")
+    monkeypatch.setenv("FREE_STORAGE_CONFIRMED", "true")
+    with pytest.raises(ValueError, match="Manual dispatch"):
+        p.preflight()
