@@ -40,3 +40,12 @@ test('no latest match is not fabricated',()=>assert.throws(()=>c.latestParent([c
 test('latest rejects wrong repository',()=>assert.throws(()=>c.latestParent([{...parent(),created_at:'2026-11-22T12:00:00Z',repository:{full_name:'wrong/repo'}}])));
 test('latest rejects invalid time',()=>assert.throws(()=>c.latestParent([{...parent(),created_at:'bad'}])));
 test('latest rejects tied timestamps',()=>assert.throws(()=>c.latestParent([{...parent(),created_at:'2026-11-22T12:00:00Z'},{...parent(),id:125,created_at:'2026-11-22T12:00:00Z'}])));
+
+for(const [i,name] of ['Develop','Build','Test','Deploy'].entries())test('native stage name '+name,()=>assert.equal(c.classify(name,false),i));
+test('same-run deployment retains actual success',()=>assert.equal(c.stageState(3,[job('success','Deploy')],null,[]),'success'));
+test('same-run deployment waiting stays waiting',()=>assert.equal(c.stageState(3,[{name:'Deploy',status:'waiting'}],null,[]),'waiting'));
+test('same-run skipped deployment is never green',()=>assert.equal(c.stageState(3,[job('skipped','Deploy')],null,[]),'skipped'));
+test('same-run Test requires real passed gate step',()=>assert.equal(c.stageState(2,[{...job('success','Test'),steps:[job('success','Gate / mandatory thresholds and source binding')]}],null,[]),'success'));
+test('same-run missing gate proof is incomplete',()=>assert.equal(c.stageState(2,[job('success','Test')],null,[]),'incomplete'));
+test('new execution accepts only builtin initiator',()=>{const p={...parent(),path:'.github/workflows/dispatch.yml',actor:{login:'github-actions[bot]'}};assert.equal(c.validateParent(p).id,123);assert.throws(()=>c.validateParent({...p,actor:{login:'fixture-owner'}}));});
+test('latest ignores the separate launch stub',()=>{const p={...parent(),path:'.github/workflows/dispatch.yml',actor:{login:'github-actions[bot]'},created_at:'2026-11-22T13:00:00Z'};assert.equal(c.latestParent([{...p,id:122,display_title:'launch / source run 122 / health 200',created_at:'2026-11-22T13:01:00Z'},p]).id,123);});
