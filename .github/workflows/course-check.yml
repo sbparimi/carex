@@ -1,0 +1,54 @@
+name: Reusable course development check
+on:
+  workflow_call:
+    inputs:
+      check:
+        type: string
+        required: true
+      python:
+        type: string
+        default: '3.12'
+permissions:
+  contents: read
+jobs:
+  check:
+    name: ${{ inputs.check }} / Python ${{ inputs.python }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
+        with:
+          python-version: ${{ inputs.python }}
+          cache: pip
+          cache-dependency-path: postman/ci/requirements-ci.lock
+      - name: Install hash-locked check tools
+        run: python -m pip install --require-hashes -r postman/ci/requirements-ci.lock
+      - name: Verify pinned secret scanner before using it
+        if: inputs.check == 'security'
+        env:
+          ARCHIVE_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+        run: |
+          curl --fail --location --retry 2 --output "$RUNNER_TEMP/gitleaks.tar.gz" https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz
+          printf '%s  %s\n' "$ARCHIVE_SHA256" "$RUNNER_TEMP/gitleaks.tar.gz" | sha256sum --check
+          tar -xzf "$RUNNER_TEMP/gitleaks.tar.gz" -C "$RUNNER_TEMP" gitleaks
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+      - name: Execute strict checks or offline control tests
+        env:
+          CHECK: ${{ inputs.check }}
+        run: |
+          case "$CHECK" in
+            lint|security) python postman/ci/quality.py "$CHECK" ;;
+            controls) python -m pytest postman/ci/test_pipeline.py -q ;;
+            *) echo '::error::Unknown mandatory check'; exit 1 ;;
+          esac
+      - name: Retain development evidence, including failure reports
+        if: always() && inputs.check != 'controls'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: course-develop-${{ inputs.check }}-${{ github.run_id }}
+          path: course-ci-output/develop/
+          if-no-files-found: error
+          retention-days: 1
