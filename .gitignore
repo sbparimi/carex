@@ -11,3 +11,5 @@ __pycache__/
 *.log
 .DS_Store
 _to_delete/
+# Generated course-only CI evidence and review candidates
+course-ci-output/
