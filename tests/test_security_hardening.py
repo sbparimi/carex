@@ -18,6 +18,9 @@ def test_required_audit_write_failure_is_not_silently_swallowed():
 
 
 class ErasureDb:
+    # Match the real PostgreSQL Conn interface; keep the row-lock behavior in production.
+    for_update = " FOR UPDATE"
+
     def __init__(self):
         self.calls = []
         self.status = "active"
