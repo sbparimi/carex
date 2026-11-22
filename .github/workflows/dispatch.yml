@@ -1,7 +1,7 @@
-# Course branch only. No reminder dispatch or production credentials. Main is unchanged.
+# Course branch only. Main production reminders remain unchanged.
 name: CareX staged course pipeline
-run-name: pipeline / source run ${{ github.run_id }} / launch ${{ inputs.launcher_run_id }} / health ${{ inputs.expected_health_status
-  }} / ${{ github.ref_name }}
+run-name: pipeline / source run ${{ github.run_id }} / launch ${{ inputs.launcher_run_id }} / health ${{
+  inputs.expected_health_status }} / ${{ github.ref_name }}
 'on':
   workflow_dispatch:
     inputs:
@@ -14,11 +14,13 @@ run-name: pipeline / source run ${{ github.run_id }} / launch ${{ inputs.launche
         default: '200'
         required: true
       free_storage_confirmed:
-        description: Account-wide included artifact allowance checked before this run; no paid storage authorized
+        description: Account-wide included artifact allowance checked before this run; no paid storage
+          authorized
         type: boolean
         default: false
       launcher_run_id:
-        description: Set automatically by Start CareX staged course pipeline; direct human starts fail closed
+        description: Set automatically by Start CareX staged course pipeline; direct human starts fail
+          closed
         type: string
         required: true
 permissions:
@@ -100,8 +102,8 @@ jobs:
       id: node
       if: '!cancelled() && steps.scope.outcome == ''success'' && steps.tools.outcome == ''success'''
     - name: Verify all read-only board controls
-      if: '!cancelled() && steps.scope.outcome == ''success'' && steps.tools.outcome == ''success'' && steps.node.outcome
-        == ''success'''
+      if: '!cancelled() && steps.scope.outcome == ''success'' && steps.tools.outcome == ''success'' &&
+        steps.node.outcome == ''success'''
       run: node --test postman/ci/test-viewer.cjs
     - name: Retain development evidence, including failure reports
       if: always()
@@ -111,11 +113,6 @@ jobs:
         path: course-ci-output/develop/
         if-no-files-found: error
         retention-days: 1
-    - name: Show actual stage lanes in this GitHub run summary
-      if: always()
-      env:
-        GH_TOKEN: ${{ github.token }}
-      run: python postman/ci/pipeline.py stage-summary
   build:
     name: Build
     needs: develop
@@ -138,11 +135,6 @@ jobs:
           '
         if-no-files-found: error
         retention-days: 1
-    - name: Show actual stage lanes in this GitHub run summary
-      if: always()
-      env:
-        GH_TOKEN: ${{ github.token }}
-      run: python postman/ci/pipeline.py stage-summary
     permissions:
       contents: read
       actions: read
@@ -198,10 +190,8 @@ jobs:
         if-no-files-found: error
         retention-days: 1
     - name: Staging and production / dry-run design only
-      run: 'echo ''## Staging and production: DRY RUN ONLY'' >> "$GITHUB_STEP_SUMMARY"
-
-        echo ''Same candidate digest; separate targets, identities, costs, migration recovery and approval are required.
-        No target access or deployment occurs.'' >> "$GITHUB_STEP_SUMMARY"'
+      run: 'echo ''DRY RUN ONLY: same candidate digest; separate targets, identities, costs, migration
+        recovery and approval required. No target access or deployment occurs.'''
     - name: Show actual stage lanes in this GitHub run summary
       if: always()
       env:
@@ -264,8 +254,3 @@ jobs:
         path: course-ci-output/deployment/
         if-no-files-found: error
         retention-days: 1
-    - name: Show actual stage lanes in this GitHub run summary
-      if: always()
-      env:
-        GH_TOKEN: ${{ github.token }}
-      run: python postman/ci/pipeline.py stage-summary
