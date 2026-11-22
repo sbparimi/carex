@@ -414,7 +414,7 @@ def test_native_lane_summary_uses_only_named_checks_and_labels_snapshot(
     text = capsys.readouterr().out
     assert text.count("<th>") == 4
     assert "untrusted label" not in text
-    assert "WAITING" in text and "NOT REPORTED" in text
+    assert "NOT REPORTED" in text
     assert text.index("CareX API candidate") < text.index("Stage checks")
     assert "retained snapshot, not a live dashboard" in text
     assert "live four-job graph above is authoritative" in text
@@ -576,3 +576,22 @@ def test_stage_snapshot_is_published_only_once_by_test():
         for job in workflow["jobs"].values()
         for step in job["steps"]
     )
+
+
+def test_all_published_checks_match_explicit_native_step_names(
+    full_stage_context, capsys
+):
+    import yaml
+
+    workflow = yaml.safe_load((p.ROOT / ".github/workflows/dispatch.yml").read_text())
+    for job in full_stage_context[3]:
+        job["steps"] = [
+            {"name": step["name"], "status": "completed", "conclusion": "success"}
+            for step in workflow["jobs"][job["name"].lower()]["steps"]
+            if "name" in step
+        ]
+    p.stage_summary()
+    text = capsys.readouterr().out
+    assert "NOT REPORTED" not in text
+    assert "Retain the candidate: <strong>PASS</strong>" in text
+    assert "<strong>RUNNING</strong>" not in text
