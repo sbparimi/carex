@@ -1,297 +1,43 @@
-# Only the approved course branch. No pushes, PR triggers, main merge or external deploy.
-name: CareX staged course pipeline
-run-name: ${{ inputs.mode }} / source run ${{ inputs.candidate_run_id || github.run_id }} / health ${{ inputs.expected_health_status }} / ${{ github.ref_name }}
-on:
+# Course branch only. Main, settings, secrets and production dispatch are unchanged.
+name: Start CareX staged course pipeline
+run-name: launch / source run ${{ github.run_id }} / health ${{ inputs.expected_health_status }} / ${{ github.ref_name
+  }}
+'on':
   workflow_dispatch:
     inputs:
-      mode:
-        description: 'pipeline builds/tests; promote-lab is dispatched only by the built-in Actions identity'
-        type: choice
-        options: [pipeline, promote-lab]
-        default: pipeline
-        required: true
       expected_health_status:
-        description: '200 passes; 201 demonstrates a blocked mandatory Postman assertion'
+        description: 200 passes; 201 demonstrates a blocked mandatory Postman assertion
         type: choice
-        options: ['200', '201']
+        options:
+        - '200'
+        - '201'
         default: '200'
         required: true
       free_storage_confirmed:
-        description: 'Account-wide included artifact allowance checked before this run; no paid storage authorized'
+        description: Account-wide included artifact allowance checked before this run; no paid storage authorized
         type: boolean
         default: false
-      request_lab_deploy:
-        description: 'After successful gates, request native human approval for a separate lab promotion run'
-        type: boolean
-        default: true
-      candidate_run_id:
-        description: 'Successful parent run, supplied by the built-in promotion dispatcher only'
-        type: string
-        default: ''
 permissions:
   contents: read
 concurrency:
   group: carex-isolated-course-lab
   cancel-in-progress: false
 jobs:
-  dispatch_scope:
-    name: Validate / approved repository, branch and mode
+  launch:
+    name: Start the four-stage run
     runs-on: ubuntu-latest
-    timeout-minutes: 2
-    steps:
-      - name: Reject any dispatch outside the approved course scope
-        env:
-          MODE: ${{ inputs.mode }}
-        run: |
-          test "$GITHUB_REPOSITORY" = 'sbparimi/carex'
-          test "$GITHUB_REF" = 'refs/heads/course/agentic-sdlc-api-automation'
-          case "$MODE" in
-            pipeline) ;;
-            promote-lab) test "$GITHUB_ACTOR" = 'github-actions[bot]' ;;
-            *) echo '::error::Unknown dispatch mode'; exit 1 ;;
-          esac
-  preflight:
-    name: Preflight / scope and zero-spend envelope
-    needs: dispatch_scope
-    if: inputs.mode == 'pipeline' && github.ref == 'refs/heads/course/agentic-sdlc-api-automation'
-    runs-on: ubuntu-latest
-    timeout-minutes: 3
-    permissions:
-      contents: read
-      actions: read
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          persist-credentials: false
-          fetch-depth: 0
-      - name: Validate scope and bounded artifact budget
-        env:
-          GH_TOKEN: ${{ github.token }}
-          FREE_STORAGE_CONFIRMED: ${{ inputs.free_storage_confirmed }}
-        run: python postman/ci/pipeline.py preflight
-  develop:
-    name: Develop / ${{ matrix.check }} / ${{ matrix.python }}
-    needs: preflight
-    strategy:
-      fail-fast: false
-      max-parallel: 2
-      matrix:
-        include:
-          - {check: lint, python: '3.12'}
-          - {check: security, python: '3.12'}
-          - {check: controls, python: '3.11'}
-          - {check: controls, python: '3.12'}
-    uses: ./.github/workflows/course-check.yml
-    with:
-      check: ${{ matrix.check }}
-      python: ${{ matrix.python }}
-  build:
-    name: Build / one immutable candidate
-    needs: develop
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          persist-credentials: false
-      - run: python postman/ci/pipeline.py build
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
-        with:
-          name: course-candidate-${{ github.run_id }}
-          path: |
-            course-ci-output/candidate.tar
-            course-ci-output/release.json
-            course-ci-output/dependency-inventory.json
-          if-no-files-found: error
-          retention-days: 1
-  test:
-    name: Test / prepare data, regression, Postman and analysis
-    needs: build
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          persist-credentials: false
-      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
-        with:
-          python-version: '3.12'
-          cache: pip
-          cache-dependency-path: postman/ci/requirements-test.lock
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
-        with:
-          node-version: '24'
-          package-manager-cache: false
-      - name: Verify read-only board status, link and source-binding controls
-        run: node --test postman/ci/test-viewer.cjs
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
-        with:
-          name: course-candidate-${{ github.run_id }}
-          path: course-ci-output
-      - name: Install hash-locked Python dependencies and pinned Postman CLI
-        run: |
-          python -m pip install --require-hashes -r postman/ci/requirements-test.lock
-          npm install --ignore-scripts --no-audit --no-fund --prefix "$RUNNER_TEMP/postman-cli" postman-cli@1.93.0
-          test "$("$RUNNER_TEMP/postman-cli/node_modules/.bin/postman" --version)" = '1.93.0'
-          echo "POSTMAN_CLI=$RUNNER_TEMP/postman-cli/node_modules/.bin/postman" >> "$GITHUB_ENV"
-      - name: Prepare, execute and retain real candidate test evidence
-        env:
-          DATABASE_URL: ${{ secrets.COURSE_CI_NEON_DATABASE_URL }}
-          EXPECTED_HEALTH_STATUS: ${{ inputs.expected_health_status }}
-        run: python postman/ci/pipeline.py test
-      - name: Retain reports even when tests fail
-        if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
-        with:
-          name: course-tests-${{ github.run_id }}
-          path: course-ci-output/test/
-          if-no-files-found: error
-          retention-days: 1
-  gate:
-    name: Gate / mandatory thresholds and source binding
-    needs: test
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          persist-credentials: false
-          fetch-depth: 0
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
-        with:
-          name: course-candidate-${{ github.run_id }}
-          path: course-ci-output
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
-        with:
-          name: course-tests-${{ github.run_id }}
-          path: course-ci-output/test
-      - run: python postman/ci/pipeline.py gate
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
-        with:
-          name: course-gate-${{ github.run_id }}
-          path: course-ci-output/gate.json
-          if-no-files-found: error
-          retention-days: 1
-  promotion_plan:
-    name: DRY RUN ONLY / ${{ matrix.target }} promotion design
-    needs: gate
-    runs-on: ubuntu-latest
-    timeout-minutes: 3
-    strategy:
-      matrix:
-        target: [staging, production]
-    steps:
-      - name: Show the promotion contract without deploying or accessing a target
-        env:
-          TARGET: ${{ matrix.target }}
-        run: |
-          echo "## $TARGET: dry-run design only" >> "$GITHUB_STEP_SUMMARY"
-          echo 'Same candidate digest; separate environment configuration; prepare synthetic validation data where permitted; environment-specific tests; threshold gate; human approval; reviewed migration/recovery; health checks; release record.' >> "$GITHUB_STEP_SUMMARY"
-          echo 'No target account, credentials, infrastructure, environment setting or deployment was used. Persistent targets and their costs require separate approval.' >> "$GITHUB_STEP_SUMMARY"
-          echo '::notice::Design only. No staging or production deployment occurred.'
-  request_approval:
-    name: Request / native human approval for lab promotion
-    needs: [gate, promotion_plan]
-    if: inputs.request_lab_deploy
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 4
     permissions:
       contents: read
       actions: write
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          persist-credentials: false
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
-        with:
-          name: course-gate-${{ github.run_id }}
-          path: course-ci-output
-      - name: Dispatch once with the built-in Actions identity, never approve
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: python postman/ci/pipeline.py dispatch
-  verify_promotion:
-    name: Approval prerequisites / original candidate and passed parent
-    needs: dispatch_scope
-    if: inputs.mode == 'promote-lab' && github.ref == 'refs/heads/course/agentic-sdlc-api-automation'
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    permissions:
-      contents: read
-      actions: read
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          persist-credentials: false
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
-        with:
-          name: course-candidate-${{ inputs.candidate_run_id }}
-          run-id: ${{ inputs.candidate_run_id }}
-          github-token: ${{ github.token }}
-          path: course-ci-output
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
-        with:
-          name: course-gate-${{ inputs.candidate_run_id }}
-          run-id: ${{ inputs.candidate_run_id }}
-          github-token: ${{ github.token }}
-          path: course-ci-output
-      - name: Reject direct human dispatch, wrong source or failed parent
-        env:
-          GH_TOKEN: ${{ github.token }}
-          CANDIDATE_RUN_ID: ${{ inputs.candidate_run_id }}
-        run: python postman/ci/pipeline.py validate-promotion
-  deploy_lab:
-    name: APPROVAL REQUIRED / deploy and verify isolated lab
-    needs: verify_promotion
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    environment:
-      name: course-isolated-lab
-    permissions:
-      contents: read
-      actions: read
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          persist-credentials: false
-      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
-        with:
-          python-version: '3.12'
-          cache: pip
-          cache-dependency-path: postman/ci/requirements-test.lock
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
-        with:
-          node-version: '24'
-          package-manager-cache: false
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
-        with:
-          name: course-candidate-${{ inputs.candidate_run_id }}
-          run-id: ${{ inputs.candidate_run_id }}
-          github-token: ${{ github.token }}
-          path: course-ci-output
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
-        with:
-          name: course-gate-${{ inputs.candidate_run_id }}
-          run-id: ${{ inputs.candidate_run_id }}
-          github-token: ${{ github.token }}
-          path: course-ci-output
-      - name: Install identical hash-locked dependencies and pinned Postman CLI
-        run: |
-          python -m pip install --require-hashes -r postman/ci/requirements-test.lock
-          npm install --ignore-scripts --no-audit --no-fund --prefix "$RUNNER_TEMP/postman-cli" postman-cli@1.93.0
-          echo "POSTMAN_CLI=$RUNNER_TEMP/postman-cli/node_modules/.bin/postman" >> "$GITHUB_ENV"
-      - name: Deploy the approved bytes, verify them, then stop the temporary API
-        env:
-          GH_TOKEN: ${{ github.token }}
-          CANDIDATE_RUN_ID: ${{ inputs.candidate_run_id }}
-          DATABASE_URL: ${{ secrets.COURSE_CI_NEON_DATABASE_URL }}
-          EXPECTED_HEALTH_STATUS: '200'
-        run: python postman/ci/pipeline.py deploy
-      - name: Retain the lab release record and smoke evidence
-        if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
-        with:
-          name: course-lab-deployment-${{ github.run_id }}
-          path: course-ci-output/deployment/
-          if-no-files-found: error
-          retention-days: 1
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      with:
+        persist-credentials: false
+        fetch-depth: 0
+    - name: Validate the zero-spend scope and start one bot-owned stage run
+      env:
+        GH_TOKEN: ${{ github.token }}
+        FREE_STORAGE_CONFIRMED: ${{ inputs.free_storage_confirmed }}
+        EXPECTED_HEALTH_STATUS: ${{ inputs.expected_health_status }}
+      run: python postman/ci/pipeline.py launch
